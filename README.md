@@ -141,7 +141,7 @@ docker login   # or: docker login ghcr.io -u USER -p PAT
 ./scripts/release.sh
 ```
 
-Note the image name the script prints (e.g. `your-username/listy:0.2.0`) for step 4.
+Note the image name the script prints (e.g. `your-username/listy:0.3.0`) for step 4.
 
 **2. Launch EC2** – Amazon Linux 2 or Ubuntu (e.g. t2.micro). Note key pair for SSH.
 
@@ -180,8 +180,8 @@ Create a `.env` file so the values survive reboots and new SSH sessions (Docker 
 
 ```bash
 mkdir -p ~/listy && cd ~/listy
-curl -sSL -o docker-compose.yml https://raw.githubusercontent.com/YOUR_ORG/listy/main/docker-compose.prod.yml
-echo 'LISTY_IMAGE=your-username/listy:0.2.0' > .env   # from step 1 output
+curl -sSL -o docker-compose.yml https://raw.githubusercontent.com/Nom1fan/listy/main/docker-compose.prod.yml
+echo 'LISTY_IMAGE=your-username/listy:0.3.0' > .env   # from step 1 output
 echo 'JWT_SECRET=your-256-bit-secret' >> .env
 docker compose up -d
 ```
@@ -190,7 +190,13 @@ After a reboot, run `docker compose up -d` again in `~/listy`; the same `.env` i
 
 Open `http://<instance-ip>:8080`.
 
-**5. Open port 8080** in the instance security group (and 443 if using nginx).
+**5. Viewing logs (EC2)** – From `~/listy` on the instance:
+- **Stream stdout:** `docker compose logs -f app` (all output; use Ctrl+C to stop).
+- **Tail the log file:** `docker compose exec app tail -f /app/logs/spring.log` (same content, written to a file inside the container).
+
+**6. Open port 8080** in the security group **attached to your instance** (EC2 → Instances → select instance → Security tab → open the group → Inbound rules → Edit → Add rule: Custom TCP, port 8080, Source `0.0.0.0/0`). Add port 443 if you put nginx in front for HTTPS.
+
+**Firewall notes:** WebSockets use the same port (8080) as the app, so no extra rule. SMS (Twilio) is outbound-only (backend calls Twilio’s API); no inbound rule needed, and default outbound allows it.
 
 **Alternative (clone and build on EC2):** After step 3, clone the repo on the instance and run `docker compose up -d` there (no pre-built image).
 
