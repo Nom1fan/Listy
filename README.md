@@ -200,6 +200,26 @@ Open `http://<instance-ip>:8080`.
 
 **Alternative (clone and build on EC2):** After step 3, clone the repo on the instance and run `docker compose up -d` there (no pre-built image).
 
+**Import your data into EC2** – To load your existing lists, users, and categories from your local DB:
+
+1. **On your Mac** (from repo root): export the DB if you don’t already have a recent `db/listy-db.sql`:
+   ```bash
+   ./scripts/export-db.sh
+   ```
+   Copy the dump to the instance:
+   ```bash
+   scp -i your-key.pem db/listy-db.sql ec2-user@<instance-ip>:~/listy/listy-db.sql
+   ```
+
+2. **On the EC2 instance:** download the import script and run it (from `~/listy`):
+   ```bash
+   cd ~/listy
+   curl -sSL -o import-db-ec2.sh https://raw.githubusercontent.com/Nom1fan/Listy/main/scripts/import-db-ec2.sh
+   chmod +x import-db-ec2.sh
+   ./import-db-ec2.sh ./listy-db.sql
+   ```
+   The script stops the app, replaces the database with your dump, then starts the app again.
+
 ## Android build
 
 1. **Frontend** – Build and sync:
