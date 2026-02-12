@@ -24,6 +24,7 @@ Hebrew-first (RTL) management list app with categories, product bank, list shari
    ```bash
    createdb listy
    ```
+   **Or restore from a backup:** if the repo has `db/listy-db.sql` (exported from another machine), run `./scripts/import-db.sh` instead. It recreates the `listy` DB and loads the dump.
 2. **Config** – In `demo/`, ensure `src/main/resources/application.properties` points to your DB (default: `localhost:5432/listy`, user/pass `postgres`).
 3. **Run** (from repo root or any directory):
    ```bash
@@ -41,6 +42,49 @@ Hebrew-first (RTL) management list app with categories, product bank, list shari
    cd frontend && npm install && npm run dev
    ```
 2. Open http://localhost:5173 (Vite proxies `/api` and `/ws` to the backend).
+
+### Try on your phone (same WiFi)
+
+You don’t need to open any port on your router. On your Mac:
+
+1. **Get your Mac’s IP** – When you run `npm run dev`, Vite will print something like `Local: http://192.168.x.x:5173`. Use that IP (or run `ipconfig getifaddr en0` in a terminal).
+2. **Allow that origin in the backend** – In the same terminal where you’ll run the backend:
+   ```bash
+   export CORS_ORIGINS="http://localhost:5173,http://localhost:3000,http://192.168.x.x:5173"
+   ```
+   Replace `192.168.x.x` with the IP from step 1.
+3. **Start backend and frontend** (backend already binds to all interfaces with the `local` profile; Vite is configured to listen on all interfaces).
+4. **On your phone** – Connect to the same WiFi, then open in the browser: `http://192.168.x.x:5173`.
+
+**If you get “site cannot be reached” on the phone:**
+
+- **Restart the frontend** – Stop `npm run dev` (Ctrl+C) and start it again so Vite picks up `host: true` and listens on the network. You should see both a “Local” and a “Network” URL in the terminal.
+- **macOS Firewall** – If your Mac’s firewall is on, it may block incoming connections to Node. Either:
+  - **System Settings → Network → Firewall** – Turn it off temporarily to test, or  
+  - **Firewall Options** – Add “Node” (or your terminal app) and set it to “Allow incoming connections”.
+- **Same WiFi** – Phone must be on the same Wi‑Fi as the Mac (not mobile data).
+- **Use the Network URL** – In the terminal where Vite is running, use the **Network:** URL it prints (e.g. `http://192.168.1.5:5173`), not the Local one.
+
+To see your IP and the exact URL/CORS to use, run from the repo root:
+- **macOS:** `./scripts/mobile-url.sh`
+- **Windows:** run `ipconfig` and use the **IPv4 Address** of your Wi‑Fi adapter (e.g. `192.168.1.10`); then use `http://that-IP:5173` on your phone and add `http://that-IP:5173` to `CORS_ORIGINS` when starting the backend.
+
+### Database backup and restore (move data to another machine)
+
+To take your current DB (lists, users, categories, etc.) to another machine without recreating everything:
+
+1. **On this machine (export):** From repo root run:
+   ```bash
+   ./scripts/export-db.sh
+   ```
+   This writes a full dump to `db/listy-db.sql`. Commit and push that file.
+2. **On the other machine (import):** After cloning and installing PostgreSQL, run:
+   ```bash
+   ./scripts/import-db.sh
+   ```
+   This drops and recreates the `listy` database and loads the dump. Then start the backend as usual.
+
+See `db/README.md` for Windows (pg_dump/psql) and one-liners.
 
 ## Docker (single server / EC2)
 

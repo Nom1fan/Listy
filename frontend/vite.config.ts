@@ -14,6 +14,7 @@ export default defineConfig({
     global: 'globalThis',
   },
   server: {
+    host: true, // listen on 0.0.0.0 so you can open the app from your phone on the same WiFi
     proxy: {
       // Use 127.0.0.1 to avoid IPv6 localhost vs IPv4 backend mismatch (connection refused on macOS)
       '/api': { target: 'http://127.0.0.1:8080', changeOrigin: true },

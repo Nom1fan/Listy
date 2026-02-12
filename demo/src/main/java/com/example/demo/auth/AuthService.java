@@ -56,7 +56,7 @@ public class AuthService {
 
     @Transactional
     public void requestPhoneOtp(PhoneRequestOtpRequest req) {
-        String phone = normalizePhone(req.getPhone());
+        String phone = PhoneNormalizer.normalize(req.getPhone());
         Instant oneHourAgo = Instant.now().minusSeconds(3600);
         long count = otpRequestLogRepository.countByPhoneSince(phone, oneHourAgo);
         if (count >= rateLimitPerPhonePerHour) {
@@ -75,7 +75,7 @@ public class AuthService {
 
     @Transactional
     public AuthResponse verifyPhoneOtp(PhoneVerifyRequest req) {
-        String phone = normalizePhone(req.getPhone());
+        String phone = PhoneNormalizer.normalize(req.getPhone());
         Optional<PhoneOtp> opt = phoneOtpRepository.findById(phone);
         if (opt.isEmpty() || !opt.get().getCode().equals(req.getCode())) {
             throw new IllegalArgumentException("Invalid or expired code");
@@ -110,10 +110,6 @@ public class AuthService {
         user = userRepository.save(user);
         String token = jwtService.generateToken(user);
         return toAuthResponse(user, token);
-    }
-
-    private static String normalizePhone(String phone) {
-        return phone != null ? phone.trim() : "";
     }
 
     private static AuthResponse toAuthResponse(User user, String token) {
