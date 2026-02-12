@@ -44,7 +44,8 @@ public class SharingService {
         if (req.getEmail() != null && !req.getEmail().isBlank()) {
             invitee = userRepository.findByEmail(req.getEmail().trim()).orElseThrow(() -> new IllegalArgumentException("User not found with this email"));
         } else if (req.getPhone() != null && !req.getPhone().isBlank()) {
-            invitee = userRepository.findByPhone(req.getPhone().trim()).orElseThrow(() -> new IllegalArgumentException("User not found with this phone number"));
+            String normalized = com.example.demo.auth.PhoneNormalizer.normalize(req.getPhone());
+            invitee = userRepository.findByPhone(normalized).orElseThrow(() -> new IllegalArgumentException("User not found with this phone number"));
         }
         if (invitee == null) throw new IllegalArgumentException("Provide email or phone");
         if (invitee.getId().equals(user.getId())) throw new IllegalArgumentException("Cannot invite yourself");
