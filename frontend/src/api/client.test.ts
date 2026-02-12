@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { api, getWsUrl, uploadFile } from './client'
+import { api, getWsUrl } from './client'
 
 describe('api', () => {
   const originalFetch = globalThis.fetch
