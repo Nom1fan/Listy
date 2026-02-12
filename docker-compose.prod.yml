@@ -13,6 +13,7 @@ services:
       LISTY_JWT_SECRET: ${JWT_SECRET}
       LISTY_UPLOAD_DIR: /app/uploads
       LISTY_CORS_ALLOWED_ORIGINS: "*"
+      LOGGING_FILE_NAME: /app/logs/spring.log
     volumes:
       - uploads:/app/uploads
     depends_on:
