@@ -1,0 +1,39 @@
+# -----------------------------------------------------------------------------
+# Listy – root .gitignore (demo/, frontend/, frontend/android/ have their own)
+# -----------------------------------------------------------------------------
+
+# Logs (root-level backend/frontend logs)
+*.log
+backend.log
+logs/
+
+# OS
+.DS_Store
+.DS_Store?
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Environment and secrets (e.g. docker-compose .env)
+.env
+.env.*
+!.env.example
+
+# IDE / editor (project-specific IDE config lives in subprojects)
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temporary and backup
+*.tmp
+*.temp
+*.bak
+*.backup
+.cache/
+
+# Optional: uncomment if you don't want to track Cursor project skills
+# .cursor/

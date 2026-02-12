@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Listy</string>
+    <string name="title_activity_main">Listy</string>
+    <string name="package_name">com.listy.app</string>
+    <string name="custom_url_scheme">com.listy.app</string>
+</resources>

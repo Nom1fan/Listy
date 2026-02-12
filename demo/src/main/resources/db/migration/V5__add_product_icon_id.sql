@@ -1,0 +1,1 @@
+ALTER TABLE products ADD COLUMN icon_id VARCHAR(64);
