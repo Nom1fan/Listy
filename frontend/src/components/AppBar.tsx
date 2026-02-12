@@ -3,13 +3,15 @@ import { useSideMenuStore } from '../store/sideMenuStore';
 
 interface AppBarProps {
   title: string;
+  /** Rendered to the right of the title (e.g. list icon) */
+  titleRight?: React.ReactNode;
   backTo?: string;
   right?: React.ReactNode;
   /** Show the right-side accordion menu trigger (default true when right is not provided) */
   showMenuButton?: boolean;
 }
 
-export function AppBar({ title, backTo, right, showMenuButton = true }: AppBarProps) {
+export function AppBar({ title, titleRight, backTo, right, showMenuButton = true }: AppBarProps) {
   const toggleMenu = useSideMenuStore((s) => s.toggle);
 
   return (
@@ -35,12 +37,13 @@ export function AppBar({ title, backTo, right, showMenuButton = true }: AppBarPr
             ☰
           </button>
         )}
-        <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{title}</h1>
         {backTo && (
           <Link to={backTo} style={{ fontSize: 24, lineHeight: 1 }} aria-label="חזרה">
-            ←
+            →
           </Link>
         )}
+        <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{title}</h1>
+        {titleRight}
       </div>
       {right && <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>{right}</div>}
     </header>
