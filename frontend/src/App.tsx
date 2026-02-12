@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useFcmRegistration } from './hooks/useFcmRegistration';
+import { SideMenu } from './components/SideMenu';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { PhoneLogin } from './pages/PhoneLogin';
@@ -21,6 +22,7 @@ export default function App() {
   useFcmRegistration();
   return (
     <BrowserRouter>
+      <SideMenu />
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

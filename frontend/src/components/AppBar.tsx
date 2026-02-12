@@ -1,12 +1,17 @@
 import { Link } from 'react-router-dom';
+import { useSideMenuStore } from '../store/sideMenuStore';
 
 interface AppBarProps {
   title: string;
   backTo?: string;
   right?: React.ReactNode;
+  /** Show the right-side accordion menu trigger (default true when right is not provided) */
+  showMenuButton?: boolean;
 }
 
-export function AppBar({ title, backTo, right }: AppBarProps) {
+export function AppBar({ title, backTo, right, showMenuButton = true }: AppBarProps) {
+  const toggleMenu = useSideMenuStore((s) => s.toggle);
+
   return (
     <header
       style={{
@@ -20,14 +25,24 @@ export function AppBar({ title, backTo, right }: AppBarProps) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {showMenuButton && (
+          <button
+            type="button"
+            onClick={toggleMenu}
+            style={{ padding: 8, background: 'transparent', fontSize: 20, lineHeight: 1 }}
+            aria-label="פתח תפריט"
+          >
+            ☰
+          </button>
+        )}
+        <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{title}</h1>
         {backTo && (
           <Link to={backTo} style={{ fontSize: 24, lineHeight: 1 }} aria-label="חזרה">
             ←
           </Link>
         )}
-        <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{title}</h1>
       </div>
-      {right && <div>{right}</div>}
+      {right && <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>{right}</div>}
     </header>
   );
 }

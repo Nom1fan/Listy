@@ -38,9 +38,6 @@ export function Lists() {
             <Link to="/categories" style={{ background: 'transparent', color: 'inherit', fontSize: 14 }}>
               קטגוריות
             </Link>
-            <Link to="/profile" style={{ background: 'transparent', color: 'inherit', fontSize: 14 }}>
-              פרופיל
-            </Link>
             <button onClick={logout} style={{ background: 'transparent', color: 'inherit', fontSize: 14 }}>
               יציאה
             </button>
