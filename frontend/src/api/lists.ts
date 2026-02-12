@@ -5,10 +5,14 @@ export async function getLists(): Promise<ListResponse[]> {
   return api<ListResponse[]>('/api/lists');
 }
 
-export async function createList(name: string): Promise<ListResponse> {
+export async function createList(body: {
+  name: string;
+  iconId?: string | null;
+  imageUrl?: string | null;
+}): Promise<ListResponse> {
   return api<ListResponse>('/api/lists', {
     method: 'POST',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -16,10 +20,13 @@ export async function getList(listId: string): Promise<ListResponse> {
   return api<ListResponse>(`/api/lists/${listId}`);
 }
 
-export async function updateList(listId: string, name: string): Promise<ListResponse> {
+export async function updateList(
+  listId: string,
+  body: { name?: string; iconId?: string | null; imageUrl?: string | null }
+): Promise<ListResponse> {
   return api<ListResponse>(`/api/lists/${listId}`, {
     method: 'PUT',
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(body),
   });
 }
 

@@ -7,6 +7,7 @@ import {
   addListItem,
   updateListItem,
   removeListItem,
+  updateList,
 } from '../api/lists';
 import { updateProduct } from '../api/products';
 import { uploadFile } from '../api/client';
@@ -43,6 +44,13 @@ export function ListDetail() {
   const [quickAddImageFile, setQuickAddImageFile] = useState<File | null>(null);
   const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
   const quickAddFileInputRef = useRef<HTMLInputElement>(null);
+  const [editListOpen, setEditListOpen] = useState(false);
+  const [editListName, setEditListName] = useState('');
+  const [editListDisplayImageType, setEditListDisplayImageType] = useState<DisplayImageType>('icon');
+  const [editListIconId, setEditListIconId] = useState('');
+  const [editListImageUrl, setEditListImageUrl] = useState('');
+  const editListFileInputRef = useRef<HTMLInputElement>(null);
+  const pendingListImageFileRef = useRef<File | null>(null);
 
   const { data: list } = useQuery({
     queryKey: ['list', listId],
@@ -96,6 +104,26 @@ export function ListDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       closeQuickAddModal();
+    },
+  });
+
+  const updateListMutation = useMutation({
+    mutationFn: async (payload: { name?: string; iconId?: string | null; imageUrl?: string | null }) => {
+      const updated = await updateList(listId!, payload);
+      const file = pendingListImageFileRef.current;
+      pendingListImageFileRef.current = null;
+      if (file && listId) {
+        await uploadFile(`/api/upload/list/${listId}`, file);
+        queryClient.invalidateQueries({ queryKey: ['list', listId] });
+        queryClient.invalidateQueries({ queryKey: ['lists'] });
+        return (await getList(listId)) ?? updated;
+      }
+      return updated;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['list', listId] });
+      queryClient.invalidateQueries({ queryKey: ['lists'] });
+      setEditListOpen(false);
     },
   });
 
@@ -215,18 +243,51 @@ export function ListDetail() {
     }
   }
 
+  function openEditList() {
+    if (!list) return;
+    setEditListName(list.name);
+    setEditListDisplayImageType(list.imageUrl ? 'link' : 'icon');
+    setEditListIconId(list.iconId ?? '');
+    setEditListImageUrl(list.imageUrl ?? '');
+    setEditListOpen(true);
+  }
+
+  function handleEditListSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!listId) return;
+    const name = editListName.trim() || list?.name;
+    const iconId = editListDisplayImageType === 'icon' ? (editListIconId || null) : null;
+    const imageUrl = editListDisplayImageType === 'link' || editListDisplayImageType === 'web' ? (editListImageUrl.trim() || null) : null;
+    if (editListDisplayImageType === 'device' && pendingListImageFileRef.current) {
+      updateListMutation.mutate({ name });
+      return;
+    }
+    updateListMutation.mutate({ name, iconId, imageUrl });
+  }
+
   return (
     <>
       <AppBar
         title={list?.name || 'רשימה'}
+        titleRight={list ? <CategoryIcon iconId={list.iconId} imageUrl={list.imageUrl} size={28} /> : null}
         backTo="/lists"
         right={
-          <Link
-            to={`/lists/${listId}/share`}
-            style={{ background: 'transparent', color: 'inherit', fontSize: 16, fontWeight: 500 }}
-          >
-            שיתוף
-          </Link>
+          <>
+            <button
+              type="button"
+              onClick={openEditList}
+              style={{ background: 'transparent', color: 'inherit', fontSize: 16, fontWeight: 500 }}
+              title="ערוך אייקון רשימה"
+            >
+              אייקון
+            </button>
+            <Link
+              to={`/lists/${listId}/share`}
+              style={{ background: 'transparent', color: 'inherit', fontSize: 16, fontWeight: 500 }}
+            >
+              שיתוף
+            </Link>
+          </>
         }
       />
       <main style={{ padding: 16 }}>
@@ -575,6 +636,89 @@ export function ListDetail() {
           style={{ display: 'none' }}
           onChange={handleItemImageFile}
         />
+
+        {editListOpen && list && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              padding: 24,
+            }}
+            onClick={() => setEditListOpen(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#fff',
+                borderRadius: 16,
+                padding: 24,
+                maxWidth: 400,
+                width: '100%',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+              }}
+            >
+              <h3 style={{ margin: '0 0 16px' }}>ערוך רשימה ואייקון</h3>
+              <form onSubmit={handleEditListSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4 }}>שם הרשימה</label>
+                  <input
+                    type="text"
+                    value={editListName}
+                    onChange={(e) => setEditListName(e.target.value)}
+                    placeholder="שם הרשימה"
+                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
+                  />
+                </div>
+                <DisplayImageForm
+                  label="אייקון לרשימה"
+                  displayType={editListDisplayImageType}
+                  iconId={editListIconId}
+                  imageUrl={editListImageUrl}
+                  onDisplayTypeChange={setEditListDisplayImageType}
+                  onIconIdChange={setEditListIconId}
+                  onImageUrlChange={setEditListImageUrl}
+                  fileInputRef={editListFileInputRef}
+                />
+                {editListDisplayImageType === 'device' && (
+                  <p style={{ margin: 0, fontSize: 13, color: '#666' }}>בחר קובץ מהמכשיר ואז שמור</p>
+                )}
+                <input
+                  ref={editListFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) pendingListImageFileRef.current = file;
+                    e.target.value = '';
+                  }}
+                />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    type="submit"
+                    disabled={updateListMutation.isPending}
+                    style={{ flex: 1, padding: 12, background: 'var(--color-primary)', color: '#fff', fontWeight: 600, borderRadius: 8 }}
+                  >
+                    {updateListMutation.isPending ? 'שומר...' : 'שמור'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditListOpen(false)}
+                    style={{ padding: 12, background: '#eee', borderRadius: 8 }}
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );

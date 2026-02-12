@@ -11,6 +11,8 @@ export interface ListResponse {
   id: string;
   name: string;
   ownerId: string;
+  iconId: string | null;
+  imageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
