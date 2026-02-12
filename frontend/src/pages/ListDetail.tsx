@@ -338,7 +338,7 @@ export function ListDetail() {
                       />
                     ) : (
                       <CategoryIcon
-                        iconId={item.iconId ?? item.categoryIconId ?? undefined}
+                        iconId={item.iconId ?? item.categoryIconId ?? null}
                         imageUrl={null}
                         size={48}
                       />
