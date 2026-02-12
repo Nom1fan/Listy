@@ -130,22 +130,69 @@ Set env for production:
 
 ### Deploy on EC2 (e.g. free tier)
 
-1. Launch an Amazon Linux 2 (or Ubuntu) instance (e.g. t2.micro).
-2. Install Docker and Docker Compose:
-   ```bash
-   sudo yum update -y
-   sudo yum install -y docker
-   sudo systemctl start docker && sudo systemctl enable docker
-   sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-   sudo chmod +x /usr/local/bin/docker-compose
-   ```
-3. Clone the repo, set `JWT_SECRET` (and Twilio if needed), then:
-   ```bash
-   docker compose up -d
-   ```
-4. Open security group for port 8080 (and 443 if you put nginx in front for TLS).
+**Recommended: deploy a pre-built image** (no source code on the server)
 
-The image serves the built frontend from the same container; no separate static server needed for a single instance.
+**1. Build and push the image** (from repo root, once per release)
+
+One-time: `cp release.config.example release.config` and set `LISTY_IMAGE=your-username/listy` (or `ghcr.io/yourorg/listy`). Then:
+
+```bash
+docker login   # or: docker login ghcr.io -u USER -p PAT
+./scripts/release.sh
+```
+
+Note the image name the script prints (e.g. `your-username/listy:0.2.0`) for step 4.
+
+**2. Launch EC2** – Amazon Linux 2 or Ubuntu (e.g. t2.micro). Note key pair for SSH.
+
+**3. On the instance: install Docker**
+
+SSH: `ssh -i your-key.pem ec2-user@<ip>` (use `ubuntu@...` on Ubuntu).
+
+Amazon Linux 2:
+
+```bash
+sudo yum update -y && sudo yum install -y docker
+sudo systemctl start docker && sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+sudo mkdir -p /usr/local/lib/docker/cli-plugins
+sudo curl -sSL "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/lib/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+```
+
+Ubuntu:
+
+```bash
+sudo apt-get update && sudo apt-get install -y ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update && sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+sudo usermod -aG docker ubuntu
+```
+
+Log out and back in (or new SSH session). Verify: `docker compose version`.
+
+**4. On the instance: run the app**
+
+Create a `.env` file so the values survive reboots and new SSH sessions (Docker Compose loads it automatically):
+
+```bash
+mkdir -p ~/listy && cd ~/listy
+curl -sSL -o docker-compose.yml https://raw.githubusercontent.com/YOUR_ORG/listy/main/docker-compose.prod.yml
+echo 'LISTY_IMAGE=your-username/listy:0.2.0' > .env   # from step 1 output
+echo 'JWT_SECRET=your-256-bit-secret' >> .env
+docker compose up -d
+```
+
+After a reboot, run `docker compose up -d` again in `~/listy`; the same `.env` is used. Optionally enable Docker to start on boot and use `restart: unless-stopped` in the compose file so the app comes back automatically.
+
+Open `http://<instance-ip>:8080`.
+
+**5. Open port 8080** in the instance security group (and 443 if using nginx).
+
+**Alternative (clone and build on EC2):** After step 3, clone the repo on the instance and run `docker compose up -d` there (no pre-built image).
 
 ## Android build
 

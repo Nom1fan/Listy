@@ -1,0 +1,39 @@
+# Production: use a pre-built image (no source on server).
+# Set LISTY_IMAGE (e.g. ghcr.io/yourorg/listy:1.0.0 or your-dockerhub-user/listy:latest).
+services:
+  app:
+    image: ${LISTY_IMAGE}
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/listy
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      LISTY_JWT_SECRET: ${JWT_SECRET}
+      LISTY_UPLOAD_DIR: /app/uploads
+      LISTY_CORS_ALLOWED_ORIGINS: "*"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: listy
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  uploads:
