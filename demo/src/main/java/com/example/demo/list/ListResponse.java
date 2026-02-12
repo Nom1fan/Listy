@@ -13,6 +13,8 @@ public class ListResponse {
     private UUID id;
     private String name;
     private UUID ownerId;
+    private String iconId;
+    private String imageUrl;
     private Instant createdAt;
     private Instant updatedAt;
 }

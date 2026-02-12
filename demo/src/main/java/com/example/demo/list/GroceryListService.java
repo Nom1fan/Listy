@@ -29,10 +29,12 @@ public class GroceryListService {
     }
 
     @Transactional
-    public GroceryList create(User user, String name) {
+    public GroceryList create(User user, String name, String iconId, String imageUrl) {
         GroceryList list = GroceryList.builder()
                 .name(name != null && !name.isBlank() ? name : "רשימה חדשה")
                 .owner(user)
+                .iconId(iconId)
+                .imageUrl(imageUrl)
                 .build();
         list = listRepository.save(list);
         ListMember member = new ListMember();
@@ -54,10 +56,12 @@ public class GroceryListService {
     }
 
     @Transactional
-    public GroceryList update(UUID listId, User user, String name) {
+    public GroceryList update(UUID listId, User user, String name, String iconId, String imageUrl) {
         GroceryList list = get(listId, user);
         if (!listAccessService.canEdit(user, listId)) throw new IllegalArgumentException("Cannot edit");
         if (name != null && !name.isBlank()) list.setName(name);
+        if (iconId != null) list.setIconId(iconId);
+        if (imageUrl != null) list.setImageUrl(imageUrl);
         return listRepository.save(list);
     }
 
