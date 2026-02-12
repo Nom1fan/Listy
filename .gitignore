@@ -21,6 +21,9 @@ Desktop.ini
 .env.*
 !.env.example
 
+# Release config (per-machine image name; copy from release.config.example)
+release.config
+
 # IDE / editor (project-specific IDE config lives in subprojects)
 .idea/
 .vscode/
