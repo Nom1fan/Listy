@@ -86,6 +86,31 @@ To take your current DB (lists, users, categories, etc.) to another machine with
 
 See `db/README.md` for Windows (pg_dump/psql) and one-liners.
 
+### Run on another PC without the repo (e.g. Windows, no Cursor)
+
+Package everything into a single folder you can zip and run on another machine (backend + frontend + PostgreSQL in Docker; only Docker Desktop needed there):
+
+1. **Export your DB** (optional, so the other PC has your data):
+   ```bash
+   ./scripts/export-db.sh
+   ```
+   Commit or copy `db/listy-db.sql` into the package in the next step.
+
+2. **Create the package** (from repo root):
+   ```bash
+   ./scripts/package-for-windows.sh
+   ```
+   This builds the app and creates `listy-windows/` with a minimal Docker setup, the JAR, and your DB dump if present.
+
+3. **Zip and copy** to your other PC:
+   ```bash
+   zip -r listy-windows.zip listy-windows
+   ```
+
+4. **On the other PC:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), unzip the folder, then double-click `run.bat` (or run `docker compose up` in that folder). Open http://localhost:8080.
+
+See `listy-windows/README.txt` (inside the package) for details.
+
 ## Docker (single server / EC2)
 
 Build and run app + PostgreSQL:
