@@ -6,4 +6,6 @@ import lombok.Data;
 public class UpdateListRequest {
 
     private String name;
+    private String iconId;
+    private String imageUrl;
 }

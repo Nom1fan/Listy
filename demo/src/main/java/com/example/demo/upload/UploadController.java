@@ -1,6 +1,7 @@
 package com.example.demo.upload;
 
 import com.example.demo.auth.User;
+import com.example.demo.list.GroceryListRepository;
 import com.example.demo.list.ListAccessService;
 import com.example.demo.list.ListItem;
 import com.example.demo.list.ListItemRepository;
@@ -27,6 +28,7 @@ public class UploadController {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final ListItemRepository listItemRepository;
+    private final GroceryListRepository groceryListRepository;
     private final ListAccessService listAccessService;
 
     @PostMapping("/upload/category/{id}")
@@ -54,6 +56,22 @@ public class UploadController {
         String url = uploadService.saveProductImage(file);
         product.setImageUrl(url);
         productRepository.save(product);
+        return ResponseEntity.ok(Map.of("url", url));
+    }
+
+    @PostMapping("/upload/list/{listId}")
+    public ResponseEntity<Map<String, String>> uploadListImage(
+            @PathVariable UUID listId,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal User user
+    ) throws IOException {
+        if (user == null) return ResponseEntity.status(401).build();
+        listAccessService.getListOrThrow(listId, user);
+        if (!listAccessService.canEdit(user, listId)) return ResponseEntity.status(403).build();
+        var list = groceryListRepository.findById(listId).orElseThrow(() -> new IllegalArgumentException("List not found"));
+        String url = uploadService.saveListImage(file);
+        list.setImageUrl(url);
+        groceryListRepository.save(list);
         return ResponseEntity.ok(Map.of("url", url));
     }
 

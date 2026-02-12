@@ -25,6 +25,12 @@ public class GroceryList {
     @Column(nullable = false)
     private String name;
 
+    @Column(name = "icon_id", length = 64)
+    private String iconId;
+
+    @Column(name = "image_url", length = 2048)
+    private String imageUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;

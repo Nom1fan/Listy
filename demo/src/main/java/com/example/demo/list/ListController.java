@@ -21,15 +21,7 @@ public class ListController {
     public ResponseEntity<List<ListResponse>> list(@AuthenticationPrincipal User user) {
         if (user == null) return ResponseEntity.status(401).build();
         List<GroceryList> lists = listService.listsForUser(user);
-        List<ListResponse> body = lists.stream()
-                .map(l -> ListResponse.builder()
-                        .id(l.getId())
-                        .name(l.getName())
-                        .ownerId(l.getOwner().getId())
-                        .createdAt(l.getCreatedAt())
-                        .updatedAt(l.getUpdatedAt())
-                        .build())
-                .toList();
+        List<ListResponse> body = lists.stream().map(this::toListResponse).toList();
         return ResponseEntity.ok(body);
     }
 
@@ -39,7 +31,7 @@ public class ListController {
             @RequestBody CreateListRequest req
     ) {
         if (user == null) return ResponseEntity.status(401).build();
-        GroceryList list = listService.create(user, req.getName());
+        GroceryList list = listService.create(user, req.getName(), req.getIconId(), req.getImageUrl());
         return ResponseEntity.ok(toListResponse(list));
     }
 
@@ -60,7 +52,7 @@ public class ListController {
             @RequestBody UpdateListRequest req
     ) {
         if (user == null) return ResponseEntity.status(401).build();
-        GroceryList list = listService.update(listId, user, req.getName());
+        GroceryList list = listService.update(listId, user, req.getName(), req.getIconId(), req.getImageUrl());
         return ResponseEntity.ok(toListResponse(list));
     }
 
@@ -124,6 +116,8 @@ public class ListController {
                 .id(list.getId())
                 .name(list.getName())
                 .ownerId(list.getOwner().getId())
+                .iconId(list.getIconId())
+                .imageUrl(list.getImageUrl())
                 .createdAt(list.getCreatedAt())
                 .updatedAt(list.getUpdatedAt())
                 .build();

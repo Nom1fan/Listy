@@ -44,6 +44,10 @@ public class UploadService {
         return saveFile(file, "item");
     }
 
+    public String saveListImage(MultipartFile file) throws IOException {
+        return saveFile(file, "list");
+    }
+
     private String saveFile(MultipartFile file, String subdir) throws IOException {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("No file");
         String ext = getExtension(file.getOriginalFilename());
