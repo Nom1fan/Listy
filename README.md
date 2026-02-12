@@ -1,6 +1,6 @@
-# Listy – Grocery List App
+# Listy – List Management App
 
-Hebrew-first (RTL) grocery list app with categories, product bank, list sharing, and real-time updates. Supports web and Android (Capacitor).
+Hebrew-first (RTL) management list app with categories, product bank, list sharing, and real-time updates. Supports web and Android (Capacitor).
 
 ## Features
 
