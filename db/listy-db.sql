@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict YNptoog0VSomBISt23MzCIPdbxVdl1awKfFdyQiv7OAvvd9bnyjWuPRsP7zbJJW
+\restrict naPPiSFVTdXG46XR3MznzhQFlm7xWDtjbNfFXdNezKlw7WT1pEmeDwoWQMOCZuy
 
 -- Dumped from database version 11.0 (Debian 11.0-1.pgdg90+2)
 -- Dumped by pg_dump version 14.20 (Homebrew)
@@ -123,7 +123,9 @@ CREATE TABLE public.lists (
     name character varying(255) NOT NULL,
     owner_id uuid NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    icon_id character varying(64),
+    image_url character varying(2048)
 );
 
 
@@ -241,6 +243,7 @@ COPY public.flyway_schema_history (installed_rank, version, description, type, s
 4	4	add otp request log id	SQL	V4__add_otp_request_log_id.sql	-2088068735	postgres	2026-02-11 23:06:21.168429	25	t
 5	5	add product icon id	SQL	V5__add_product_icon_id.sql	-452788278	postgres	2026-02-12 07:49:49.263892	7	t
 6	6	add list item icon id	SQL	V6__add_list_item_icon_id.sql	1365331976	postgres	2026-02-12 11:34:48.117806	6	t
+7	7	add list icon	SQL	V7__add_list_icon.sql	-738304251	postgres	2026-02-12 23:03:40.14691	27	t
 \.
 
 
@@ -272,9 +275,9 @@ bca09daf-bdc5-402f-b095-21aae66cf9f6	7b6632ee-2d56-4e76-9d9d-1cb4914b7bd4	editor
 -- Data for Name: lists; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.lists (id, name, owner_id, created_at, updated_at) FROM stdin;
-b967eaf3-c307-405a-a61a-ff5b1341a478	קניות	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	2026-02-11 21:17:16.705688+00	2026-02-11 21:17:16.705692+00
-bca09daf-bdc5-402f-b095-21aae66cf9f6	איקאה	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	2026-02-12 09:26:23.705763+00	2026-02-12 09:26:23.705773+00
+COPY public.lists (id, name, owner_id, created_at, updated_at, icon_id, image_url) FROM stdin;
+bca09daf-bdc5-402f-b095-21aae66cf9f6	איקאה	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	2026-02-12 09:26:23.705763+00	2026-02-12 09:26:23.705773+00	\N	\N
+b967eaf3-c307-405a-a61a-ff5b1341a478	קניות	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	2026-02-11 21:17:16.705688+00	2026-02-12 21:22:25.340606+00	groceries	\N
 \.
 
 
@@ -295,6 +298,7 @@ COPY public.otp_request_log (phone, requested_at, id) FROM stdin;
 +972549966847	2026-02-12 09:50:55.349364+00	10
 +972542258808	2026-02-12 12:13:09.849527+00	11
 +972549966847	2026-02-12 12:14:43.165795+00	12
++972542258808	2026-02-12 20:48:15.400016+00	13
 \.
 
 
@@ -354,7 +358,7 @@ f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	\N	+972542258808	\N	מור	he	2026-02-11 21
 -- Name: otp_request_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.otp_request_log_id_seq', 12, true);
+SELECT pg_catalog.setval('public.otp_request_log_id_seq', 13, true);
 
 
 --
@@ -584,5 +588,5 @@ ALTER TABLE ONLY public.products
 -- PostgreSQL database dump complete
 --
 
-\unrestrict YNptoog0VSomBISt23MzCIPdbxVdl1awKfFdyQiv7OAvvd9bnyjWuPRsP7zbJJW
+\unrestrict naPPiSFVTdXG46XR3MznzhQFlm7xWDtjbNfFXdNezKlw7WT1pEmeDwoWQMOCZuy
 
