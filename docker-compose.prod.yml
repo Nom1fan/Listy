@@ -36,6 +36,8 @@ services:
       LISTYYY_UPLOAD_DIR: /app/uploads
       LISTYYY_CORS_ALLOWED_ORIGINS: "https://web.listyyy.com"
       LISTYYY_JWT_REFRESH_COOKIE_SECURE: "true"
+      GIPHY_API_KEY: ${GIPHY_API_KEY}
+      PIXABAY_API_KEY: ${PIXABAY_API_KEY}
       LOGGING_FILE_NAME: /app/logs/spring.log
     volumes:
       - uploads:/app/uploads

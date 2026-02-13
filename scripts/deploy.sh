@@ -137,18 +137,34 @@ fi
 
 # ── 4. Update remote .env ───────────────────────────────────
 echo "[4/5] Updating remote .env (LISTYYY_IMAGE=$IMAGE_TAG) ..."
-ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
-  if [ -f .env ]; then \
-    if grep -q '^LISTYYY_IMAGE=' .env; then \
-      sed -i 's|^LISTYYY_IMAGE=.*|LISTYYY_IMAGE=$IMAGE_TAG|' .env; \
+
+# Helper: upsert a KEY=VALUE in the remote .env
+upsert_remote_env() {
+  local key="$1" value="$2"
+  ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
+    if grep -q '^${key}=' .env 2>/dev/null; then \
+      sed -i 's|^${key}=.*|${key}=${value}|' .env; \
     else \
-      echo 'LISTYYY_IMAGE=$IMAGE_TAG' >> .env; \
-    fi; \
-  else \
-    echo 'LISTYYY_IMAGE=$IMAGE_TAG' > .env; \
-    echo 'JWT_SECRET=$JWT' >> .env; \
-    echo '  (created new .env with JWT_SECRET)'; \
+      echo '${key}=${value}' >> .env; \
+    fi"
+}
+
+# Create .env if it doesn't exist (first deploy)
+ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
+  if [ ! -f .env ]; then \
+    touch .env; \
+    echo '  (created new .env)'; \
   fi"
+
+upsert_remote_env "LISTYYY_IMAGE" "$IMAGE_TAG"
+# JWT_SECRET: only set on first deploy (don't overwrite production secret)
+ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
+  if ! grep -q '^JWT_SECRET=' .env 2>/dev/null; then \
+    echo 'JWT_SECRET=$JWT' >> .env; \
+    echo '  (set JWT_SECRET)'; \
+  fi"
+upsert_remote_env "GIPHY_API_KEY" "${GIPHY_API_KEY:-}"
+upsert_remote_env "PIXABAY_API_KEY" "${PIXABAY_API_KEY:-}"
 
 # ── 5. Pull and restart ─────────────────────────────────────
 echo "[5/5] Pulling image and restarting services ..."
