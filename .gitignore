@@ -48,5 +48,8 @@ listy-windows.zip
 # Optional: uncomment if you don't want to track Cursor project skills
 # .cursor/
 
+# Uploaded files (runtime data, not source)
+demo/uploads/
+
 # Keys and secrets
 *.pem
