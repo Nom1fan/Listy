@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict 2UJDc1vLDttV4jvjmz2z3K2uXh4aaRNr3cxXn5lhBAxPjSwnxZqSCk47u1NDuME
+\restrict djrWEUO1kry4qU3mxalPTg5WXp8ChsHsVRBu1tr4bU63MLqe5aAh7M95BbDE8M6
 
 -- Dumped from database version 11.0 (Debian 11.0-1.pgdg90+2)
 -- Dumped by pg_dump version 14.21 (Homebrew)
@@ -201,6 +201,19 @@ CREATE TABLE public.products (
 
 
 --
+-- Name: refresh_tokens; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.refresh_tokens (
+    id uuid DEFAULT public.gen_random_uuid() NOT NULL,
+    user_id uuid NOT NULL,
+    token character varying(64) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: users; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -285,6 +298,7 @@ COPY public.flyway_schema_history (installed_rank, version, description, type, s
 9	9	transfer system categories to user	SQL	V9__transfer_system_categories_to_user.sql	631804778	postgres	2026-02-13 08:12:44.181886	9	t
 10	10	backfill category members from lists	SQL	V10__backfill_category_members_from_lists.sql	-704229878	postgres	2026-02-13 08:16:05.893667	9	t
 11	11	add product note	SQL	V11__add_product_note.sql	-921681721	postgres	2026-02-13 16:56:24.202243	8	t
+12	12	refresh tokens	SQL	V12__refresh_tokens.sql	-121241026	postgres	2026-02-13 17:34:20.229575	17	t
 \.
 
 
@@ -387,6 +401,14 @@ b0000007-0000-0000-0000-000000000007	a0000003-0000-0000-0000-000000000003	עגב
 e41e463f-b762-4b8a-a426-8bf01c0aa477	a0000003-0000-0000-0000-000000000003	פיטרוזיליה	יחידה	\N	2026-02-12 08:24:12.853384+00	leaf	\N
 5be797ba-b12c-4448-99a3-d6c4f2a8f603	a0000003-0000-0000-0000-000000000003	שמיר	יחידה	\N	2026-02-12 08:24:29.886638+00	leaf	\N
 f6bcd76e-0484-4757-9e7a-a342f482b6f8	0e3c4192-d471-4e27-83b2-719d7622f947	מרכך כביסה	יחידה	/uploads/product/c9d9312c-bf15-4118-af93-c3219a3d22c6.jpg	2026-02-13 06:20:27.640609+00	\N	ורוד שקוף
+\.
+
+
+--
+-- Data for Name: refresh_tokens; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.refresh_tokens (id, user_id, token, expires_at, created_at) FROM stdin;
 \.
 
 
@@ -496,6 +518,22 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: refresh_tokens refresh_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.refresh_tokens
+    ADD CONSTRAINT refresh_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: refresh_tokens refresh_tokens_token_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.refresh_tokens
+    ADD CONSTRAINT refresh_tokens_token_key UNIQUE (token);
+
+
+--
 -- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -580,6 +618,20 @@ CREATE INDEX idx_otp_request_log_phone_time ON public.otp_request_log USING btre
 --
 
 CREATE INDEX idx_products_category ON public.products USING btree (category_id);
+
+
+--
+-- Name: idx_refresh_tokens_token; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_refresh_tokens_token ON public.refresh_tokens USING btree (token);
+
+
+--
+-- Name: idx_refresh_tokens_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_refresh_tokens_user_id ON public.refresh_tokens USING btree (user_id);
 
 
 --
@@ -677,8 +729,16 @@ ALTER TABLE ONLY public.products
 
 
 --
+-- Name: refresh_tokens refresh_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.refresh_tokens
+    ADD CONSTRAINT refresh_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
 -- PostgreSQL database dump complete
 --
 
-\unrestrict 2UJDc1vLDttV4jvjmz2z3K2uXh4aaRNr3cxXn5lhBAxPjSwnxZqSCk47u1NDuME
+\unrestrict djrWEUO1kry4qU3mxalPTg5WXp8ChsHsVRBu1tr4bU63MLqe5aAh7M95BbDE8M6
 
