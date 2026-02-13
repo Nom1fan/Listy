@@ -8,11 +8,11 @@ import lombok.Data;
 public class PhoneVerifyRequest {
 
     @NotBlank
-    @Pattern(regexp = "^\\+[1-9]\\d{1,14}$", message = "Phone must be E.164 format")
+    @Pattern(regexp = "^\\+[1-9]\\d{1,14}$", message = "מספר טלפון לא תקין")
     private String phone;
 
     @NotBlank
-    @Pattern(regexp = "^\\d{4,6}$", message = "Code must be 4-6 digits")
+    @Pattern(regexp = "^\\d{4,6}$", message = "הקוד חייב להיות 4-6 ספרות")
     private String code;
 
     private String displayName;

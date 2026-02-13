@@ -8,6 +8,6 @@ import lombok.Data;
 public class PhoneRequestOtpRequest {
 
     @NotBlank
-    @Pattern(regexp = "^\\+[1-9]\\d{1,14}$", message = "Phone must be E.164 format")
+    @Pattern(regexp = "^\\+[1-9]\\d{1,14}$", message = "מספר טלפון לא תקין")
     private String phone;
 }

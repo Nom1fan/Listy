@@ -62,7 +62,7 @@ export function SideMenu() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <img src="/logo.png" alt="Listyyy" style={{ height: 28, width: 28, objectFit: 'contain' }} />
+            <img src="/logo.png?v=3" alt="Listyyy" style={{ height: 40, width: 40, objectFit: 'contain' }} />
             <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600 }}>Listyyy</h2>
           </div>
           <button

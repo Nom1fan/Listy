@@ -32,7 +32,7 @@ public class ListItemService {
         GroceryList list = listAccessService.getListOrThrow(listId, user);
         ListItem item;
         if (req.getProductId() != null) {
-            Product product = productRepository.findById(req.getProductId()).orElseThrow(() -> new IllegalArgumentException("Product not found"));
+            Product product = productRepository.findById(req.getProductId()).orElseThrow(() -> new IllegalArgumentException("המוצר לא נמצא"));
             // Use the product's permanent note as default if no note provided on the list item
             String note = req.getNote() != null ? req.getNote() : product.getNote();
             item = ListItem.builder()
@@ -47,7 +47,7 @@ public class ListItemService {
                     .build();
         } else {
             if (req.getCustomNameHe() == null || req.getCustomNameHe().isBlank()) {
-                throw new IllegalArgumentException("Custom name or product required");
+                throw new IllegalArgumentException("יש להזין שם מותאם אישית או לבחור מוצר");
             }
             item = ListItem.builder()
                     .list(list)
@@ -91,8 +91,8 @@ public class ListItemService {
 
     private ListItem getItemOrThrow(UUID listId, UUID itemId, User user) {
         listAccessService.getListOrThrow(listId, user);
-        ListItem item = listItemRepository.findById(itemId).orElseThrow(() -> new IllegalArgumentException("Item not found"));
-        if (!item.getList().getId().equals(listId)) throw new IllegalArgumentException("Item not in list");
+        ListItem item = listItemRepository.findById(itemId).orElseThrow(() -> new IllegalArgumentException("הפריט לא נמצא"));
+        if (!item.getList().getId().equals(listId)) throw new IllegalArgumentException("הפריט לא שייך לרשימה");
         return item;
     }
 }

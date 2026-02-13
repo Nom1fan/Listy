@@ -61,7 +61,7 @@ function handleAuthFailure(): never {
   localStorage.removeItem('listyyy_token');
   localStorage.removeItem('listyyy-auth');
   window.location.href = '/login';
-  throw new Error('Session expired');
+  throw new Error('פג תוקף החיבור');
 }
 
 // ---- core fetch with auto-refresh ----

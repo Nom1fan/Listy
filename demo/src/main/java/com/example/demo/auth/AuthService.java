@@ -37,7 +37,7 @@ public class AuthService {
     @Transactional
     public LoginResult register(RegisterRequest req) {
         if (userRepository.findByEmail(req.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("Email already registered");
+            throw new IllegalArgumentException("האימייל כבר רשום");
         }
         User user = User.builder()
                 .email(req.getEmail())
@@ -52,9 +52,9 @@ public class AuthService {
     @Transactional
     public LoginResult login(TokenRequest req) {
         User user = userRepository.findByEmail(req.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Invalid email or password"));
+                .orElseThrow(() -> new IllegalArgumentException("אימייל או סיסמה לא תקינים"));
         if (!passwordEncoder.matches(req.getPassword(), user.getPasswordHash())) {
-            throw new IllegalArgumentException("Invalid email or password");
+            throw new IllegalArgumentException("אימייל או סיסמה לא תקינים");
         }
         return buildLoginResult(user);
     }
@@ -65,7 +65,7 @@ public class AuthService {
         Instant oneHourAgo = Instant.now().minusSeconds(3600);
         long count = otpRequestLogRepository.countByPhoneSince(phone, oneHourAgo);
         if (count >= rateLimitPerPhonePerHour) {
-            throw new IllegalArgumentException("Too many OTP requests. Try again later.");
+            throw new IllegalArgumentException("יותר מדי בקשות קוד. נסה שוב מאוחר יותר.");
         }
         String code = String.format("%06d", ThreadLocalRandom.current().nextInt(100_000, 1_000_000));
         Instant expiresAt = Instant.now().plusSeconds(otpTtlMinutes * 60L);
@@ -83,11 +83,11 @@ public class AuthService {
         String phone = PhoneNormalizer.normalize(req.getPhone());
         Optional<PhoneOtp> opt = phoneOtpRepository.findById(phone);
         if (opt.isEmpty() || !opt.get().getCode().equals(req.getCode())) {
-            throw new IllegalArgumentException("Invalid or expired code");
+            throw new IllegalArgumentException("קוד לא תקין או שפג תוקפו");
         }
         if (opt.get().getExpiresAt().isBefore(Instant.now())) {
             phoneOtpRepository.delete(opt.get());
-            throw new IllegalArgumentException("Code expired");
+            throw new IllegalArgumentException("הקוד פג תוקף");
         }
         phoneOtpRepository.delete(opt.get());
         User user = userRepository.findByPhone(phone).orElseGet(() -> {
@@ -110,10 +110,10 @@ public class AuthService {
     @Transactional
     public AuthResponse updateDisplayName(User user, String displayName) {
         if (displayName == null || displayName.isBlank()) {
-            throw new IllegalArgumentException("Display name is required");
+            throw new IllegalArgumentException("יש להזין שם תצוגה");
         }
         if (displayName.length() > 255) {
-            throw new IllegalArgumentException("Display name too long");
+            throw new IllegalArgumentException("שם התצוגה ארוך מדי");
         }
         user.setDisplayName(displayName.trim());
         user = userRepository.save(user);
@@ -127,10 +127,10 @@ public class AuthService {
     @Transactional
     public LoginResult refresh(String refreshTokenValue) {
         RefreshToken rt = refreshTokenRepository.findByToken(refreshTokenValue)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid refresh token"));
+                .orElseThrow(() -> new IllegalArgumentException("טוקן רענון לא תקין"));
         if (rt.getExpiresAt().isBefore(Instant.now())) {
             refreshTokenRepository.delete(rt);
-            throw new IllegalArgumentException("Refresh token expired");
+            throw new IllegalArgumentException("טוקן הרענון פג תוקף");
         }
         User user = rt.getUser();
         // Rotate: delete old token, issue new one

@@ -34,7 +34,7 @@ public class SmsService {
             ).create();
         } catch (Exception e) {
             log.error("Failed to send SMS to {}", toPhone, e);
-            throw new RuntimeException("Failed to send SMS", e);
+            throw new RuntimeException("שליחת SMS נכשלה", e);
         }
     }
 }
