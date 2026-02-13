@@ -21,7 +21,7 @@ RUN cd demo && mvn -B package -DskipTests -q
 # Runtime
 FROM --platform=linux/amd64 eclipse-temurin:17-jre-alpine
 WORKDIR /app
-RUN adduser -D -u 1000 app && mkdir -p /app/logs && chown -R app:app /app/logs
+RUN adduser -D -u 1000 app && mkdir -p /app/logs /app/uploads && chown -R app:app /app/logs /app/uploads
 COPY --from=backend /app/demo/target/*.jar app.jar
 USER app
 EXPOSE 8080
