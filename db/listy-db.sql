@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
-\restrict DHH6DcSTNQiYTQTKYkZOSxUTUHAYBzpZ0TFUMXEYd6Ox2X1oxevCLHStG7rKA5Q
+\restrict UDDGo1pqiB7zA8BIrUplJ4gvqRuaeOxcfHpeosLiOOzGpSufyUNlmPJONQETG8M
 
 -- Dumped from database version 11.0 (Debian 11.0-1.pgdg90+2)
--- Dumped by pg_dump version 14.20 (Homebrew)
+-- Dumped by pg_dump version 14.21 (Homebrew)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -44,7 +44,21 @@ CREATE TABLE public.categories (
     icon_id character varying(50),
     image_url character varying(2048),
     sort_order integer DEFAULT 0,
-    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    owner_id uuid NOT NULL
+);
+
+
+--
+-- Name: category_members; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.category_members (
+    category_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    role character varying(20) DEFAULT 'editor'::character varying NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT category_valid_role CHECK (((role)::text = ANY ((ARRAY['owner'::character varying, 'editor'::character varying])::text[])))
 );
 
 
@@ -213,14 +227,36 @@ ALTER TABLE ONLY public.otp_request_log ALTER COLUMN id SET DEFAULT nextval('pub
 -- Data for Name: categories; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.categories (id, name_he, icon_id, image_url, sort_order, created_at) FROM stdin;
-a0000002-0000-0000-0000-000000000002	לחם ומאפים	bread	\N	2	2026-02-11 21:01:48.965446+00
-a0000003-0000-0000-0000-000000000003	ירקות	vegetables	\N	3	2026-02-11 21:01:48.965446+00
-a0000004-0000-0000-0000-000000000004	פירות	fruits	\N	4	2026-02-11 21:01:48.965446+00
-a0000005-0000-0000-0000-000000000005	בשר ועוף	meat	\N	5	2026-02-11 21:01:48.965446+00
-a0000006-0000-0000-0000-000000000006	מכולת	groceries	\N	6	2026-02-11 21:01:48.965446+00
-e1ae9f50-531b-4c34-8b1e-e5d24c7396f1	תחליפי בשר	meat	\N	5	2026-02-11 21:49:04.109169+00
-0e3c4192-d471-4e27-83b2-719d7622f947	ניקיון	fruits	https://s3.amazonaws.com/pix.iemoji.com/images/emoji/apple/ios-18/256/2771.png	6	2026-02-12 04:43:02.874273+00
+COPY public.categories (id, name_he, icon_id, image_url, sort_order, created_at, owner_id) FROM stdin;
+a0000002-0000-0000-0000-000000000002	לחם ומאפים	bread	\N	2	2026-02-11 21:01:48.965446+00	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265
+a0000003-0000-0000-0000-000000000003	ירקות	vegetables	\N	3	2026-02-11 21:01:48.965446+00	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265
+a0000004-0000-0000-0000-000000000004	פירות	fruits	\N	4	2026-02-11 21:01:48.965446+00	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265
+a0000005-0000-0000-0000-000000000005	בשר ועוף	meat	\N	5	2026-02-11 21:01:48.965446+00	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265
+a0000006-0000-0000-0000-000000000006	מכולת	groceries	\N	6	2026-02-11 21:01:48.965446+00	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265
+e1ae9f50-531b-4c34-8b1e-e5d24c7396f1	תחליפי בשר	meat	\N	5	2026-02-11 21:49:04.109169+00	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265
+0e3c4192-d471-4e27-83b2-719d7622f947	ניקיון	fruits	https://s3.amazonaws.com/pix.iemoji.com/images/emoji/apple/ios-18/256/2771.png	6	2026-02-12 04:43:02.874273+00	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265
+\.
+
+
+--
+-- Data for Name: category_members; Type: TABLE DATA; Schema: public; Owner: -
+--
+
+COPY public.category_members (category_id, user_id, role, created_at) FROM stdin;
+a0000002-0000-0000-0000-000000000002	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	owner	2026-02-12 23:02:18.638559+00
+a0000003-0000-0000-0000-000000000003	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	owner	2026-02-12 23:02:18.638559+00
+a0000004-0000-0000-0000-000000000004	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	owner	2026-02-12 23:02:18.638559+00
+a0000005-0000-0000-0000-000000000005	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	owner	2026-02-12 23:02:18.638559+00
+a0000006-0000-0000-0000-000000000006	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	owner	2026-02-12 23:02:18.638559+00
+e1ae9f50-531b-4c34-8b1e-e5d24c7396f1	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	owner	2026-02-12 23:02:18.638559+00
+0e3c4192-d471-4e27-83b2-719d7622f947	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	owner	2026-02-12 23:02:18.638559+00
+a0000003-0000-0000-0000-000000000003	7b6632ee-2d56-4e76-9d9d-1cb4914b7bd4	editor	2026-02-13 06:16:05.906337+00
+a0000006-0000-0000-0000-000000000006	7b6632ee-2d56-4e76-9d9d-1cb4914b7bd4	editor	2026-02-13 06:16:05.906337+00
+a0000004-0000-0000-0000-000000000004	7b6632ee-2d56-4e76-9d9d-1cb4914b7bd4	editor	2026-02-13 06:16:05.906337+00
+a0000002-0000-0000-0000-000000000002	7b6632ee-2d56-4e76-9d9d-1cb4914b7bd4	editor	2026-02-13 06:19:23.532953+00
+a0000005-0000-0000-0000-000000000005	7b6632ee-2d56-4e76-9d9d-1cb4914b7bd4	editor	2026-02-13 06:19:23.54339+00
+e1ae9f50-531b-4c34-8b1e-e5d24c7396f1	7b6632ee-2d56-4e76-9d9d-1cb4914b7bd4	editor	2026-02-13 06:19:23.547858+00
+0e3c4192-d471-4e27-83b2-719d7622f947	7b6632ee-2d56-4e76-9d9d-1cb4914b7bd4	editor	2026-02-13 06:19:23.551406+00
 \.
 
 
@@ -244,6 +280,9 @@ COPY public.flyway_schema_history (installed_rank, version, description, type, s
 5	5	add product icon id	SQL	V5__add_product_icon_id.sql	-452788278	postgres	2026-02-12 07:49:49.263892	7	t
 6	6	add list item icon id	SQL	V6__add_list_item_icon_id.sql	1365331976	postgres	2026-02-12 11:34:48.117806	6	t
 7	7	add list icon	SQL	V7__add_list_icon.sql	-738304251	postgres	2026-02-12 23:03:40.14691	27	t
+8	8	categories per user and sharing	SQL	V8__categories_per_user_and_sharing.sql	-34353407	postgres	2026-02-13 01:02:18.631634	34	t
+9	9	transfer system categories to user	SQL	V9__transfer_system_categories_to_user.sql	631804778	postgres	2026-02-13 08:12:44.181886	9	t
+10	10	backfill category members from lists	SQL	V10__backfill_category_members_from_lists.sql	-704229878	postgres	2026-02-13 08:16:05.893667	9	t
 \.
 
 
@@ -268,6 +307,7 @@ COPY public.list_members (list_id, user_id, role, created_at) FROM stdin;
 b967eaf3-c307-405a-a61a-ff5b1341a478	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	owner	2026-02-11 21:17:16.707408+00
 bca09daf-bdc5-402f-b095-21aae66cf9f6	f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	owner	2026-02-12 09:26:23.711769+00
 bca09daf-bdc5-402f-b095-21aae66cf9f6	7b6632ee-2d56-4e76-9d9d-1cb4914b7bd4	editor	2026-02-12 12:13:47.740282+00
+b967eaf3-c307-405a-a61a-ff5b1341a478	7b6632ee-2d56-4e76-9d9d-1cb4914b7bd4	editor	2026-02-13 05:42:43.775979+00
 \.
 
 
@@ -299,6 +339,7 @@ COPY public.otp_request_log (phone, requested_at, id) FROM stdin;
 +972542258808	2026-02-12 12:13:09.849527+00	11
 +972549966847	2026-02-12 12:14:43.165795+00	12
 +972542258808	2026-02-12 20:48:15.400016+00	13
++972542258808	2026-02-13 05:41:03.405654+00	14
 \.
 
 
@@ -341,6 +382,7 @@ b0000007-0000-0000-0000-000000000007	a0000003-0000-0000-0000-000000000003	עגב
 4217770e-34d3-4afa-a8c6-c8e5c5eab2cb	a0000003-0000-0000-0000-000000000003	ברוקולי	קילו	\N	2026-02-12 08:23:48.542632+00	broccoli
 e41e463f-b762-4b8a-a426-8bf01c0aa477	a0000003-0000-0000-0000-000000000003	פיטרוזיליה	יחידה	\N	2026-02-12 08:24:12.853384+00	leaf
 5be797ba-b12c-4448-99a3-d6c4f2a8f603	a0000003-0000-0000-0000-000000000003	שמיר	יחידה	\N	2026-02-12 08:24:29.886638+00	leaf
+f6bcd76e-0484-4757-9e7a-a342f482b6f8	0e3c4192-d471-4e27-83b2-719d7622f947	מרכך כביסה	יחידה	https://images.unsplash.com/photo-1649005011845-ef225c89da86?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NzI5Njh8MHwxfHNlYXJjaHwyfHxsYXVuZHJ5JTIwZGV0ZXJnZW50fGVufDB8fHx8MTc3MDk2MzYxNnww&ixlib=rb-4.1.0&q=80&w=1080	2026-02-13 06:20:27.640609+00	\N
 \.
 
 
@@ -358,7 +400,7 @@ f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	\N	+972542258808	\N	מור	he	2026-02-11 21
 -- Name: otp_request_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.otp_request_log_id_seq', 13, true);
+SELECT pg_catalog.setval('public.otp_request_log_id_seq', 14, true);
 
 
 --
@@ -367,6 +409,14 @@ SELECT pg_catalog.setval('public.otp_request_log_id_seq', 13, true);
 
 ALTER TABLE ONLY public.categories
     ADD CONSTRAINT categories_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: category_members category_members_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.category_members
+    ADD CONSTRAINT category_members_pkey PRIMARY KEY (category_id, user_id);
 
 
 --
@@ -473,6 +523,20 @@ CREATE INDEX flyway_schema_history_s_idx ON public.flyway_schema_history USING b
 
 
 --
+-- Name: idx_categories_owner; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_categories_owner ON public.categories USING btree (owner_id);
+
+
+--
+-- Name: idx_category_members_user; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_category_members_user ON public.category_members USING btree (user_id);
+
+
+--
 -- Name: idx_fcm_tokens_user; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -526,6 +590,30 @@ CREATE INDEX idx_users_email ON public.users USING btree (email) WHERE (email IS
 --
 
 CREATE INDEX idx_users_phone ON public.users USING btree (phone) WHERE (phone IS NOT NULL);
+
+
+--
+-- Name: categories categories_owner_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.categories
+    ADD CONSTRAINT categories_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: category_members category_members_category_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.category_members
+    ADD CONSTRAINT category_members_category_id_fkey FOREIGN KEY (category_id) REFERENCES public.categories(id) ON DELETE CASCADE;
+
+
+--
+-- Name: category_members category_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.category_members
+    ADD CONSTRAINT category_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
 
 
 --
@@ -588,5 +676,5 @@ ALTER TABLE ONLY public.products
 -- PostgreSQL database dump complete
 --
 
-\unrestrict DHH6DcSTNQiYTQTKYkZOSxUTUHAYBzpZ0TFUMXEYd6Ox2X1oxevCLHStG7rKA5Q
+\unrestrict UDDGo1pqiB7zA8BIrUplJ4gvqRuaeOxcfHpeosLiOOzGpSufyUNlmPJONQETG8M
 
