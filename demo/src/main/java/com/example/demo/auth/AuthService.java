@@ -105,10 +105,13 @@ public class AuthService {
 
     @Transactional
     public AuthResponse updateDisplayName(User user, String displayName) {
-        if (displayName != null && displayName.length() > 255) {
+        if (displayName == null || displayName.isBlank()) {
+            throw new IllegalArgumentException("Display name is required");
+        }
+        if (displayName.length() > 255) {
             throw new IllegalArgumentException("Display name too long");
         }
-        user.setDisplayName(displayName != null && !displayName.isBlank() ? displayName.trim() : null);
+        user.setDisplayName(displayName.trim());
         user = userRepository.save(user);
         String token = jwtService.generateToken(user);
         return toAuthResponse(user, token);

@@ -53,12 +53,13 @@ export function Profile() {
           {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || !displayName.trim()}
             style={{
               padding: 12,
               background: 'var(--color-primary)',
               color: '#fff',
               fontWeight: 600,
+              opacity: !displayName.trim() ? 0.5 : 1,
             }}
           >
             {saving ? 'שומר...' : 'שמור'}
