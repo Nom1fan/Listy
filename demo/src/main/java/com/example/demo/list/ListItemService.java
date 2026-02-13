@@ -33,12 +33,14 @@ public class ListItemService {
         ListItem item;
         if (req.getProductId() != null) {
             Product product = productRepository.findById(req.getProductId()).orElseThrow(() -> new IllegalArgumentException("Product not found"));
+            // Use the product's permanent note as default if no note provided on the list item
+            String note = req.getNote() != null ? req.getNote() : product.getNote();
             item = ListItem.builder()
                     .list(list)
                     .product(product)
                     .quantity(req.getQuantity() != null ? req.getQuantity() : BigDecimal.ONE)
                     .unit(req.getUnit() != null ? req.getUnit() : product.getDefaultUnit())
-                    .note(req.getNote())
+                    .note(note)
                     .sortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0)
                     .itemImageUrl(req.getItemImageUrl())
                     .iconId(req.getIconId())

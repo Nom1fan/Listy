@@ -37,6 +37,9 @@ public class Product {
     @Column(name = "icon_id", length = 64)
     private String iconId;
 
+    @Column(columnDefinition = "TEXT")
+    private String note;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private Instant createdAt;

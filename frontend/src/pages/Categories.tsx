@@ -41,11 +41,15 @@ export function Categories() {
   const [newProductImageUrl, setNewProductImageUrl] = useState('');
   const newProductPendingFileRef = useRef<File | null>(null);
   const newProductFileInputRef = useRef<HTMLInputElement>(null);
-  const [editImageProduct, setEditImageProduct] = useState<ProductDto | null>(null);
-  const [productDisplayImageType, setProductDisplayImageType] = useState<DisplayImageType>('icon');
-  const [productIconId, setProductIconId] = useState('');
-  const [productImageUrlInput, setProductImageUrlInput] = useState('');
-  const productImageInputRef = useRef<HTMLInputElement>(null);
+  const [editProduct, setEditProduct] = useState<ProductDto | null>(null);
+  const [editProductName, setEditProductName] = useState('');
+  const [editProductUnit, setEditProductUnit] = useState('');
+  const [editProductNote, setEditProductNote] = useState('');
+  const [editProductDisplayImageType, setEditProductDisplayImageType] = useState<DisplayImageType>('icon');
+  const [editProductIconId, setEditProductIconId] = useState('');
+  const [editProductImageUrl, setEditProductImageUrl] = useState('');
+  const editProductFileInputRef = useRef<HTMLInputElement>(null);
+  const [newProductNote, setNewProductNote] = useState('');
   const [productImageToast, setProductImageToast] = useState<string | null>(null);
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<CategoryDto | null>(null);
   const [shareAllOpen, setShareAllOpen] = useState(false);
@@ -123,6 +127,7 @@ export function Categories() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setNewProductName('');
       setNewProductUnit('יחידה');
+      setNewProductNote('');
       setNewProductDisplayImageType('icon');
       setNewProductIconId('');
       setNewProductImageUrl('');
@@ -146,11 +151,13 @@ export function Categories() {
   });
 
   const updateProductMutation = useMutation({
-    mutationFn: ({ id, imageUrl, iconId }: { id: string; imageUrl: string | null; iconId: string }) =>
-      updateProduct(id, { imageUrl, iconId }),
+    mutationFn: ({ id, ...body }: { id: string; nameHe?: string; defaultUnit?: string; imageUrl?: string | null; iconId?: string | null; note?: string | null }) =>
+      updateProduct(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      setEditImageProduct(null);
+      setEditProduct(null);
+      setProductImageToast('המוצר עודכן');
+      setTimeout(() => setProductImageToast(null), 3000);
     },
   });
 
@@ -227,25 +234,34 @@ export function Categories() {
       defaultUnit: newProductUnit.trim() || 'יחידה',
       ...(iconId !== undefined && { iconId }),
       ...(imageUrl !== undefined && { imageUrl }),
+      ...(newProductNote.trim() && { note: newProductNote.trim() }),
     });
   }
 
-  function openProductImageEdit(p: ProductDto, e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setEditing(null); // close category edit so we only edit the product, not the category
-    setEditImageProduct(p);
-    setProductDisplayImageType(p.imageUrl ? 'link' : 'icon');
-    setProductIconId(p.iconId ?? p.categoryIconId ?? '');
-    setProductImageUrlInput(p.imageUrl || '');
+  function openEditProduct(p: ProductDto) {
+    setEditing(null);
+    setEditProduct(p);
+    setEditProductName(p.nameHe);
+    setEditProductUnit(p.defaultUnit);
+    setEditProductNote(p.note || '');
+    setEditProductDisplayImageType(p.imageUrl ? 'link' : 'icon');
+    setEditProductIconId(p.iconId ?? p.categoryIconId ?? '');
+    setEditProductImageUrl(p.imageUrl || '');
   }
 
-  function handleProductImageSubmit(e: React.FormEvent) {
+  function handleEditProductSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!editImageProduct) return;
-    const imageUrl = productDisplayImageType === 'icon' ? '' : (productImageUrlInput.trim() || null);
-    const iconId = productDisplayImageType === 'icon' ? (productIconId || '') : '';
-    updateProductMutation.mutate({ id: editImageProduct.id, imageUrl, iconId });
+    if (!editProduct) return;
+    const imageUrl = editProductDisplayImageType === 'icon' ? '' : (editProductImageUrl.trim() || null);
+    const iconId = editProductDisplayImageType === 'icon' ? (editProductIconId || '') : '';
+    updateProductMutation.mutate({
+      id: editProduct.id,
+      nameHe: editProductName.trim(),
+      defaultUnit: editProductUnit.trim() || 'יחידה',
+      imageUrl,
+      iconId,
+      note: editProductNote.trim() || '',
+    });
   }
 
   function handleShareAllSubmit(e: React.FormEvent) {
@@ -679,22 +695,28 @@ export function Categories() {
                         }}
                       >
                         <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={24} />
-                        <span style={{ flex: 1 }}>{p.nameHe}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span>{p.nameHe}</span>
+                          {p.note && (
+                            <div style={{ fontSize: 12, color: '#888', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {p.note}
+                            </div>
+                          )}
+                        </div>
                         <span style={{ fontSize: 12, color: '#666' }}>{p.defaultUnit}</span>
                         <button
                           type="button"
-                          onClick={(e) => openProductImageEdit(p, e)}
-                          style={{ padding: '4px 8px', background: '#eee', borderRadius: 6, fontSize: 12 }}
-                          title="תמונת מוצר / אייקון"
+                          onClick={() => openEditProduct(p)}
+                          style={{ padding: '4px 8px', background: '#eee', borderRadius: 6, fontSize: 12, border: 'none', cursor: 'pointer' }}
                         >
-                          אייקון
+                          ערוך
                         </button>
                         <button
                           type="button"
                           onClick={() => {
                             if (window.confirm(`למחוק את המוצר "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id);
                           }}
-                          style={{ padding: '4px 8px', background: '#fee', color: '#c00', borderRadius: 6, fontSize: 12 }}
+                          style={{ padding: '4px 8px', background: '#fee', color: '#c00', borderRadius: 6, fontSize: 12, border: 'none', cursor: 'pointer' }}
                         >
                           מחק
                         </button>
@@ -721,6 +743,13 @@ export function Categories() {
                           placeholder="יחידה"
                           style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', width: 80 }}
                         />
+                        <input
+                          type="text"
+                          value={newProductNote}
+                          onChange={(e) => setNewProductNote(e.target.value)}
+                          placeholder="הערה קבועה (אופציונלי)"
+                          style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', minWidth: 160 }}
+                        />
                         <button
                           type="submit"
                           disabled={createProductMutation.isPending || !newProductName.trim()}
@@ -734,6 +763,7 @@ export function Categories() {
                             setAddProductCategoryId(null);
                             setNewProductName('');
                             setNewProductUnit('יחידה');
+                            setNewProductNote('');
                             setNewProductDisplayImageType('icon');
                             setNewProductIconId('');
                             setNewProductImageUrl('');
@@ -939,7 +969,7 @@ export function Categories() {
         </div>
       )}
 
-      {editImageProduct && (
+      {editProduct && (
         <div
           style={{
             position: 'fixed',
@@ -948,10 +978,10 @@ export function Categories() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1000,
+            zIndex: 1001,
             padding: 24,
           }}
-          onClick={() => setEditImageProduct(null)}
+          onClick={() => setEditProduct(null)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -959,53 +989,88 @@ export function Categories() {
               background: '#fff',
               borderRadius: 16,
               padding: 24,
-              maxWidth: 360,
+              maxWidth: 400,
               width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
             }}
           >
-            <h3 style={{ margin: '0 0 16px' }}>תמונת מוצר: {editImageProduct.nameHe}</h3>
-            <form onSubmit={handleProductImageSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <h3 style={{ margin: '0 0 16px' }}>עריכת מוצר</h3>
+            <form onSubmit={handleEditProductSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>שם מוצר</label>
+                <input
+                  type="text"
+                  value={editProductName}
+                  onChange={(e) => setEditProductName(e.target.value)}
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>יחידת מידה</label>
+                <input
+                  type="text"
+                  value={editProductUnit}
+                  onChange={(e) => setEditProductUnit(e.target.value)}
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>הערה קבועה</label>
+                <textarea
+                  value={editProductNote}
+                  onChange={(e) => setEditProductNote(e.target.value)}
+                  rows={2}
+                  placeholder="תופיע אוטומטית כשמוסיפים את המוצר לרשימה"
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              </div>
               <DisplayImageForm
-                displayType={productDisplayImageType}
-                iconId={productIconId}
-                imageUrl={productImageUrlInput}
-                onDisplayTypeChange={setProductDisplayImageType}
-                onIconIdChange={setProductIconId}
-                onImageUrlChange={setProductImageUrlInput}
-                fileInputRef={productImageInputRef}
+                label="תמונה / אייקון"
+                displayType={editProductDisplayImageType}
+                iconId={editProductIconId}
+                imageUrl={editProductImageUrl}
+                onDisplayTypeChange={(v) => {
+                  setEditProductDisplayImageType(v);
+                  if (v === 'icon') setEditProductImageUrl('');
+                  if (v === 'link' || v === 'web') { setEditProductIconId(''); setEditProductImageUrl(''); }
+                  if (v === 'device') setTimeout(() => editProductFileInputRef.current?.click(), 0);
+                }}
+                onIconIdChange={setEditProductIconId}
+                onImageUrlChange={setEditProductImageUrl}
+                fileInputRef={editProductFileInputRef}
               />
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   type="submit"
-                  disabled={updateProductMutation.isPending}
-                  style={{ flex: 1, padding: 12, background: 'var(--color-primary)', color: '#fff', fontWeight: 600 }}
+                  disabled={updateProductMutation.isPending || !editProductName.trim()}
+                  style={{ flex: 1, padding: 12, background: 'var(--color-primary)', color: '#fff', fontWeight: 600, borderRadius: 8, border: 'none', cursor: 'pointer' }}
                 >
                   {updateProductMutation.isPending ? 'שומר...' : 'שמור'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => setEditImageProduct(null)}
-                  style={{ padding: 12, background: '#eee' }}
+                  onClick={() => setEditProduct(null)}
+                  style={{ padding: 12, background: '#eee', borderRadius: 8, border: 'none', cursor: 'pointer' }}
                 >
                   ביטול
                 </button>
               </div>
             </form>
             <input
-              ref={productImageInputRef}
+              ref={editProductFileInputRef}
               type="file"
               accept="image/*"
               style={{ display: 'none' }}
               onChange={async (e) => {
                 const file = e.target.files?.[0];
-                if (!file || !editImageProduct) return;
+                if (!file || !editProduct) return;
                 e.target.value = '';
-                const productName = editImageProduct.nameHe;
+                const productName = editProduct.nameHe;
                 try {
-                  await uploadFile(`/api/upload/product/${editImageProduct.id}`, file);
+                  await uploadFile(`/api/upload/product/${editProduct.id}`, file);
                   queryClient.invalidateQueries({ queryKey: ['products'] });
-                  setEditImageProduct(null);
-                  setProductImageUrlInput('');
+                  setEditProduct(null);
                   setProductImageToast(`תמונת "${productName}" עודכנה`);
                   setTimeout(() => setProductImageToast(null), 3000);
                 } catch (err) {

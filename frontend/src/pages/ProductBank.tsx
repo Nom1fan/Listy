@@ -123,7 +123,7 @@ export function ProductBank() {
   function openAdd(p: ProductDto) {
     setAddModal(p);
     setQuantity('1');
-    setNote('');
+    setNote(p.note || '');
   }
 
   function submitAdd() {
@@ -244,6 +244,11 @@ export function ProductBank() {
                           <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={64} />
                           <span style={{ fontWeight: 500 }}>{p.nameHe}</span>
                           <span style={{ fontSize: 12, color: '#666' }}>{p.defaultUnit}</span>
+                          {p.note && (
+                            <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {p.note}
+                            </span>
+                          )}
                         </button>
                         <button
                           type="button"
@@ -307,6 +312,11 @@ export function ProductBank() {
                   <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={64} />
                   <span style={{ fontWeight: 500 }}>{p.nameHe}</span>
                   <span style={{ fontSize: 12, color: '#666' }}>{p.defaultUnit}</span>
+                  {p.note && (
+                    <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {p.note}
+                    </span>
+                  )}
                 </button>
                 <button
                   type="button"
