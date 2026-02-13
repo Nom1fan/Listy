@@ -11,6 +11,10 @@ public interface ListItemRepository extends JpaRepository<ListItem, UUID> {
     @Query("SELECT i FROM ListItem i LEFT JOIN FETCH i.product p LEFT JOIN FETCH p.category WHERE i.list.id = :listId ORDER BY i.sortOrder, i.createdAt")
     List<ListItem> findByListIdWithProductAndCategory(UUID listId);
 
+    /** Distinct category IDs of products used on this list (for auto-sharing categories when list is shared). */
+    @Query("SELECT DISTINCT p.category.id FROM ListItem i JOIN i.product p WHERE i.list.id = :listId")
+    List<UUID> findDistinctCategoryIdsByListId(UUID listId);
+
     void deleteByListId(UUID listId);
 
     /** Count of list items per product (only rows with product_id set). Returns [productId, count] per row. */

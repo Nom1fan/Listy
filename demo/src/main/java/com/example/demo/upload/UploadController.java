@@ -6,6 +6,7 @@ import com.example.demo.list.ListAccessService;
 import com.example.demo.list.ListItem;
 import com.example.demo.list.ListItemRepository;
 import com.example.demo.productbank.Category;
+import com.example.demo.productbank.CategoryAccessService;
 import com.example.demo.productbank.CategoryRepository;
 import com.example.demo.productbank.Product;
 import com.example.demo.productbank.ProductRepository;
@@ -26,6 +27,7 @@ public class UploadController {
 
     private final UploadService uploadService;
     private final CategoryRepository categoryRepository;
+    private final CategoryAccessService categoryAccessService;
     private final ProductRepository productRepository;
     private final ListItemRepository listItemRepository;
     private final GroceryListRepository groceryListRepository;
@@ -38,7 +40,8 @@ public class UploadController {
             @AuthenticationPrincipal User user
     ) throws IOException {
         if (user == null) return ResponseEntity.status(401).build();
-        Category cat = categoryRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        Category cat = categoryAccessService.getCategoryOrThrow(id, user);
+        if (!categoryAccessService.canEdit(user, id)) throw new IllegalArgumentException("Access denied");
         String url = uploadService.saveCategoryImage(file);
         cat.setImageUrl(url);
         categoryRepository.save(cat);
@@ -53,6 +56,8 @@ public class UploadController {
     ) throws IOException {
         if (user == null) return ResponseEntity.status(401).build();
         Product product = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        categoryAccessService.getCategoryOrThrow(product.getCategory().getId(), user);
+        if (!categoryAccessService.canEdit(user, product.getCategory().getId())) throw new IllegalArgumentException("Access denied");
         String url = uploadService.saveProductImage(file);
         product.setImageUrl(url);
         productRepository.save(product);

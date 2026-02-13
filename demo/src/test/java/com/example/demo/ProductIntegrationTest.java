@@ -12,8 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ProductIntegrationTest extends AbstractIntegrationTest {
 
     @Test
-    void list_products_public() throws Exception {
-        mvc.perform(get("/api/products"))
+    void list_products_requires_auth() throws Exception {
+        mvc.perform(get("/api/products")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/products").header("Authorization", getBearerToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$[0].nameHe").value("אורז"))
@@ -21,8 +22,9 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void get_product_by_id_public() throws Exception {
-        mvc.perform(get("/api/products/" + productId))
+    void get_product_by_id_requires_auth() throws Exception {
+        mvc.perform(get("/api/products/" + productId)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/products/" + productId).header("Authorization", getBearerToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(productId.toString()))
                 .andExpect(jsonPath("$.nameHe").value("אורז"))
@@ -55,7 +57,7 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
                         .content(objectMapper.writeValueAsString(Map.of("imageUrl", "", "iconId", "carrot"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.iconId").value("carrot"));
-        mvc.perform(get("/api/products/" + productId))
+        mvc.perform(get("/api/products/" + productId).header("Authorization", getBearerToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.iconId").value("carrot"));
     }

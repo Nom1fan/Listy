@@ -1,12 +1,13 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCategories, getProducts, createCategory, createProduct, updateCategory, updateProduct, deleteCategory, deleteProduct } from '../api/products';
+import { getCategories, getProducts, createCategory, createProduct, updateCategory, updateProduct, deleteCategory, deleteProduct, inviteToAllCategories } from '../api/products';
 import { uploadFile } from '../api/client';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, ICON_OPTIONS } from '../components/DisplayImageForm';
 import { ImageSearchPicker } from '../components/ImageSearchPicker';
+import { useAuthStore } from '../store/authStore';
 import type { CategoryDto, ProductDto } from '../types';
 
 type DisplayImageType = 'icon' | 'device' | 'link' | 'web';
@@ -17,6 +18,8 @@ function isProductImageErrorToast(msg: string): boolean {
 
 export function Categories() {
   const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const currentUserId = user?.userId ?? '';
   const [nameHe, setNameHe] = useState('');
   const [displayImageType, setDisplayImageType] = useState<DisplayImageType>('icon');
   const [iconId, setIconId] = useState<string>('');
@@ -44,6 +47,11 @@ export function Categories() {
   const [productImageUrlInput, setProductImageUrlInput] = useState('');
   const productImageInputRef = useRef<HTMLInputElement>(null);
   const [productImageToast, setProductImageToast] = useState<string | null>(null);
+  const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<CategoryDto | null>(null);
+  const [shareAllOpen, setShareAllOpen] = useState(false);
+  const [shareAllEmail, setShareAllEmail] = useState('');
+  const [shareAllPhone, setShareAllPhone] = useState('');
+  const [shareAllError, setShareAllError] = useState<string | null>(null);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -146,6 +154,29 @@ export function Categories() {
     },
   });
 
+  const shareAllMutation = useMutation({
+    mutationFn: (body: { email?: string; phone?: string }) => inviteToAllCategories(body),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      setShareAllOpen(false);
+      setShareAllEmail('');
+      setShareAllPhone('');
+      setShareAllError(null);
+      const msg = data.categoriesAdded === data.totalCategories
+        ? `הוזמן ל־${data.categoriesAdded} קטגוריות`
+        : `הוזמן ל־${data.categoriesAdded} מתוך ${data.totalCategories} קטגוריות`;
+      setProductImageToast(msg);
+      setTimeout(() => setProductImageToast(null), 3000);
+    },
+    onError: (err: Error) => {
+      setShareAllError(err.message || 'שגיאה בהזמנה');
+    },
+  });
+
+  const ownedCategories = categories.filter((c) => c.ownerId === currentUserId);
+  const ownedCategoriesCount = ownedCategories.length;
+
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setCreateError(null);
@@ -218,6 +249,18 @@ export function Categories() {
     const imageUrl = productDisplayImageType === 'icon' ? '' : (productImageUrlInput.trim() || null);
     const iconId = productDisplayImageType === 'icon' ? (productIconId || '') : '';
     updateProductMutation.mutate({ id: editImageProduct.id, imageUrl, iconId });
+  }
+
+  function handleShareAllSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setShareAllError(null);
+    const email = shareAllEmail.trim() || undefined;
+    const phone = shareAllPhone.trim() || undefined;
+    if (!email && !phone) {
+      setShareAllError('הזן אימייל או טלפון');
+      return;
+    }
+    shareAllMutation.mutate({ email, phone });
   }
 
   return (
@@ -381,6 +424,43 @@ export function Categories() {
           </p>
         )}
 
+        {categories.length > 0 && (
+          <div style={{
+            marginBottom: 24,
+            padding: 16,
+            background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
+            borderRadius: 12,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ fontWeight: 600, color: '#1565c0', fontSize: 15 }}>שיתוף קטגוריות</div>
+              <div style={{ fontSize: 13, color: '#1976d2', marginTop: 2 }}>
+                שתף את כל הקטגוריות שלך עם משתמש אחר, או לחץ על קטגוריה לניהול שיתוף
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setShareAllOpen(true); setShareAllError(null); setShareAllEmail(''); setShareAllPhone(''); }}
+              style={{
+                padding: '10px 20px',
+                background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
+                color: '#fff',
+                borderRadius: 8,
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 15,
+                boxShadow: '0 2px 6px rgba(21,101,192,0.3)',
+              }}
+            >
+              👥 שיתוף כל הקטגוריות
+            </button>
+          </div>
+        )}
+
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {categories.map((c) => (
             <li
@@ -402,6 +482,40 @@ export function Categories() {
                 }}
               >
                 <CategoryIcon iconId={c.iconId} imageUrl={c.imageUrl} size={32} />
+                {c.memberCount > 1 && (
+                  <span
+                    title={`משותף עם ${c.memberCount - 1} משתמשים`}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      padding: '2px 8px',
+                      background: '#e3f2fd',
+                      color: '#1565c0',
+                      borderRadius: 12,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    👥 {c.memberCount}
+                  </span>
+                )}
+                {c.ownerId !== currentUserId && (
+                  <span
+                    style={{
+                      padding: '2px 8px',
+                      background: '#fff3e0',
+                      color: '#e65100',
+                      borderRadius: 12,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    קטגוריה משותפת
+                  </span>
+                )}
                 {editing?.id === c.id ? (
                 <form
                   onSubmit={handleUpdate}
@@ -515,6 +629,23 @@ export function Categories() {
               ) : (
                 <>
                   <span style={{ flex: 1, fontWeight: 500 }}>{c.nameHe}</span>
+                  <Link
+                    to={`/categories/${c.id}/share`}
+                    style={{
+                      padding: '6px 12px',
+                      background: c.ownerId === currentUserId
+                        ? 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)'
+                        : '#e3f2fd',
+                      color: c.ownerId === currentUserId ? '#fff' : '#1565c0',
+                      borderRadius: 8,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      boxShadow: c.ownerId === currentUserId ? '0 1px 3px rgba(21,101,192,0.3)' : 'none',
+                    }}
+                  >
+                    👥 {c.ownerId === currentUserId ? 'שיתוף' : 'חברים'}
+                  </Link>
                   <button
                     type="button"
                     onClick={() => startEdit(c)}
@@ -522,17 +653,15 @@ export function Categories() {
                   >
                     ערוך
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (window.confirm(`למחוק את הקטגוריה "${c.nameHe}"? מוצרים בקטגוריה יימחקו.`)) {
-                        deleteMutation.mutate(c.id);
-                      }
-                    }}
-                    style={{ padding: '6px 10px', background: '#fee', color: '#c00', borderRadius: 8, fontSize: 14 }}
-                  >
-                    מחק
-                  </button>
+                  {c.ownerId === currentUserId && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteCategory(c)}
+                      style={{ padding: '6px 10px', background: '#fee', color: '#c00', borderRadius: 8, fontSize: 14 }}
+                    >
+                      מחק
+                    </button>
+                  )}
                 </>
               )}
               </div>
@@ -669,6 +798,149 @@ export function Categories() {
           </Link>
         </p>
       </main>
+
+      {shareAllOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1001,
+            padding: 24,
+          }}
+          onClick={() => { if (!shareAllError && !shareAllMutation.isPending) { setShareAllOpen(false); setShareAllError(null); } }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 360,
+              width: '100%',
+            }}
+          >
+            <h3 style={{ margin: '0 0 8px' }}>שיתוף כל הקטגוריות</h3>
+            <p style={{ margin: '0 0 16px', fontSize: 14, color: '#555' }}>
+              המשתמש יקבל גישה לעריכה לכל הקטגוריות שבבעלותך.
+            </p>
+            <form onSubmit={handleShareAllSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>אימייל</label>
+                <input
+                  type="email"
+                  value={shareAllEmail}
+                  onChange={(e) => { setShareAllEmail(e.target.value); setShareAllError(null); }}
+                  placeholder="email@example.com"
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>או מספר טלפון</label>
+                <input
+                  type="tel"
+                  value={shareAllPhone}
+                  onChange={(e) => { setShareAllPhone(e.target.value); setShareAllError(null); }}
+                  placeholder="050-1234567"
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
+                />
+              </div>
+              {shareAllError && (
+                <p style={{ margin: 0, fontSize: 14, color: '#c00', fontWeight: 500 }}>{shareAllError}</p>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="submit"
+                  disabled={shareAllMutation.isPending}
+                  style={{ flex: 1, padding: 12, background: 'var(--color-primary)', color: '#fff', fontWeight: 600, borderRadius: 8, border: 'none', cursor: 'pointer' }}
+                >
+                  {shareAllMutation.isPending ? 'שולח...' : 'הזמן'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShareAllOpen(false); setShareAllError(null); }}
+                  style={{ padding: 12, background: '#eee', borderRadius: 8, border: 'none', cursor: 'pointer' }}
+                >
+                  ביטול
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteCategory && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1001,
+            padding: 24,
+          }}
+          onClick={() => setConfirmDeleteCategory(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 360,
+              width: '100%',
+            }}
+          >
+            <h3 style={{ margin: '0 0 12px', fontSize: 18 }}>מחיקת קטגוריה</h3>
+            <p style={{ margin: '0 0 20px', fontSize: 15, color: '#333', lineHeight: 1.6 }}>
+              אתה באמת מעוניין למחוק את קטגוריה <strong>{confirmDeleteCategory.nameHe}</strong>?
+            </p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  deleteMutation.mutate(confirmDeleteCategory.id);
+                  setConfirmDeleteCategory(null);
+                }}
+                disabled={deleteMutation.isPending}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  background: '#c62828',
+                  color: '#fff',
+                  fontWeight: 600,
+                  borderRadius: 8,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 15,
+                }}
+              >
+                {deleteMutation.isPending ? 'מוחק...' : 'כן, מחק'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteCategory(null)}
+                style={{
+                  flex: 1,
+                  padding: 12,
+                  background: '#eee',
+                  borderRadius: 8,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 15,
+                }}
+              >
+                לא
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editImageProduct && (
         <div

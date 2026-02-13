@@ -7,6 +7,8 @@ import com.example.demo.list.GroceryListRepository;
 import com.example.demo.list.ListItemRepository;
 import com.example.demo.list.ListMemberRepository;
 import com.example.demo.productbank.Category;
+import com.example.demo.productbank.CategoryMember;
+import com.example.demo.productbank.CategoryMemberRepository;
 import com.example.demo.productbank.CategoryRepository;
 import com.example.demo.productbank.Product;
 import com.example.demo.productbank.ProductRepository;
@@ -51,6 +53,8 @@ public abstract class AbstractIntegrationTest {
     protected ListMemberRepository listMemberRepository;
     @Autowired
     protected GroceryListRepository listRepository;
+    @Autowired
+    protected CategoryMemberRepository categoryMemberRepository;
 
     protected String authToken;
     protected User testUser;
@@ -63,6 +67,7 @@ public abstract class AbstractIntegrationTest {
         listMemberRepository.deleteAll();
         listRepository.deleteAll();
         phoneOtpRepository.deleteAll();
+        categoryMemberRepository.deleteAll();
         productRepository.deleteAll();
         categoryRepository.deleteAll();
         userRepository.deleteAll();
@@ -78,11 +83,19 @@ public abstract class AbstractIntegrationTest {
         authToken = login("test@example.com", "password123");
 
         Category cat = Category.builder()
+                .owner(testUser)
                 .nameHe("מכולת")
                 .iconId("groceries")
                 .sortOrder(0)
                 .build();
         cat = categoryRepository.save(cat);
+        categoryMemberRepository.save(CategoryMember.builder()
+                .categoryId(cat.getId())
+                .userId(testUser.getId())
+                .category(cat)
+                .user(testUser)
+                .role("owner")
+                .build());
         categoryId = cat.getId();
 
         Product product = Product.builder()
