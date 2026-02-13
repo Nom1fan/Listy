@@ -191,8 +191,8 @@ export function Categories() {
     pendingCreateFileRef.current = displayImageType === 'device' ? pendingCategoryFile : null;
     createMutation.mutate({
       nameHe: nameHe.trim(),
-      iconId: displayImageType === 'icon' ? (iconId || null) : null,
-      imageUrl: (displayImageType === 'link' || displayImageType === 'web') ? (imageUrl.trim() || null) : null,
+      iconId: displayImageType === 'icon' ? (iconId || '') : '',
+      imageUrl: (displayImageType === 'link' || displayImageType === 'web') ? (imageUrl.trim() || '') : '',
       sortOrder: categories.length,
     });
   }
@@ -212,8 +212,8 @@ export function Categories() {
       id: editing.id,
       body: {
         nameHe: editName.trim(),
-        iconId: editDisplayImageType === 'icon' ? (editIconId || null) : null,
-        imageUrl: editDisplayImageType !== 'icon' ? (editImageUrl.trim() || null) : null,
+        iconId: editDisplayImageType === 'icon' ? (editIconId || '') : '',
+        imageUrl: editDisplayImageType !== 'icon' ? (editImageUrl.trim() || '') : '',
       },
     });
   }
@@ -252,7 +252,7 @@ export function Categories() {
   function handleEditProductSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!editProduct) return;
-    const imageUrl = editProductDisplayImageType === 'icon' ? '' : (editProductImageUrl.trim() || null);
+    const imageUrl = editProductDisplayImageType === 'icon' ? '' : (editProductImageUrl.trim() || '');
     const iconId = editProductDisplayImageType === 'icon' ? (editProductIconId || '') : '';
     updateProductMutation.mutate({
       id: editProduct.id,
@@ -329,11 +329,10 @@ export function Categories() {
                 setDisplayImageType(v);
                 if (v === 'icon') { setImageUrl(''); setPendingCategoryFile(null); }
                 if (v === 'device') {
-                  setIconId('');
                   setImageUrl('');
                   setTimeout(() => createCategoryFileInputRef.current?.click(), 0);
                 }
-                if (v === 'link' || v === 'web') { setIconId(''); setPendingCategoryFile(null); }
+                if (v === 'link' || v === 'web') { setPendingCategoryFile(null); }
               }}
               style={{ padding: 10, borderRadius: 8, border: '1px solid #ccc', minWidth: 160 }}
             >
@@ -548,7 +547,6 @@ export function Categories() {
                         const v = e.target.value as DisplayImageType;
                         setEditDisplayImageType(v);
                         if (v === 'icon') setEditImageUrl('');
-                        if (v === 'link' || v === 'web') setEditIconId('');
                         if (v === 'device') setTimeout(() => categoryImageInputRef.current?.click(), 0);
                       }}
                       style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc' }}
@@ -782,7 +780,7 @@ export function Categories() {
                         onDisplayTypeChange={(v) => {
                           setNewProductDisplayImageType(v);
                           if (v === 'icon') setNewProductImageUrl('');
-                          if (v === 'link' || v === 'web') { setNewProductIconId(''); setNewProductImageUrl(''); }
+                          if (v === 'link' || v === 'web') { setNewProductImageUrl(''); }
                           if (v === 'device') { newProductPendingFileRef.current = null; setNewProductImageUrl(''); }
                         }}
                         onIconIdChange={setNewProductIconId}
@@ -1033,7 +1031,7 @@ export function Categories() {
                 onDisplayTypeChange={(v) => {
                   setEditProductDisplayImageType(v);
                   if (v === 'icon') setEditProductImageUrl('');
-                  if (v === 'link' || v === 'web') { setEditProductIconId(''); setEditProductImageUrl(''); }
+                  if (v === 'link' || v === 'web') { setEditProductImageUrl(''); }
                   if (v === 'device') setTimeout(() => editProductFileInputRef.current?.click(), 0);
                 }}
                 onIconIdChange={setEditProductIconId}

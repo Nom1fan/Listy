@@ -60,8 +60,8 @@ public class GroceryListService {
         GroceryList list = get(listId, user);
         if (!listAccessService.canEdit(user, listId)) throw new IllegalArgumentException("אין הרשאה לערוך");
         if (name != null && !name.isBlank()) list.setName(name);
-        if (iconId != null) list.setIconId(iconId);
-        if (imageUrl != null) list.setImageUrl(imageUrl);
+        if (iconId != null) list.setIconId(iconId.isBlank() ? null : iconId);
+        if (imageUrl != null) list.setImageUrl(imageUrl.isBlank() ? null : imageUrl);
         return listRepository.save(list);
     }
 

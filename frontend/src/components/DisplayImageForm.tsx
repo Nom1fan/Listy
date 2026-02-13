@@ -84,7 +84,9 @@ export function DisplayImageForm({
             const v = e.target.value as DisplayImageType;
             onDisplayTypeChange(v);
             if (v === 'icon') onImageUrlChange('');
-            if (v === 'link' || v === 'web') onIconIdChange('');
+            // Don't clear iconId when switching to link/web/device — the submit
+            // logic uses displayType to pick the right value, and preserving
+            // iconId lets the user switch back to icon without losing their selection.
             if (v === 'device') setTimeout(() => fileInputRef.current?.click(), 0);
           }}
           style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}

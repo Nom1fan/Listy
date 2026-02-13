@@ -227,7 +227,7 @@ export function ListDetail() {
   function handleItemImageSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!editImageItem || !listId) return;
-    const url = itemDisplayImageType === 'icon' ? null : (itemImageUrlInput.trim() || null);
+    const url = itemDisplayImageType === 'icon' ? '' : (itemImageUrlInput.trim() || '');
     updateMutation.mutate({ itemId: editImageItem.id, body: { itemImageUrl: url } });
     // Update the product's icon (not the category) when editing icon from list
     const productId = editImageItem.productId;
@@ -267,8 +267,8 @@ export function ListDetail() {
     e.preventDefault();
     if (!listId) return;
     const name = editListName.trim() || list?.name;
-    const iconId = editListDisplayImageType === 'icon' ? (editListIconId || null) : null;
-    const imageUrl = editListDisplayImageType === 'link' || editListDisplayImageType === 'web' ? (editListImageUrl.trim() || null) : null;
+    const iconId = editListDisplayImageType === 'icon' ? (editListIconId || '') : '';
+    const imageUrl = editListDisplayImageType === 'link' || editListDisplayImageType === 'web' ? (editListImageUrl.trim() || '') : '';
     if (editListDisplayImageType === 'device' && pendingListImageFileRef.current) {
       updateListMutation.mutate({ name });
       return;
