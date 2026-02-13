@@ -10,5 +10,8 @@ import org.springframework.stereotype.Component;
 public class JwtProperties {
 
     private String secret = "changeme";
-    private long expirationMs = 86400000L;
+    private long expirationMs = 3600000L;          // 1 hour (access token)
+    private long refreshExpirationMs = 2592000000L; // 30 days (refresh token)
+    private String refreshCookieName = "listy_refresh";
+    private boolean refreshCookieSecure = true;     // false for local HTTP dev
 }

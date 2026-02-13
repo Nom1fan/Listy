@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthResponse } from '../types';
+import { serverLogout } from '../api/auth';
 
 interface AuthState {
   token: string | null;
@@ -29,6 +30,8 @@ export const useAuthStore = create<AuthState>()(
         });
       },
       logout: () => {
+        // Revoke refresh token on server (clears HttpOnly cookie)
+        serverLogout();
         localStorage.removeItem('listy_token');
         set({ token: null, user: null });
       },
