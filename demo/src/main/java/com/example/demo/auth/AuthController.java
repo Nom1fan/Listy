@@ -49,6 +49,20 @@ public class AuthController {
         return ResponseEntity.ok(result.authResponse());
     }
 
+    @PostMapping("/email/request")
+    public ResponseEntity<Void> requestEmailOtp(@Valid @RequestBody EmailRequestOtpRequest req) {
+        authService.requestEmailOtp(req);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/email/verify")
+    public ResponseEntity<AuthResponse> verifyEmailOtp(@Valid @RequestBody EmailVerifyRequest req,
+                                                        HttpServletResponse response) {
+        LoginResult result = authService.verifyEmailOtp(req);
+        setRefreshCookie(response, result.refreshToken());
+        return ResponseEntity.ok(result.authResponse());
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(HttpServletRequest request,
                                                  HttpServletResponse response) {

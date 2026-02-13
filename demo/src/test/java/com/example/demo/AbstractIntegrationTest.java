@@ -1,5 +1,6 @@
 package com.example.demo;
 
+import com.example.demo.auth.EmailOtpRepository;
 import com.example.demo.auth.PhoneOtpRepository;
 import com.example.demo.auth.RefreshTokenRepository;
 import com.example.demo.auth.User;
@@ -49,6 +50,8 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     protected PhoneOtpRepository phoneOtpRepository;
     @Autowired
+    protected EmailOtpRepository emailOtpRepository;
+    @Autowired
     protected ListItemRepository listItemRepository;
     @Autowired
     protected ListMemberRepository listMemberRepository;
@@ -70,6 +73,7 @@ public abstract class AbstractIntegrationTest {
         listMemberRepository.deleteAll();
         listRepository.deleteAll();
         phoneOtpRepository.deleteAll();
+        emailOtpRepository.deleteAll();
         refreshTokenRepository.deleteAll();
         categoryMemberRepository.deleteAll();
         productRepository.deleteAll();

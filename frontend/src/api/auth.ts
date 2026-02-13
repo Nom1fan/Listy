@@ -31,6 +31,20 @@ export async function verifyPhoneOtp(phone: string, code: string, displayName: s
   });
 }
 
+export async function requestEmailOtp(email: string): Promise<void> {
+  return api<void>('/api/auth/email/request', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function verifyEmailOtp(email: string, code: string, displayName: string): Promise<AuthResponse> {
+  return api<AuthResponse>('/api/auth/email/verify', {
+    method: 'POST',
+    body: JSON.stringify({ email, code, displayName }),
+  });
+}
+
 export async function updateProfile(displayName: string | null): Promise<AuthResponse> {
   return api<AuthResponse>('/api/auth/me', {
     method: 'PATCH',
