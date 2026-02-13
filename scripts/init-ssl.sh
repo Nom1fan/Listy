@@ -59,6 +59,11 @@ sleep 5
 # ── 3. Obtain real certificate from Let's Encrypt ──────────────
 echo "[3/4] Requesting Let's Encrypt certificate ..."
 
+# Remove the dummy cert so certbot can create its own
+docker run --rm \
+  -v "${COMPOSE_PROJECT_NAME:-listy}_certbot-certs:/etc/letsencrypt" \
+  alpine sh -c "rm -rf /etc/letsencrypt/live/$DOMAIN /etc/letsencrypt/renewal/$DOMAIN.conf /etc/letsencrypt/archive/$DOMAIN"
+
 EMAIL_FLAG=""
 if [ -n "$EMAIL" ]; then
   EMAIL_FLAG="--email $EMAIL"
@@ -66,13 +71,12 @@ else
   EMAIL_FLAG="--register-unsafely-without-email"
 fi
 
-docker compose run --rm certbot certonly \
+docker compose run --rm --entrypoint certbot certbot certonly \
   --webroot -w /var/www/certbot \
   -d "$DOMAIN" \
   $EMAIL_FLAG \
   --agree-tos \
-  --no-eff-email \
-  --force-renewal
+  --no-eff-email
 
 echo "   Certificate obtained!"
 
