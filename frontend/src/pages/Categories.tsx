@@ -174,9 +174,6 @@ export function Categories() {
     },
   });
 
-  const ownedCategories = categories.filter((c) => c.ownerId === currentUserId);
-  const ownedCategoriesCount = ownedCategories.length;
-
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setCreateError(null);
