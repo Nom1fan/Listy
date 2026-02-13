@@ -111,6 +111,16 @@ public class ListController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/reorder")
+    public ResponseEntity<Void> reorder(
+            @AuthenticationPrincipal User user,
+            @RequestBody ReorderListsRequest req
+    ) {
+        if (user == null) return ResponseEntity.status(401).build();
+        listService.reorder(user, req.getListIds());
+        return ResponseEntity.noContent().build();
+    }
+
     private ListResponse toListResponse(GroceryList list) {
         return ListResponse.builder()
                 .id(list.getId())
@@ -118,6 +128,7 @@ public class ListController {
                 .ownerId(list.getOwner().getId())
                 .iconId(list.getIconId())
                 .imageUrl(list.getImageUrl())
+                .sortOrder(list.getSortOrder())
                 .createdAt(list.getCreatedAt())
                 .updatedAt(list.getUpdatedAt())
                 .build();

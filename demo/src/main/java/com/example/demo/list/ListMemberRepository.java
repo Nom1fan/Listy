@@ -1,6 +1,7 @@
 package com.example.demo.list;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -19,5 +20,7 @@ public interface ListMemberRepository extends JpaRepository<ListMember, ListMemb
 
     boolean existsByListIdAndUserId(UUID listId, UUID userId);
 
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("DELETE FROM ListMember m WHERE m.listId = :listId")
     void deleteByListId(UUID listId);
 }

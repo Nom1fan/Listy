@@ -13,6 +13,7 @@ export interface ListResponse {
   ownerId: string;
   iconId: string | null;
   imageUrl: string | null;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }

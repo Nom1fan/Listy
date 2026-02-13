@@ -31,6 +31,10 @@ public class GroceryList {
     @Column(name = "image_url", length = 2048)
     private String imageUrl;
 
+    @Column(name = "sort_order", nullable = false)
+    @Builder.Default
+    private int sortOrder = 0;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
