@@ -52,7 +52,7 @@ describe('auth API', () => {
     expect(res).toBeUndefined()
   })
 
-  it('verifyPhoneOtp returns AuthResponse', async () => {
+  it('verifyPhoneOtp sends displayName and returns AuthResponse', async () => {
     ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -62,11 +62,14 @@ describe('auth API', () => {
           userId: 'u1',
           email: null,
           phone: '+972501234567',
-          displayName: null,
+          displayName: 'Moshe',
           locale: 'he',
         }),
     })
-    const res = await verifyPhoneOtp('+972501234567', '123456')
+    const res = await verifyPhoneOtp('+972501234567', '123456', 'Moshe')
     expect(res.token).toBe('jwt')
+    expect(res.displayName).toBe('Moshe')
+    const body = JSON.parse((globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body)
+    expect(body.displayName).toBe('Moshe')
   })
 })

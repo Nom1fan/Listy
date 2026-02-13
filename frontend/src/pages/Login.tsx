@@ -25,44 +25,50 @@ export function Login() {
 
   return (
     <>
-      <AppBar title="התחברות" />
+      <AppBar title="התחברות עם אימייל" backTo="/login" />
       <main style={{ padding: 24, maxWidth: 400, margin: '0 auto' }}>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: 4 }}>אימייל</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', width: 'fit-content', margin: '0 auto', gap: 16 }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: 4 }}>אימייל</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                dir="ltr"
+                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box', minWidth: 280 }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: 4 }}>סיסמה</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+              />
+            </div>
+            {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
+            <button
+              type="submit"
+              disabled={!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password}
+              style={{
+                padding: 12,
+                width: '100%',
+                background: 'var(--color-primary)',
+                color: '#fff',
+                fontWeight: 600,
+                opacity: !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password ? 0.5 : 1,
+              }}
+            >
+              התחבר
+            </button>
           </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: 4 }}>סיסמה</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-            />
-          </div>
-          {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
-          <button
-            type="submit"
-            style={{
-              padding: 12,
-              background: 'var(--color-primary)',
-              color: '#fff',
-              fontWeight: 600,
-            }}
-          >
-            התחבר
-          </button>
         </form>
         <p style={{ marginTop: 16, textAlign: 'center' }}>
-          <Link to="/register">הרשמה</Link> · <Link to="/login/phone">התחברות עם טלפון</Link>
+          <Link to="/login">התחברות עם טלפון</Link>
         </p>
       </main>
     </>

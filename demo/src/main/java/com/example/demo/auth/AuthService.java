@@ -86,9 +86,11 @@ public class AuthService {
         }
         phoneOtpRepository.delete(opt.get());
         User user = userRepository.findByPhone(phone).orElseGet(() -> {
+            String name = req.getDisplayName() != null && !req.getDisplayName().isBlank()
+                    ? req.getDisplayName().trim() : phone;
             User newUser = User.builder()
                     .phone(phone)
-                    .displayName(phone)
+                    .displayName(name)
                     .locale("he")
                     .build();
             return userRepository.save(newUser);

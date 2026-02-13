@@ -22,10 +22,10 @@ export async function requestPhoneOtp(phone: string): Promise<void> {
   });
 }
 
-export async function verifyPhoneOtp(phone: string, code: string): Promise<AuthResponse> {
+export async function verifyPhoneOtp(phone: string, code: string, displayName: string): Promise<AuthResponse> {
   return api<AuthResponse>('/api/auth/phone/verify', {
     method: 'POST',
-    body: JSON.stringify({ phone, code }),
+    body: JSON.stringify({ phone, code, displayName }),
   });
 }
 
