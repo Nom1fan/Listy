@@ -19,12 +19,14 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PhoneOtpRepository phoneOtpRepository;
+    private final EmailOtpRepository emailOtpRepository;
     private final OtpRequestLogRepository otpRequestLogRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final JwtProperties jwtProperties;
     private final SmsService smsService;
+    private final EmailService emailService;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
@@ -33,6 +35,9 @@ public class AuthService {
 
     @Value("${listyyy.otp.rate-limit-per-phone-per-hour:5}")
     private int rateLimitPerPhonePerHour;
+
+    @Value("${listyyy.otp.rate-limit-per-email-per-hour:5}")
+    private int rateLimitPerEmailPerHour;
 
     @Transactional
     public LoginResult register(RegisterRequest req) {
@@ -95,6 +100,50 @@ public class AuthService {
                     ? req.getDisplayName().trim() : phone;
             User newUser = User.builder()
                     .phone(phone)
+                    .displayName(name)
+                    .locale("he")
+                    .build();
+            return userRepository.save(newUser);
+        });
+        return buildLoginResult(user);
+    }
+
+    @Transactional
+    public void requestEmailOtp(EmailRequestOtpRequest req) {
+        String email = req.getEmail().trim().toLowerCase();
+        Instant oneHourAgo = Instant.now().minusSeconds(3600);
+        long count = otpRequestLogRepository.countByEmailSince(email, oneHourAgo);
+        if (count >= rateLimitPerEmailPerHour) {
+            throw new IllegalArgumentException("יותר מדי בקשות קוד. נסה שוב מאוחר יותר.");
+        }
+        String code = String.format("%06d", ThreadLocalRandom.current().nextInt(100_000, 1_000_000));
+        Instant expiresAt = Instant.now().plusSeconds(otpTtlMinutes * 60L);
+        emailOtpRepository.save(EmailOtp.builder()
+                .email(email)
+                .code(code)
+                .expiresAt(expiresAt)
+                .build());
+        otpRequestLogRepository.save(OtpRequestLog.builder().email(email).build());
+        emailService.sendOtp(email, code);
+    }
+
+    @Transactional
+    public LoginResult verifyEmailOtp(EmailVerifyRequest req) {
+        String email = req.getEmail().trim().toLowerCase();
+        Optional<EmailOtp> opt = emailOtpRepository.findById(email);
+        if (opt.isEmpty() || !opt.get().getCode().equals(req.getCode())) {
+            throw new IllegalArgumentException("קוד לא תקין או שפג תוקפו");
+        }
+        if (opt.get().getExpiresAt().isBefore(Instant.now())) {
+            emailOtpRepository.delete(opt.get());
+            throw new IllegalArgumentException("הקוד פג תוקף");
+        }
+        emailOtpRepository.delete(opt.get());
+        User user = userRepository.findByEmail(email).orElseGet(() -> {
+            String name = req.getDisplayName() != null && !req.getDisplayName().isBlank()
+                    ? req.getDisplayName().trim() : email;
+            User newUser = User.builder()
+                    .email(email)
                     .displayName(name)
                     .locale("he")
                     .build();

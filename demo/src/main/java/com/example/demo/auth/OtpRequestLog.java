@@ -19,8 +19,11 @@ public class OtpRequestLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private String phone;
+
+    @Column(length = 320)
+    private String email;
 
     @CreationTimestamp
     @Column(name = "requested_at", nullable = false)
