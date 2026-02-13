@@ -1,18 +1,58 @@
 package com.example.demo;
 
+import com.example.demo.auth.User;
+import com.example.demo.auth.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.util.Map;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class ListIntegrationTest extends AbstractIntegrationTest {
+
+    @Autowired
+    private UserRepository userRepository;
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+    @Autowired
+    private com.example.demo.productbank.CategoryMemberRepository categoryMemberRepository;
+
+    @Test
+    void invite_to_list_auto_shares_categories_used_by_list_items() throws Exception {
+        User other = userRepository.save(User.builder()
+                .email("other@example.com")
+                .passwordHash(passwordEncoder.encode("pass123"))
+                .displayName("Other User")
+                .locale("he")
+                .build());
+
+        String listId = createList("List to share");
+        mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "productId", productId.toString(),
+                                "quantity", 1))))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/lists/" + listId + "/members")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "other@example.com"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(other.getId().toString()))
+                .andExpect(jsonPath("$.role").value("editor"));
+
+        assertThat(categoryMemberRepository.existsByCategoryIdAndUserId(categoryId, other.getId())).isTrue();
+    }
 
     @Test
     void create_list_and_get_lists() throws Exception {

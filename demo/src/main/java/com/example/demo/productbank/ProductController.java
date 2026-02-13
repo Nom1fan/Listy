@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -22,39 +23,46 @@ public class ProductController {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final CategoryAccessService categoryAccessService;
     private final ListItemRepository listItemRepository;
 
     @GetMapping
     public ResponseEntity<List<ProductDto>> list(
             @RequestParam(required = false) UUID categoryId,
-            @RequestParam(required = false) String search
+            @RequestParam(required = false) String search,
+            @AuthenticationPrincipal User user
     ) {
+        if (user == null) return ResponseEntity.status(401).build();
+        Set<UUID> visibleCategoryIds = categoryRepository.findVisibleToUser(user.getId())
+                .stream().map(c -> c.getId()).collect(Collectors.toSet());
         List<Product> products;
         if (search != null && !search.isBlank()) {
             products = productRepository.findByNameHeContainingIgnoreCase(search.trim());
+            products = products.stream().filter(p -> visibleCategoryIds.contains(p.getCategory().getId())).toList();
         } else if (categoryId != null) {
+            if (!visibleCategoryIds.contains(categoryId)) throw new IllegalArgumentException("Access denied to category");
             products = productRepository.findByCategoryIdOrderByNameHe(categoryId);
         } else {
-            products = productRepository.findAll(Sort.by("nameHe"));
+            products = productRepository.findByCategory_IdIn(visibleCategoryIds, Sort.by("nameHe"));
         }
         Map<UUID, Long> addCountByProduct = getProductAddCounts();
         List<ProductDto> body = products.stream()
                 .map(p -> toDto(p, addCountByProduct.getOrDefault(p.getId(), 0L)))
                 .sorted((a, b) -> {
-                    int c = Long.compare(b.getAddCount(), a.getAddCount());
-                    return c != 0 ? c : a.getNameHe().compareTo(b.getNameHe());
+                    int cmp = Long.compare(b.getAddCount(), a.getAddCount());
+                    return cmp != 0 ? cmp : a.getNameHe().compareTo(b.getNameHe());
                 })
                 .toList();
         return ResponseEntity.ok(body);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ProductDto> get(@PathVariable UUID id) {
+    public ResponseEntity<ProductDto> get(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        if (user == null) return ResponseEntity.status(401).build();
+        Product p = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        categoryAccessService.getCategoryOrThrow(p.getCategory().getId(), user);
         Map<UUID, Long> addCountByProduct = getProductAddCounts();
-        return productRepository.findById(id)
-                .map(p -> toDto(p, addCountByProduct.getOrDefault(p.getId(), 0L)))
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(toDto(p, addCountByProduct.getOrDefault(p.getId(), 0L)));
     }
 
     @PostMapping
@@ -63,8 +71,8 @@ public class ProductController {
             @AuthenticationPrincipal User user
     ) {
         if (user == null) return ResponseEntity.status(401).build();
-        var category = categoryRepository.findById(req.getCategoryId())
-                .orElseThrow(() -> new IllegalArgumentException("Category not found"));
+        var category = categoryAccessService.getCategoryOrThrow(req.getCategoryId(), user);
+        if (!categoryAccessService.canEdit(user, req.getCategoryId())) throw new IllegalArgumentException("Cannot add product to this category");
         String unit = req.getDefaultUnit() != null && !req.getDefaultUnit().isBlank()
                 ? req.getDefaultUnit().trim() : "יחידה";
         String iconId = req.getIconId() != null && !req.getIconId().isBlank() ? req.getIconId().trim() : null;
@@ -86,8 +94,10 @@ public class ProductController {
             @AuthenticationPrincipal User user
     ) {
         if (user == null) return ResponseEntity.status(401).build();
-        if (!productRepository.existsById(id)) return ResponseEntity.notFound().build();
-        productRepository.deleteById(id);
+        Product p = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        categoryAccessService.getCategoryOrThrow(p.getCategory().getId(), user);
+        if (!categoryAccessService.canEdit(user, p.getCategory().getId())) throw new IllegalArgumentException("Access denied");
+        productRepository.delete(p);
         return ResponseEntity.noContent().build();
     }
 
@@ -100,6 +110,8 @@ public class ProductController {
     ) {
         if (user == null) return ResponseEntity.status(401).build();
         Product p = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Product not found"));
+        categoryAccessService.getCategoryOrThrow(p.getCategory().getId(), user);
+        if (!categoryAccessService.canEdit(user, p.getCategory().getId())) throw new IllegalArgumentException("Access denied");
         // imageUrl: set when provided; use empty string in request to clear
         if (req.getImageUrl() != null) p.setImageUrl(req.getImageUrl().isBlank() ? null : req.getImageUrl());
         // iconId: set when provided; use empty string in request to clear override

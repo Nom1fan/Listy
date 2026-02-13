@@ -10,6 +10,7 @@ import { ListDetail } from './pages/ListDetail';
 import { ShareList } from './pages/ShareList';
 import { ProductBank } from './pages/ProductBank';
 import { Categories } from './pages/Categories';
+import { ShareCategory } from './pages/ShareCategory';
 import { Profile } from './pages/Profile';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -64,6 +65,14 @@ export default function App() {
           element={
             <PrivateRoute>
               <Categories />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/categories/:categoryId/share"
+          element={
+            <PrivateRoute>
+              <ShareCategory />
             </PrivateRoute>
           }
         />

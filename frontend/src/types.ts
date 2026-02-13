@@ -41,12 +41,15 @@ export interface ListItemResponse {
 
 export interface CategoryDto {
   id: string;
+  ownerId: string;
   nameHe: string;
   iconId: string | null;
   imageUrl: string | null;
   sortOrder: number;
   /** Total list-item adds for products in this category (for frequency sort). */
   addCount: number;
+  /** Number of members (including owner). > 1 means category is shared. */
+  memberCount: number;
 }
 
 export interface ProductDto {
@@ -79,4 +82,10 @@ export interface ListMemberDto {
   email: string | null;
   phone: string | null;
   role: string;
+}
+
+export interface ShareAllCategoriesResult {
+  member: ListMemberDto;
+  categoriesAdded: number;
+  totalCategories: number;
 }
