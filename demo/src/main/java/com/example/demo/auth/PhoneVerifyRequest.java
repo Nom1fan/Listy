@@ -14,4 +14,6 @@ public class PhoneVerifyRequest {
     @NotBlank
     @Pattern(regexp = "^\\d{4,6}$", message = "Code must be 4-6 digits")
     private String code;
+
+    private String displayName;
 }

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { requestPhoneOtp, verifyPhoneOtp } from '../api/auth';
 import { AppBar } from '../components/AppBar';
@@ -20,6 +20,7 @@ export function PhoneLogin() {
   const [segmentValues, setSegmentValues] = useState<string[]>(() =>
     COUNTRY_OPTIONS[0].segments.map(() => '')
   );
+  const [displayName, setDisplayName] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [error, setError] = useState('');
@@ -29,7 +30,12 @@ export function PhoneLogin() {
   const segmentRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const country = COUNTRY_OPTIONS[countryIndex];
-  const fullPhone = '+' + country.code + segmentValues.join('');
+  const localDigits = segmentValues.join('');
+  const fullPhone = '+' + country.code + (
+    country.localPrefix && localDigits.startsWith(country.localPrefix)
+      ? localDigits.slice(country.localPrefix.length)
+      : localDigits
+  );
   const isPhoneComplete =
     segmentValues.length === country.segments.length &&
     segmentValues.every((v, i) => v.length === country.segments[i]);
@@ -81,7 +87,7 @@ export function PhoneLogin() {
     setError('');
     setLoading(true);
     try {
-      const res = await verifyPhoneOtp(fullPhone, code);
+      const res = await verifyPhoneOtp(fullPhone, code, displayName);
       setAuth(res);
       navigate('/lists', { replace: true });
     } catch (err) {
@@ -93,11 +99,21 @@ export function PhoneLogin() {
 
   return (
     <>
-      <AppBar title="התחברות עם טלפון" backTo="/login" />
+      <AppBar title="התחברות עם מספר טלפון" />
       <main style={{ padding: 24, maxWidth: 400, margin: '0 auto' }}>
         {step === 'phone' ? (
           <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', width: 'fit-content', gap: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', width: 'fit-content', margin: '0 auto', gap: 16 }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4 }}>שם</label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                />
+              </div>
               <div>
                 <label style={{ display: 'block', marginBottom: 8 }}>מספר טלפון</label>
                 <div
@@ -141,7 +157,7 @@ export function PhoneLogin() {
                         autoComplete="tel-national"
                         value={segmentValues[i] ?? ''}
                         onChange={(e) => setSegment(i, e.target.value)}
-                        placeholder={'0'.repeat(len)}
+                        placeholder={country.example[i]}
                         maxLength={len}
                         required
                         style={{
@@ -157,13 +173,14 @@ export function PhoneLogin() {
               {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
               <button
                 type="submit"
-                disabled={loading || !isPhoneComplete}
+                disabled={loading || !isPhoneComplete || !displayName.trim()}
                 style={{
                   padding: 12,
                   width: '100%',
                   background: 'var(--color-primary)',
                   color: '#fff',
                   fontWeight: 600,
+                  opacity: loading || !isPhoneComplete || !displayName.trim() ? 0.5 : 1,
                 }}
               >
                 {loading ? 'שולח...' : 'שלח קוד'}
@@ -188,12 +205,13 @@ export function PhoneLogin() {
             {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || code.length < 4}
               style={{
                 padding: 12,
                 background: 'var(--color-primary)',
                 color: '#fff',
                 fontWeight: 600,
+                opacity: loading || code.length < 4 ? 0.5 : 1,
               }}
             >
               {loading ? 'בודק...' : 'אימות'}
@@ -207,6 +225,9 @@ export function PhoneLogin() {
             </button>
           </form>
         )}
+        <p style={{ marginTop: 16, textAlign: 'center' }}>
+          <Link to="/login/email">התחברות עם אימייל</Link>
+        </p>
       </main>
     </>
   );

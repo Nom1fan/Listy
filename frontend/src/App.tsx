@@ -3,7 +3,7 @@ import { useAuthStore } from './store/authStore';
 import { useFcmRegistration } from './hooks/useFcmRegistration';
 import { SideMenu } from './components/SideMenu';
 import { Login } from './pages/Login';
-import { Register } from './pages/Register';
+
 import { PhoneLogin } from './pages/PhoneLogin';
 import { Lists } from './pages/Lists';
 import { ListDetail } from './pages/ListDetail';
@@ -25,9 +25,10 @@ export default function App() {
     <BrowserRouter>
       <SideMenu />
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/login/phone" element={<PhoneLogin />} />
+        <Route path="/login" element={<PhoneLogin />} />
+        <Route path="/login/email" element={<Login />} />
+        <Route path="/login/phone" element={<Navigate to="/login" replace />} />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
         <Route
           path="/lists"
           element={
