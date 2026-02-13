@@ -45,10 +45,10 @@ Hebrew-first (RTL) management list app with categories, product bank, list shari
 
 ### Try on your phone (same WiFi)
 
-You don’t need to open any port on your router. On your Mac:
+You don't need to open any port on your router. On your Mac:
 
-1. **Get your Mac’s IP** – When you run `npm run dev`, Vite will print something like `Local: http://192.168.x.x:5173`. Use that IP (or run `ipconfig getifaddr en0` in a terminal).
-2. **Allow that origin in the backend** – In the same terminal where you’ll run the backend:
+1. **Get your Mac's IP** – When you run `npm run dev`, Vite will print something like `Local: http://192.168.x.x:5173`. Use that IP (or run `ipconfig getifaddr en0` in a terminal).
+2. **Allow that origin in the backend** – In the same terminal where you'll run the backend:
    ```bash
    export CORS_ORIGINS="http://localhost:5173,http://localhost:3000,http://192.168.x.x:5173"
    ```
@@ -56,12 +56,12 @@ You don’t need to open any port on your router. On your Mac:
 3. **Start backend and frontend** (backend already binds to all interfaces with the `local` profile; Vite is configured to listen on all interfaces).
 4. **On your phone** – Connect to the same WiFi, then open in the browser: `http://192.168.x.x:5173`.
 
-**If you get “site cannot be reached” on the phone:**
+**If you get "site cannot be reached" on the phone:**
 
-- **Restart the frontend** – Stop `npm run dev` (Ctrl+C) and start it again so Vite picks up `host: true` and listens on the network. You should see both a “Local” and a “Network” URL in the terminal.
-- **macOS Firewall** – If your Mac’s firewall is on, it may block incoming connections to Node. Either:
+- **Restart the frontend** – Stop `npm run dev` (Ctrl+C) and start it again so Vite picks up `host: true` and listens on the network. You should see both a "Local" and a "Network" URL in the terminal.
+- **macOS Firewall** – If your Mac's firewall is on, it may block incoming connections to Node. Either:
   - **System Settings → Network → Firewall** – Turn it off temporarily to test, or  
-  - **Firewall Options** – Add “Node” (or your terminal app) and set it to “Allow incoming connections”.
+  - **Firewall Options** – Add "Node" (or your terminal app) and set it to "Allow incoming connections".
 - **Same WiFi** – Phone must be on the same Wi‑Fi as the Mac (not mobile data).
 - **Use the Network URL** – In the terminal where Vite is running, use the **Network:** URL it prints (e.g. `http://192.168.1.5:5173`), not the Local one.
 
@@ -113,41 +113,22 @@ See `listy-windows/README.txt` (inside the package) for details.
 
 ## Docker (single server / EC2)
 
-Build and run app + PostgreSQL:
+Build and run app + PostgreSQL locally:
 
 ```bash
-# Build and start
 docker compose up -d
-
 # App: http://localhost:8080
-# DB: internal only (port not exposed)
 ```
-
-Set env for production:
-
-- `JWT_SECRET` – Min 256 bits for HS256 (e.g. 32+ char random string).
-- Optionally: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` for phone OTP.
 
 ### Deploy on EC2 (e.g. free tier)
 
-**Recommended: deploy a pre-built image** (no source code on the server)
+One-time instance setup. After this, `./scripts/release.sh` handles build, push, and deploy automatically (see [Release & deploy](#release--deploy-automated)).
 
-**1. Build and push the image** (from repo root, once per release)
+**1. Launch EC2** – Amazon Linux 2 or Ubuntu (e.g. t2.micro). Save the `.pem` key pair.
 
-One-time: `cp release.config.example release.config` and set `LISTY_IMAGE=your-username/listy` (or `ghcr.io/yourorg/listy`). Then:
+**2. Install Docker** on the instance
 
-```bash
-docker login   # or: docker login ghcr.io -u USER -p PAT
-./scripts/release.sh
-```
-
-Note the image name the script prints (e.g. `your-username/listy:0.3.0`) for step 4.
-
-**2. Launch EC2** – Amazon Linux 2 or Ubuntu (e.g. t2.micro). Note key pair for SSH.
-
-**3. On the instance: install Docker**
-
-SSH: `ssh -i your-key.pem ec2-user@<ip>` (use `ubuntu@...` on Ubuntu).
+SSH in: `ssh -i your-key.pem ec2-user@<ip>` (use `ubuntu@...` on Ubuntu).
 
 Amazon Linux 2:
 
@@ -174,51 +155,70 @@ sudo usermod -aG docker ubuntu
 
 Log out and back in (or new SSH session). Verify: `docker compose version`.
 
-**4. On the instance: run the app**
+**3. Open port 8080** in the security group attached to your instance (EC2 → Instances → select instance → Security tab → open the group → Inbound rules → Edit → Add rule: Custom TCP, port 8080, Source `0.0.0.0/0`). Add port 443 if you put nginx in front for HTTPS.
 
-Create a `.env` file so the values survive reboots and new SSH sessions (Docker Compose loads it automatically):
+**Firewall notes:** WebSockets share port 8080 — no extra rule. SMS (Twilio) is outbound-only; no inbound rule needed.
+
+**Viewing logs** – From `~/listy` on the instance:
+- `docker compose logs -f app` – stream stdout (Ctrl+C to stop).
+- `docker compose exec app tail -f /app/logs/spring.log` – log file.
+
+That's it for EC2 setup. Building, pushing, deploying, and DB sync are all handled by the scripts below.
+
+## Release & deploy (automated)
+
+Bumps the version, builds, pushes the Docker image, git tags, and deploys to EC2 — all in one command. On first run the scripts prompt for any missing config (image name, `.pem` path, EC2 host, JWT secret) and save it for future runs.
+
+**Prerequisites:** Docker Desktop running and `docker login` done. An EC2 instance with Docker installed (see [EC2 setup](#deploy-on-ec2-eg-free-tier) above).
+
+### Full release
 
 ```bash
-mkdir -p ~/listy && cd ~/listy
-curl -sSL -o docker-compose.yml https://raw.githubusercontent.com/Nom1fan/listy/main/docker-compose.prod.yml
-echo 'LISTY_IMAGE=your-username/listy:0.3.0' > .env   # from step 1 output
-echo 'JWT_SECRET=your-256-bit-secret' >> .env
-docker compose up -d
+./scripts/release.sh
 ```
 
-After a reboot, run `docker compose up -d` again in `~/listy`; the same `.env` is used. Optionally enable Docker to start on boot and use `restart: unless-stopped` in the compose file so the app comes back automatically.
+This runs the full pipeline:
 
-Open `http://<instance-ip>:8080`.
+| Step | What happens |
+|------|-------------|
+| 0 | Bump minor version (e.g. `0.3.0` → `0.4.0`) in `VERSION`, `pom.xml`, `package.json` |
+| 1 | Export local DB to `db/listy-db.sql` |
+| 2–3 | Build Windows package and zip |
+| 4 | Build and push Docker image (`LISTY_IMAGE:version`) |
+| 5 | Git commit, tag `vX.Y.Z`, and push |
+| 6 | Deploy to EC2 (SCP compose file, update remote `.env`, pull image, restart) |
 
-**5. Viewing logs (EC2)** – From `~/listy` on the instance:
-- **Stream stdout:** `docker compose logs -f app` (all output; use Ctrl+C to stop).
-- **Tail the log file:** `docker compose exec app tail -f /app/logs/spring.log` (same content, written to a file inside the container).
+**Flags:**
 
-**6. Open port 8080** in the security group **attached to your instance** (EC2 → Instances → select instance → Security tab → open the group → Inbound rules → Edit → Add rule: Custom TCP, port 8080, Source `0.0.0.0/0`). Add port 443 if you put nginx in front for HTTPS.
+| Flag | Effect |
+|------|--------|
+| `--db` | Include DB dump in deployment (SCP to EC2 + import) |
+| `--windows` | Also build the Windows package and zip |
+| `--skip-deploy` | Skip EC2 deployment (build and push only) |
 
-**Firewall notes:** WebSockets use the same port (8080) as the app, so no extra rule. SMS (Twilio) is outbound-only (backend calls Twilio’s API); no inbound rule needed, and default outbound allows it.
+Examples:
 
-**Alternative (clone and build on EC2):** After step 3, clone the repo on the instance and run `docker compose up -d` there (no pre-built image).
+```bash
+./scripts/release.sh --db              # release + deploy + sync DB
+./scripts/release.sh --windows         # also build the Windows package
+./scripts/release.sh --skip-deploy     # build and push only, no EC2
+```
 
-**Import your data into EC2** – To load your existing lists, users, and categories from your local DB:
+### Deploy only (no release)
 
-1. **On your Mac** (from repo root): export the DB if you don’t already have a recent `db/listy-db.sql`:
-   ```bash
-   ./scripts/export-db.sh
-   ```
-   Copy the dump to the instance:
-   ```bash
-   scp -i your-key.pem db/listy-db.sql ec2-user@<instance-ip>:~/listy/listy-db.sql
-   ```
+Re-deploy the current version (or a specific one) without bumping or building:
 
-2. **On the EC2 instance:** download the import script and run it (from `~/listy`):
-   ```bash
-   cd ~/listy
-   curl -sSL -o import-db-ec2.sh https://raw.githubusercontent.com/Nom1fan/Listy/main/scripts/import-db-ec2.sh
-   chmod +x import-db-ec2.sh
-   ./import-db-ec2.sh ./listy-db.sql
-   ```
-   The script stops the app, replaces the database with your dump, then starts the app again.
+```bash
+./scripts/deploy.sh                    # deploy current VERSION
+./scripts/deploy.sh --db               # deploy + sync DB
+./scripts/deploy.sh --version 0.3.0    # deploy a specific version
+```
+
+The deploy script:
+1. SCPs `docker-compose.prod.yml` to EC2
+2. Updates the remote `.env` with the new `LISTY_IMAGE` tag (creates it on first deploy)
+3. Pulls the image and runs `docker compose up -d`
+4. If `--db`: waits for DB health, then runs `import-db-ec2.sh` on the instance
 
 ## Android build
 

@@ -2,11 +2,11 @@
 # Full release: bump version, export DB, optionally build Windows package,
 # build/push Docker image, git commit + tag + push, deploy to EC2.
 #
-# Usage: ./scripts/release.sh [--db] [--skip-windows] [--skip-deploy]
+# Usage: ./scripts/release.sh [--db] [--windows] [--skip-deploy]
 #
 # Flags:
 #   --db              Include DB dump in EC2 deployment (SCP + import)
-#   --skip-windows    Skip Windows package build (faster release)
+#   --windows         Also build the Windows package and zip
 #   --skip-deploy     Skip EC2 deployment (build and push only)
 #
 # Config:
@@ -23,31 +23,34 @@ VERSION_FILE="$REPO_ROOT/VERSION"
 
 # ── Parse flags ──────────────────────────────────────────────
 DEPLOY_DB=false
-SKIP_WINDOWS=false
+BUILD_WINDOWS=false
 SKIP_DEPLOY=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --db)            DEPLOY_DB=true; shift ;;
-    --skip-windows)  SKIP_WINDOWS=true; shift ;;
+    --windows)       BUILD_WINDOWS=true; shift ;;
     --skip-deploy)   SKIP_DEPLOY=true; shift ;;
     *)               echo "Unknown option: $1"; exit 1 ;;
   esac
 done
 
-# Load image name from config (copy release.config.example to release.config)
+# Load config files
 if [ -f "$REPO_ROOT/release.config" ]; then
-  set -a
-  # shellcheck source=/dev/null
-  source "$REPO_ROOT/release.config"
-  set +a
+  set -a; source "$REPO_ROOT/release.config"; set +a
+fi
+if [ -f "$REPO_ROOT/.env" ]; then
+  set -a; source "$REPO_ROOT/.env"; set +a
 fi
 
-# Load .env for deployment settings
-if [ -f "$REPO_ROOT/.env" ]; then
-  set -a
-  # shellcheck source=/dev/null
-  source "$REPO_ROOT/.env"
-  set +a
+# ── Interactive setup (first run) ────────────────────────────
+if [ -z "${LISTY_IMAGE:-}" ]; then
+  echo "LISTY_IMAGE is not configured (needed to push Docker images)."
+  echo "  Example: your-username/listy  or  ghcr.io/yourorg/listy"
+  read -rp "  Image name: " LISTY_IMAGE
+  if [ -n "$LISTY_IMAGE" ]; then
+    echo "LISTY_IMAGE=$LISTY_IMAGE" > "$REPO_ROOT/release.config"
+    echo "  Saved to release.config"
+  fi
 fi
 
 # ── 0. Bump minor version ───────────────────────────────────
@@ -78,11 +81,7 @@ fi
 echo ""
 
 # ── 2. Build Windows package ────────────────────────────────
-if $SKIP_WINDOWS; then
-  echo "=== 2. Build Windows package (SKIPPED) ==="
-  echo ""
-  echo "=== 3. Zip (SKIPPED) ==="
-else
+if $BUILD_WINDOWS; then
   echo "=== 2. Build Windows package ==="
   "$SCRIPT_DIR/package-for-windows.sh"
 
@@ -92,6 +91,8 @@ else
   rm -f "$ZIP"
   zip -r "$ZIP" listy-windows -x "*.DS_Store"
   echo "Created $ZIP"
+else
+  echo "=== 2. Build Windows package (SKIPPED -- pass --windows to include) ==="
 fi
 echo ""
 
@@ -135,7 +136,7 @@ echo ""
 # ── Summary ──────────────────────────────────────────────────
 echo "========================================================"
 echo "  Release $new_version complete!"
-if ! $SKIP_WINDOWS; then
+if $BUILD_WINDOWS; then
   echo "  Windows:  listy-windows.zip ready"
 fi
 if [ -n "${LISTY_IMAGE:-}" ]; then

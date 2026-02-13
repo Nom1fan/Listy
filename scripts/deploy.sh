@@ -43,16 +43,55 @@ if [ -f "$REPO_ROOT/release.config" ]; then
   set -a; source "$REPO_ROOT/release.config"; set +a
 fi
 
+# ── Interactive setup (prompts on first run, saves for next time) ──
+append_env() { # append key=value to .env
+  if [ -f "$REPO_ROOT/.env" ]; then
+    echo "$1=$2" >> "$REPO_ROOT/.env"
+  else
+    echo "$1=$2" > "$REPO_ROOT/.env"
+  fi
+}
+
+if [ -z "${LISTY_IMAGE:-}" ]; then
+  echo "LISTY_IMAGE not configured."
+  read -rp "  Docker image name (e.g. your-username/listy): " LISTY_IMAGE
+  if [ -n "$LISTY_IMAGE" ]; then
+    echo "LISTY_IMAGE=$LISTY_IMAGE" > "$REPO_ROOT/release.config"
+    echo "  Saved to release.config"
+  fi
+fi
+
+if [ -z "${EC2_PEM:-}" ]; then
+  read -rp "EC2_PEM not set. Path to your .pem key file: " EC2_PEM
+  [ -n "$EC2_PEM" ] && append_env "EC2_PEM" "$EC2_PEM" && echo "  Saved to .env"
+fi
+
+if [ -z "${EC2_HOST:-}" ]; then
+  read -rp "EC2_HOST not set. EC2 public hostname or IP: " EC2_HOST
+  [ -n "$EC2_HOST" ] && append_env "EC2_HOST" "$EC2_HOST" && echo "  Saved to .env"
+fi
+
+if [ -z "${JWT_SECRET:-}" ]; then
+  JWT_SECRET=$(openssl rand -base64 32)
+  append_env "JWT_SECRET" "$JWT_SECRET"
+  echo "  Generated JWT_SECRET and saved to .env"
+fi
+
 # ── Validate ─────────────────────────────────────────────────
-: "${EC2_PEM:?Set EC2_PEM in .env (path to your .pem key file)}"
-: "${EC2_HOST:?Set EC2_HOST in .env (EC2 public hostname or IP)}"
-: "${LISTY_IMAGE:?Set LISTY_IMAGE in release.config (e.g. mmerhav/listy)}"
+: "${EC2_PEM:?EC2_PEM is required}"
+: "${EC2_HOST:?EC2_HOST is required}"
+: "${LISTY_IMAGE:?LISTY_IMAGE is required}"
 
 EC2_USER="${EC2_USER:-ubuntu}"
 EC2_DEPLOY_DIR="${EC2_DEPLOY_DIR:-/home/${EC2_USER}/listy}"
 VERSION="${VERSION:-$(cat "$REPO_ROOT/VERSION")}"
 IMAGE_TAG="${LISTY_IMAGE}:${VERSION}"
-JWT="${JWT_SECRET:-$(openssl rand -base64 32)}"
+JWT="${JWT_SECRET}"
+
+# Resolve to absolute path (handles relative paths like key.pem)
+if [[ "$EC2_PEM" != /* ]]; then
+  EC2_PEM="$REPO_ROOT/$EC2_PEM"
+fi
 
 if [ ! -f "$EC2_PEM" ]; then
   echo "ERROR: PEM file not found at $EC2_PEM"
