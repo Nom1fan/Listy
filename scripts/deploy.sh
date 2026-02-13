@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# Deploy Listy to EC2: copy compose file, update remote .env, pull image, restart.
+# Can be run standalone or called automatically from release.sh.
+#
+# Usage:
+#   ./scripts/deploy.sh [options]
+#
+# Options:
+#   --db                SCP the DB dump to EC2 and import it
+#   --version VERSION   Deploy a specific version (default: read from VERSION file)
+#
+# Required in .env (at repo root):
+#   EC2_PEM    Path to your SSH .pem key
+#   EC2_HOST   EC2 public hostname or IP
+#
+# Optional in .env:
+#   EC2_USER        SSH user (default: ubuntu)
+#   EC2_DEPLOY_DIR  Remote dir, full path (default: /home/$EC2_USER/listy)
+#   JWT_SECRET      Propagated to EC2 on first deploy
+#
+# LISTY_IMAGE must be set in release.config (e.g. mmerhav/listy).
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# ── Parse flags ──────────────────────────────────────────────
+DEPLOY_DB=false
+VERSION=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --db)      DEPLOY_DB=true; shift ;;
+    --version) VERSION="$2"; shift 2 ;;
+    *)         echo "Unknown option: $1"; exit 1 ;;
+  esac
+done
+
+# ── Load config ──────────────────────────────────────────────
+if [ -f "$REPO_ROOT/.env" ]; then
+  set -a; source "$REPO_ROOT/.env"; set +a
+fi
+if [ -f "$REPO_ROOT/release.config" ]; then
+  set -a; source "$REPO_ROOT/release.config"; set +a
+fi
+
+# ── Validate ─────────────────────────────────────────────────
+: "${EC2_PEM:?Set EC2_PEM in .env (path to your .pem key file)}"
+: "${EC2_HOST:?Set EC2_HOST in .env (EC2 public hostname or IP)}"
+: "${LISTY_IMAGE:?Set LISTY_IMAGE in release.config (e.g. mmerhav/listy)}"
+
+EC2_USER="${EC2_USER:-ubuntu}"
+EC2_DEPLOY_DIR="${EC2_DEPLOY_DIR:-/home/${EC2_USER}/listy}"
+VERSION="${VERSION:-$(cat "$REPO_ROOT/VERSION")}"
+IMAGE_TAG="${LISTY_IMAGE}:${VERSION}"
+JWT="${JWT_SECRET:-$(openssl rand -base64 32)}"
+
+if [ ! -f "$EC2_PEM" ]; then
+  echo "ERROR: PEM file not found at $EC2_PEM"
+  exit 1
+fi
+
+SSH_OPTS="-i $EC2_PEM -o StrictHostKeyChecking=no -o ConnectTimeout=10"
+REMOTE="${EC2_USER}@${EC2_HOST}"
+
+echo ""
+echo "========================================================"
+echo "  Deploying Listy $VERSION to $EC2_HOST"
+echo "  Image: $IMAGE_TAG"
+echo "========================================================"
+echo ""
+
+# ── 1. Prepare remote directory ──────────────────────────────
+echo "[1/5] Preparing remote directory ($EC2_DEPLOY_DIR) ..."
+ssh $SSH_OPTS "$REMOTE" "mkdir -p $EC2_DEPLOY_DIR"
+
+# ── 2. Copy docker-compose.prod.yml ─────────────────────────
+echo "[2/5] Copying docker-compose.prod.yml -> remote docker-compose.yml ..."
+scp $SSH_OPTS "$REPO_ROOT/docker-compose.prod.yml" "$REMOTE:$EC2_DEPLOY_DIR/docker-compose.yml"
+
+# ── 3. Copy DB dump if requested ────────────────────────────
+if $DEPLOY_DB; then
+  DB_DUMP="$REPO_ROOT/db/listy-db.sql"
+  if [ -f "$DB_DUMP" ]; then
+    echo "[3/5] Copying DB dump and import script ..."
+    scp $SSH_OPTS "$DB_DUMP" "$REMOTE:$EC2_DEPLOY_DIR/listy-db.sql"
+    scp $SSH_OPTS "$SCRIPT_DIR/import-db-ec2.sh" "$REMOTE:$EC2_DEPLOY_DIR/import-db-ec2.sh"
+  else
+    echo "[3/5] WARNING: --db requested but $DB_DUMP not found. Run export-db.sh first."
+    DEPLOY_DB=false
+  fi
+else
+  echo "[3/5] Skipping DB sync (pass --db to include)"
+fi
+
+# ── 4. Update remote .env ───────────────────────────────────
+echo "[4/5] Updating remote .env (LISTY_IMAGE=$IMAGE_TAG) ..."
+ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
+  if [ -f .env ]; then \
+    if grep -q '^LISTY_IMAGE=' .env; then \
+      sed -i 's|^LISTY_IMAGE=.*|LISTY_IMAGE=$IMAGE_TAG|' .env; \
+    else \
+      echo 'LISTY_IMAGE=$IMAGE_TAG' >> .env; \
+    fi; \
+  else \
+    echo 'LISTY_IMAGE=$IMAGE_TAG' > .env; \
+    echo 'JWT_SECRET=$JWT' >> .env; \
+    echo '  (created new .env with JWT_SECRET)'; \
+  fi"
+
+# ── 5. Pull and restart ─────────────────────────────────────
+echo "[5/5] Pulling image and restarting services ..."
+ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && docker compose pull && docker compose up -d"
+
+# ── 6. Import DB if requested ───────────────────────────────
+if $DEPLOY_DB; then
+  echo ""
+  echo "[+] Waiting for DB container to be ready ..."
+  ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
+    for i in \$(seq 1 30); do \
+      if docker compose exec -T db pg_isready -U postgres &>/dev/null; then break; fi; \
+      echo '  waiting ...'; sleep 2; \
+    done"
+  echo "[+] Importing DB dump on EC2 ..."
+  ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && chmod +x import-db-ec2.sh && ./import-db-ec2.sh ./listy-db.sql"
+fi
+
+echo ""
+echo "========================================================"
+echo "  Deployment complete!"
+echo "  Listy $VERSION is running at http://$EC2_HOST:8080"
+echo "========================================================"
