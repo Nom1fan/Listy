@@ -112,9 +112,13 @@ echo ""
 echo "[1/5] Preparing remote directory ($EC2_DEPLOY_DIR) ..."
 ssh $SSH_OPTS "$REMOTE" "mkdir -p $EC2_DEPLOY_DIR"
 
-# ── 2. Copy docker-compose.prod.yml ─────────────────────────
-echo "[2/5] Copying docker-compose.prod.yml -> remote docker-compose.yml ..."
+# ── 2. Copy docker-compose + nginx config ───────────────────
+echo "[2/5] Copying docker-compose.prod.yml, nginx config, and init-ssl.sh ..."
 scp $SSH_OPTS "$REPO_ROOT/docker-compose.prod.yml" "$REMOTE:$EC2_DEPLOY_DIR/docker-compose.yml"
+ssh $SSH_OPTS "$REMOTE" "mkdir -p $EC2_DEPLOY_DIR/nginx"
+scp $SSH_OPTS "$REPO_ROOT/nginx/default.conf" "$REMOTE:$EC2_DEPLOY_DIR/nginx/default.conf"
+scp $SSH_OPTS "$REPO_ROOT/scripts/init-ssl.sh" "$REMOTE:$EC2_DEPLOY_DIR/init-ssl.sh"
+ssh $SSH_OPTS "$REMOTE" "chmod +x $EC2_DEPLOY_DIR/init-ssl.sh"
 
 # ── 3. Copy DB dump if requested ────────────────────────────
 if $DEPLOY_DB; then
@@ -166,5 +170,8 @@ fi
 echo ""
 echo "========================================================"
 echo "  Deployment complete!"
-echo "  Listy $VERSION is running at http://$EC2_HOST:8080"
+echo "  Listy $VERSION is running at https://web.listyyy.com"
+echo ""
+echo "  If this is the FIRST deploy with SSL, run on EC2:"
+echo "    cd $EC2_DEPLOY_DIR && ./init-ssl.sh your@email.com"
 echo "========================================================"

@@ -4,6 +4,85 @@ function getToken(): string | null {
   return localStorage.getItem('listy_token');
 }
 
+// ---- silent token refresh logic ----
+
+let refreshPromise: Promise<boolean> | null = null;
+
+/**
+ * Attempt to get a new access token using the HttpOnly refresh cookie.
+ * Returns true if the token was refreshed successfully.
+ */
+async function tryRefreshToken(): Promise<boolean> {
+  // Deduplicate concurrent refresh attempts
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(API_BASE + '/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include', // send the HttpOnly cookie
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem('listy_token', data.token);
+        // Also update the Zustand persisted store so it stays in sync
+        try {
+          const raw = localStorage.getItem('listy-auth');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed?.state) {
+              parsed.state.token = data.token;
+              parsed.state.user = {
+                userId: data.userId,
+                email: data.email,
+                phone: data.phone,
+                displayName: data.displayName,
+                locale: data.locale,
+              };
+              localStorage.setItem('listy-auth', JSON.stringify(parsed));
+            }
+          }
+        } catch {
+          // best-effort sync
+        }
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
+function handleAuthFailure(): never {
+  localStorage.removeItem('listy_token');
+  localStorage.removeItem('listy-auth');
+  window.location.href = '/login';
+  throw new Error('Session expired');
+}
+
+// ---- core fetch with auto-refresh ----
+
+async function fetchWithAuth(url: string, options: RequestInit): Promise<Response> {
+  const res = await fetch(url, options);
+  if (res.status === 401 && getToken()) {
+    // Access token expired — try silent refresh
+    const refreshed = await tryRefreshToken();
+    if (refreshed) {
+      // Retry the original request with the new token
+      const newToken = getToken();
+      const retryHeaders = new Headers(options.headers);
+      if (newToken) retryHeaders.set('Authorization', `Bearer ${newToken}`);
+      return fetch(url, { ...options, headers: retryHeaders });
+    }
+    handleAuthFailure();
+  }
+  return res;
+}
+
 export async function api<T>(
   path: string,
   options: RequestInit = {}
@@ -16,7 +95,7 @@ export async function api<T>(
   if (token) {
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
-  const res = await fetch(API_BASE + path, { ...options, headers });
+  const res = await fetchWithAuth(API_BASE + path, { ...options, headers, credentials: 'include' });
   if (!res.ok) {
     const text = await res.text();
     let msg = text;
@@ -41,7 +120,7 @@ export async function uploadFile<T = { url: string }>(path: string, file: File):
   }
   const form = new FormData();
   form.append('file', file);
-  const res = await fetch(API_BASE + path, { method: 'POST', headers, body: form });
+  const res = await fetchWithAuth(API_BASE + path, { method: 'POST', headers, body: form, credentials: 'include' });
   if (!res.ok) {
     const text = await res.text();
     let msg = text;

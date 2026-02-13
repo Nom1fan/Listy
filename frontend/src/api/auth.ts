@@ -1,6 +1,8 @@
 import { api } from './client';
 import type { AuthResponse } from '../types';
 
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+
 export async function register(email: string, password: string, displayName?: string): Promise<AuthResponse> {
   return api<AuthResponse>('/api/auth/register', {
     method: 'POST',
@@ -34,4 +36,18 @@ export async function updateProfile(displayName: string | null): Promise<AuthRes
     method: 'PATCH',
     body: JSON.stringify({ displayName: displayName || null }),
   });
+}
+
+/**
+ * Call the backend logout endpoint to revoke the refresh token cookie.
+ */
+export async function serverLogout(): Promise<void> {
+  try {
+    await fetch(API_BASE + '/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    });
+  } catch {
+    // best-effort — clear local state regardless
+  }
 }
