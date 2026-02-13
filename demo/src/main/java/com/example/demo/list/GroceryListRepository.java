@@ -8,4 +8,6 @@ import java.util.UUID;
 public interface GroceryListRepository extends JpaRepository<GroceryList, UUID> {
 
     List<GroceryList> findByOwnerId(UUID ownerId);
+
+    List<GroceryList> findByOwnerIdOrderBySortOrder(UUID ownerId);
 }

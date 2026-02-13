@@ -19,7 +19,7 @@ public class GroceryListService {
     private final ListAccessService listAccessService;
 
     public List<GroceryList> listsForUser(User user) {
-        List<GroceryList> owned = listRepository.findByOwnerId(user.getId());
+        List<GroceryList> owned = listRepository.findByOwnerIdOrderBySortOrder(user.getId());
         List<ListMember> memberships = listMemberRepository.findByUserId(user.getId());
         List<GroceryList> shared = memberships.stream()
                 .map(ListMember::getList)
@@ -66,13 +66,27 @@ public class GroceryListService {
     }
 
     @Transactional
+    public void reorder(User user, List<UUID> listIds) {
+        for (int i = 0; i < listIds.size(); i++) {
+            GroceryList list = listRepository.findById(listIds.get(i))
+                    .orElseThrow(() -> new IllegalArgumentException("הרשימה לא נמצאה"));
+            if (!listAccessService.canAccess(user, list.getId())) {
+                throw new IllegalArgumentException("אין גישה");
+            }
+            list.setSortOrder(i);
+            listRepository.save(list);
+        }
+    }
+
+    @Transactional
     public void delete(UUID listId, User user) {
         GroceryList list = get(listId, user);
         if (!list.getOwner().getId().equals(user.getId())) {
             throw new IllegalArgumentException("רק בעל הרשימה יכול למחוק");
         }
-        listMemberRepository.deleteByListId(listId);
+        // Delete children first to stay portable across DBs (H2 tests don't have ON DELETE CASCADE).
         listItemRepository.deleteByListId(listId);
+        listMemberRepository.deleteByListId(listId);
         listRepository.delete(list);
     }
 }

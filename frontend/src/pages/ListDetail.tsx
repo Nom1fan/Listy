@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getList,
@@ -8,6 +8,7 @@ import {
   updateListItem,
   removeListItem,
   updateList,
+  deleteList,
 } from '../api/lists';
 import { updateProduct } from '../api/products';
 import { uploadFile } from '../api/client';
@@ -27,7 +28,9 @@ function getImageUrl(url: string | null): string {
 export function ListDetail() {
   const { listId } = useParams<{ listId: string }>();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [notification, setNotification] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [editImageItem, setEditImageItem] = useState<ListItemResponse | null>(null);
   const [itemDisplayImageType, setItemDisplayImageType] = useState<DisplayImageType>('icon');
   const [itemIconId, setItemIconId] = useState('');
@@ -124,6 +127,14 @@ export function ListDetail() {
       queryClient.invalidateQueries({ queryKey: ['list', listId] });
       queryClient.invalidateQueries({ queryKey: ['lists'] });
       setEditListOpen(false);
+    },
+  });
+
+  const deleteListMutation = useMutation({
+    mutationFn: () => deleteList(listId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lists'] });
+      navigate('/lists');
     },
   });
 
@@ -272,22 +283,30 @@ export function ListDetail() {
         titleRight={list ? <CategoryIcon iconId={list.iconId} imageUrl={list.imageUrl} size={28} /> : null}
         backTo="/lists"
         right={
-          <>
-            <button
-              type="button"
-              onClick={openEditList}
-              style={{ background: 'transparent', color: 'inherit', fontSize: 16, fontWeight: 500 }}
-              title="ערוך אייקון רשימה"
-            >
-              אייקון
-            </button>
+          <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <Link
               to={`/lists/${listId}/share`}
-              style={{ background: 'transparent', color: 'inherit', fontSize: 16, fontWeight: 500 }}
+              style={{ background: 'transparent', color: 'inherit', fontSize: 14, fontWeight: 500, textDecoration: 'none' }}
             >
               שיתוף
             </Link>
-          </>
+            <button
+              type="button"
+              onClick={openEditList}
+              style={{ background: 'transparent', color: 'inherit', fontSize: 14, fontWeight: 500 }}
+              title="ערוך רשימה"
+            >
+              ערוך
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              style={{ background: 'transparent', color: '#ffcdd2', fontSize: 14, fontWeight: 500 }}
+              title="מחק רשימה"
+            >
+              מחק
+            </button>
+          </span>
         }
       />
       <main style={{ padding: 16 }}>
@@ -636,6 +655,77 @@ export function ListDetail() {
           style={{ display: 'none' }}
           onChange={handleItemImageFile}
         />
+
+        {/* Delete confirmation dialog */}
+        {confirmDelete && list && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1001,
+              padding: 24,
+            }}
+            onClick={() => setConfirmDelete(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#fff',
+                borderRadius: 16,
+                padding: 24,
+                maxWidth: 360,
+                width: '100%',
+              }}
+            >
+              <h3 style={{ margin: '0 0 12px', fontSize: 18 }}>מחיקת רשימה</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 15, color: '#333', lineHeight: 1.6 }}>
+                אתה באמת מעוניין למחוק את הרשימה <strong>{list.name}</strong>?
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    deleteListMutation.mutate();
+                    setConfirmDelete(false);
+                  }}
+                  disabled={deleteListMutation.isPending}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    background: '#c62828',
+                    color: '#fff',
+                    fontWeight: 600,
+                    borderRadius: 8,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 15,
+                  }}
+                >
+                  {deleteListMutation.isPending ? 'מוחק...' : 'כן, מחק'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    background: '#eee',
+                    borderRadius: 8,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 15,
+                  }}
+                >
+                  לא
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {editListOpen && list && (
           <div

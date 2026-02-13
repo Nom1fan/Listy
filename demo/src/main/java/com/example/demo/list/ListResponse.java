@@ -15,6 +15,7 @@ public class ListResponse {
     private UUID ownerId;
     private String iconId;
     private String imageUrl;
+    private int sortOrder;
     private Instant createdAt;
     private Instant updatedAt;
 }

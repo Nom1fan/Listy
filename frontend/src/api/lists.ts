@@ -34,6 +34,13 @@ export async function deleteList(listId: string): Promise<void> {
   return api<void>(`/api/lists/${listId}`, { method: 'DELETE' });
 }
 
+export async function reorderLists(listIds: string[]): Promise<void> {
+  return api<void>('/api/lists/reorder', {
+    method: 'PUT',
+    body: JSON.stringify({ listIds }),
+  });
+}
+
 export async function getListItems(listId: string): Promise<ListItemResponse[]> {
   return api<ListItemResponse[]>(`/api/lists/${listId}/items`);
 }

@@ -146,6 +146,111 @@ class ListIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void delete_list_with_items_and_members() throws Exception {
+        // Create another user to invite
+        User other = userRepository.save(User.builder()
+                .email("member@example.com")
+                .passwordHash(passwordEncoder.encode("pass123"))
+                .displayName("Member User")
+                .locale("he")
+                .build());
+
+        // Create a list
+        String listId = createList("List to delete");
+
+        // Add a product item
+        mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "productId", productId.toString(),
+                                "quantity", 2))))
+                .andExpect(status().isOk());
+
+        // Add a custom item
+        mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "customNameHe", "פריט חופשי",
+                                "quantity", 1))))
+                .andExpect(status().isOk());
+
+        // Invite a member
+        mvc.perform(post("/api/lists/" + listId + "/members")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "member@example.com"))))
+                .andExpect(status().isOk());
+
+        // Verify items and members exist
+        mvc.perform(get("/api/lists/" + listId + "/items").header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        // Delete the list
+        mvc.perform(delete("/api/lists/" + listId).header("Authorization", getBearerToken()))
+                .andExpect(status().isNoContent());
+
+        // Verify list is gone
+        mvc.perform(get("/api/lists").header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    void create_list_returns_sort_order() throws Exception {
+        mvc.perform(post("/api/lists")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("name", "First"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sortOrder").value(0));
+    }
+
+    @Test
+    void reorder_lists() throws Exception {
+        // Create 3 lists
+        String id1 = createList("List A");
+        String id2 = createList("List B");
+        String id3 = createList("List C");
+
+        // Verify initial order
+        mvc.perform(get("/api/lists").header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("List A"))
+                .andExpect(jsonPath("$[1].name").value("List B"))
+                .andExpect(jsonPath("$[2].name").value("List C"));
+
+        // Reorder: C, A, B
+        mvc.perform(put("/api/lists/reorder")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "listIds", java.util.List.of(id3, id1, id2)))))
+                .andExpect(status().isNoContent());
+
+        // Verify new order
+        mvc.perform(get("/api/lists").header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].name").value("List C"))
+                .andExpect(jsonPath("$[0].sortOrder").value(0))
+                .andExpect(jsonPath("$[1].name").value("List A"))
+                .andExpect(jsonPath("$[1].sortOrder").value(1))
+                .andExpect(jsonPath("$[2].name").value("List B"))
+                .andExpect(jsonPath("$[2].sortOrder").value(2));
+    }
+
+    @Test
+    void reorder_requires_auth() throws Exception {
+        mvc.perform(put("/api/lists/reorder")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "listIds", java.util.List.of(UUID.randomUUID())))))
+                .andExpect(status().is4xxClientError());
+    }
+
+    @Test
     void lists_require_auth() throws Exception {
         mvc.perform(get("/api/lists")).andExpect(status().is4xxClientError());
         mvc.perform(post("/api/lists")

@@ -1,6 +1,7 @@
 package com.example.demo.list;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -15,6 +16,8 @@ public interface ListItemRepository extends JpaRepository<ListItem, UUID> {
     @Query("SELECT DISTINCT p.category.id FROM ListItem i JOIN i.product p WHERE i.list.id = :listId")
     List<UUID> findDistinctCategoryIdsByListId(UUID listId);
 
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("DELETE FROM ListItem i WHERE i.list.id = :listId")
     void deleteByListId(UUID listId);
 
     /** Count of list items per product (only rows with product_id set). Returns [productId, count] per row. */
