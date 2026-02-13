@@ -36,7 +36,7 @@ describe('searchImages', () => {
   })
 
   it('sends Authorization when token in localStorage', async () => {
-    localStorage.setItem('listy_token', 'token123')
+    localStorage.setItem('listyyy_token', 'token123')
     ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       status: 200,

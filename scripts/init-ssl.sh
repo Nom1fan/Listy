@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# First-time SSL certificate setup for listyyy.com on EC2.
+# First-time SSL certificate setup for Listyyy on EC2.
 #
 # Run this ONCE after the first deploy to obtain the initial Let's Encrypt
 # certificate.  After that, the certbot container auto-renews.
@@ -10,7 +10,7 @@
 #   - docker-compose.yml and nginx/ already deployed (deploy.sh does this)
 #
 # Usage (on EC2):
-#   cd ~/listy   # or wherever the deploy dir is
+#   cd ~/listyyy   # or wherever the deploy dir is
 #   ./init-ssl.sh [email]
 #
 # The email is used by Let's Encrypt for renewal notices (optional but recommended).
@@ -45,9 +45,9 @@ echo "[2/4] Starting Nginx with temporary certificate ..."
 docker compose down --remove-orphans 2>/dev/null || true
 
 # Create certbot-certs volume and seed it with the dummy cert
-docker volume create "${COMPOSE_PROJECT_NAME:-listy}_certbot-certs" 2>/dev/null || true
+docker volume create "${COMPOSE_PROJECT_NAME:-listyyy}_certbot-certs" 2>/dev/null || true
 docker run --rm \
-  -v "${COMPOSE_PROJECT_NAME:-listy}_certbot-certs:/etc/letsencrypt" \
+  -v "${COMPOSE_PROJECT_NAME:-listyyy}_certbot-certs:/etc/letsencrypt" \
   -v "$CERT_DIR:/tmp/certs:ro" \
   alpine sh -c "mkdir -p /etc/letsencrypt/live/$DOMAIN && cp /tmp/certs/live/$DOMAIN/*.pem /etc/letsencrypt/live/$DOMAIN/"
 
@@ -61,7 +61,7 @@ echo "[3/4] Requesting Let's Encrypt certificate ..."
 
 # Remove the dummy cert so certbot can create its own
 docker run --rm \
-  -v "${COMPOSE_PROJECT_NAME:-listy}_certbot-certs:/etc/letsencrypt" \
+  -v "${COMPOSE_PROJECT_NAME:-listyyy}_certbot-certs:/etc/letsencrypt" \
   alpine sh -c "rm -rf /etc/letsencrypt/live/$DOMAIN /etc/letsencrypt/renewal/$DOMAIN.conf /etc/letsencrypt/archive/$DOMAIN"
 
 EMAIL_FLAG=""

@@ -1,5 +1,5 @@
 -- Optional: remove אבטיח (watermelon) from product bank manually.
--- Run with: psql -h localhost -U postgres -d listy -f scripts/repair-flyway-v6.sql
+-- Run with: psql -h localhost -U postgres -d listyyy -f scripts/repair-flyway-v6.sql
 -- Or delete the product from the Categories page in the app once the server is running.
 UPDATE list_items
 SET custom_name_he = 'אבטיח', product_id = NULL

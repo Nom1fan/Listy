@@ -1,4 +1,4 @@
-# Listy – List Management App
+# Listyyy – List Management App
 
 Hebrew-first (RTL) management list app with categories, product bank, list sharing, and real-time updates. Supports web and Android (Capacitor).
 
@@ -22,10 +22,10 @@ Hebrew-first (RTL) management list app with categories, product bank, list shari
 
 1. **PostgreSQL** – Create DB and user:
    ```bash
-   createdb listy
+   createdb listyyy
    ```
-   **Or restore from a backup:** if the repo has `db/listy-db.sql` (exported from another machine), run `./scripts/import-db.sh` instead. It recreates the `listy` DB and loads the dump.
-2. **Config** – In `demo/`, ensure `src/main/resources/application.properties` points to your DB (default: `localhost:5432/listy`, user/pass `postgres`).
+   **Or restore from a backup:** if the repo has `db/listyyy-db.sql` (exported from another machine), run `./scripts/import-db.sh` instead. It recreates the `listyyy` DB and loads the dump.
+2. **Config** – In `demo/`, ensure `src/main/resources/application.properties` points to your DB (default: `localhost:5432/listyyy`, user/pass `postgres`).
 3. **Run** (from repo root or any directory):
    ```bash
    ./run-backend.sh
@@ -77,12 +77,12 @@ To take your current DB (lists, users, categories, etc.) to another machine with
    ```bash
    ./scripts/export-db.sh
    ```
-   This writes a full dump to `db/listy-db.sql`. Commit and push that file.
+   This writes a full dump to `db/listyyy-db.sql`. Commit and push that file.
 2. **On the other machine (import):** After cloning and installing PostgreSQL, run:
    ```bash
    ./scripts/import-db.sh
    ```
-   This drops and recreates the `listy` database and loads the dump. Then start the backend as usual.
+   This drops and recreates the `listyyy` database and loads the dump. Then start the backend as usual.
 
 See `db/README.md` for Windows (pg_dump/psql) and one-liners.
 
@@ -94,22 +94,22 @@ Package everything into a single folder you can zip and run on another machine (
    ```bash
    ./scripts/export-db.sh
    ```
-   Commit or copy `db/listy-db.sql` into the package in the next step.
+   Commit or copy `db/listyyy-db.sql` into the package in the next step.
 
 2. **Create the package** (from repo root):
    ```bash
    ./scripts/package-for-windows.sh
    ```
-   This builds the app and creates `listy-windows/` with a minimal Docker setup, the JAR, and your DB dump if present.
+   This builds the app and creates `listyyy-windows/` with a minimal Docker setup, the JAR, and your DB dump if present.
 
 3. **Zip and copy** to your other PC:
    ```bash
-   zip -r listy-windows.zip listy-windows
+   zip -r listyyy-windows.zip listyyy-windows
    ```
 
 4. **On the other PC:** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), unzip the folder, then double-click `run.bat` (or run `docker compose up` in that folder). Open http://localhost:8080.
 
-See `listy-windows/README.txt` (inside the package) for details.
+See `listyyy-windows/README.txt` (inside the package) for details.
 
 ## Docker (single server / EC2)
 
@@ -159,7 +159,7 @@ Log out and back in (or new SSH session). Verify: `docker compose version`.
 
 **Firewall notes:** WebSockets share port 8080 — no extra rule. SMS (Twilio) is outbound-only; no inbound rule needed.
 
-**Viewing logs** – From `~/listy` on the instance:
+**Viewing logs** – From `~/listyyy` on the instance:
 - `docker compose logs -f app` – stream stdout (Ctrl+C to stop).
 - `docker compose exec app tail -f /app/logs/spring.log` – log file.
 
@@ -182,9 +182,9 @@ This runs the full pipeline:
 | Step | What happens |
 |------|-------------|
 | 0 | Bump minor version (e.g. `0.3.0` → `0.4.0`) in `VERSION`, `pom.xml`, `package.json` |
-| 1 | Export local DB to `db/listy-db.sql` |
+| 1 | Export local DB to `db/listyyy-db.sql` |
 | 2–3 | Build Windows package and zip |
-| 4 | Build and push Docker image (`LISTY_IMAGE:version`) |
+| 4 | Build and push Docker image (`LISTYYY_IMAGE:version`) |
 | 5 | Git commit, tag `vX.Y.Z`, and push |
 | 6 | Deploy to EC2 (SCP compose file, update remote `.env`, pull image, restart) |
 
@@ -216,7 +216,7 @@ Re-deploy the current version (or a specific one) without bumping or building:
 
 The deploy script:
 1. SCPs `docker-compose.prod.yml` to EC2
-2. Updates the remote `.env` with the new `LISTY_IMAGE` tag (creates it on first deploy)
+2. Updates the remote `.env` with the new `LISTYYY_IMAGE` tag (creates it on first deploy)
 3. Pulls the image and runs `docker compose up -d`
 4. If `--db`: waits for DB health, then runs `import-db-ec2.sh` on the instance
 

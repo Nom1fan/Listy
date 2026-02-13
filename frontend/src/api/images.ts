@@ -11,7 +11,7 @@ export interface ImageSearchResponse {
 }
 
 export async function searchImages(query: string, perPage = 12): Promise<ImageSearchResult[]> {
-  const token = localStorage.getItem('listy_token');
+  const token = localStorage.getItem('listyyy_token');
   const headers: HeadersInit = {};
   if (token) {
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;

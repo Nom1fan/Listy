@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stop the current Listy backend (Spring Boot) and start it again via run-backend.sh.
+# Stop the current Listyyy backend (Spring Boot) and start it again via run-backend.sh.
 # Use this whenever a backend restart is required (e.g. after DB migrations or config changes).
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

@@ -37,7 +37,7 @@ Run the release script from the **project root**:
 
 ## Prerequisites
 
-- `release.config` must have `LISTY_IMAGE` set (already configured in this project).
+- `release.config` must have `LISTYYY_IMAGE` set (already configured in this project).
 - `.env` must have `EC2_PEM` and `EC2_HOST` for deployment (already configured).
 - Docker must be running locally.
 - The script has interactive prompts for missing config on first run that won't work in a non-interactive shell—if config is missing, tell the user to set the values in `release.config` or `.env` first.

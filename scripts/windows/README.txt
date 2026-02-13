@@ -1,4 +1,4 @@
-Listy – run on Windows (no repo, no Cursor needed)
+Listyyy – run on Windows (no repo, no Cursor needed)
 =================================================
 
 1. Install Docker Desktop for Windows
@@ -6,7 +6,7 @@ Listy – run on Windows (no repo, no Cursor needed)
    Then start Docker Desktop.
 
 2. (Optional) Use your existing data
-   If you have db/listy-db.sql from your Mac (exported with scripts/export-db.sh),
+   If you have db/listyyy-db.sql from your Mac (exported with scripts/export-db.sh),
    put it in the "db" folder before first run. It will be imported automatically.
    If the db folder is empty, the app will start with an empty database (schema
    is created by the app).

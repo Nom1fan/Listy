@@ -1,6 +1,6 @@
 ---
 name: run-deploy
-description: Deploy Listy to EC2 (copy compose file, pull Docker image, restart services). Use when the user asks to deploy, push to production, update EC2, or re-deploy a specific version.
+description: Deploy Listyyy to EC2 (copy compose file, pull Docker image, restart services). Use when the user asks to deploy, push to production, update EC2, or re-deploy a specific version.
 ---
 
 # Run Deploy
@@ -36,7 +36,7 @@ Run the deploy script from the **project root**:
 ## Prerequisites
 
 - `.env` must have `EC2_PEM` and `EC2_HOST` (already configured in this project).
-- `release.config` must have `LISTY_IMAGE` (already configured).
+- `release.config` must have `LISTYYY_IMAGE` (already configured).
 - The Docker image for the target version must already be pushed to the registry.
 - The script has interactive prompts for missing config that won't work in a non-interactive shell—if config is missing, tell the user to set values in `.env` or `release.config` first.
 

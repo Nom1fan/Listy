@@ -10,7 +10,7 @@
 #   --skip-deploy     Skip EC2 deployment (build and push only)
 #
 # Config:
-#   release.config    LISTY_IMAGE (Docker Hub repo, e.g. mmerhav/listy)
+#   release.config    LISTYYY_IMAGE (Docker Hub repo, e.g. mmerhav/listyyy)
 #   .env              EC2_PEM, EC2_HOST (for deployment); JWT_SECRET
 #
 # Run from repo root.
@@ -18,7 +18,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-ZIP="$REPO_ROOT/listy-windows.zip"
+ZIP="$REPO_ROOT/listyyy-windows.zip"
 VERSION_FILE="$REPO_ROOT/VERSION"
 
 # ── Parse flags ──────────────────────────────────────────────
@@ -43,12 +43,12 @@ if [ -f "$REPO_ROOT/.env" ]; then
 fi
 
 # ── Interactive setup (first run) ────────────────────────────
-if [ -z "${LISTY_IMAGE:-}" ]; then
-  echo "LISTY_IMAGE is not configured (needed to push Docker images)."
-  echo "  Example: your-username/listy  or  ghcr.io/yourorg/listy"
-  read -rp "  Image name: " LISTY_IMAGE
-  if [ -n "$LISTY_IMAGE" ]; then
-    echo "LISTY_IMAGE=$LISTY_IMAGE" > "$REPO_ROOT/release.config"
+if [ -z "${LISTYYY_IMAGE:-}" ]; then
+  echo "LISTYYY_IMAGE is not configured (needed to push Docker images)."
+  echo "  Example: your-username/listyyy  or  ghcr.io/yourorg/listyyy"
+  read -rp "  Image name: " LISTYYY_IMAGE
+  if [ -n "$LISTYYY_IMAGE" ]; then
+    echo "LISTYYY_IMAGE=$LISTYYY_IMAGE" > "$REPO_ROOT/release.config"
     echo "  Saved to release.config"
   fi
 fi
@@ -74,9 +74,9 @@ echo ""
 # ── 1. Export DB ─────────────────────────────────────────────
 echo "=== 1. Export DB ==="
 if "$SCRIPT_DIR/export-db.sh"; then
-  echo "DB exported to db/listy-db.sql"
+  echo "DB exported to db/listyyy-db.sql"
 else
-  echo "DB export failed (is PostgreSQL running with a listy DB?). Continuing without DB dump."
+  echo "DB export failed (is PostgreSQL running with a listyyy DB?). Continuing without DB dump."
 fi
 echo ""
 
@@ -89,7 +89,7 @@ if $BUILD_WINDOWS; then
   echo "=== 3. Zip ==="
   cd "$REPO_ROOT"
   rm -f "$ZIP"
-  zip -r "$ZIP" listy-windows -x "*.DS_Store"
+  zip -r "$ZIP" listyyy-windows -x "*.DS_Store"
   echo "Created $ZIP"
 else
   echo "=== 2. Build Windows package (SKIPPED -- pass --windows to include) ==="
@@ -97,15 +97,15 @@ fi
 echo ""
 
 # ── 4. Build and push Docker image ──────────────────────────
-if [ -n "${LISTY_IMAGE:-}" ]; then
+if [ -n "${LISTYYY_IMAGE:-}" ]; then
   echo "=== 4. Build and push Docker image ==="
-  IMAGE_TAG="${LISTY_IMAGE}:${new_version}"
+  IMAGE_TAG="${LISTYYY_IMAGE}:${new_version}"
   echo "Building $IMAGE_TAG ..."
   docker build -t "$IMAGE_TAG" "$REPO_ROOT"
   docker push "$IMAGE_TAG"
   echo "Pushed $IMAGE_TAG"
 else
-  echo "=== 4. Build and push Docker image (SKIPPED -- set LISTY_IMAGE in release.config) ==="
+  echo "=== 4. Build and push Docker image (SKIPPED -- set LISTYYY_IMAGE in release.config) ==="
 fi
 echo ""
 
@@ -113,7 +113,7 @@ echo ""
 echo "=== 5. Git commit and tag ==="
 cd "$REPO_ROOT"
 git add VERSION demo/pom.xml frontend/package.json
-if [ -f db/listy-db.sql ]; then git add db/listy-db.sql; fi
+if [ -f db/listyyy-db.sql ]; then git add db/listyyy-db.sql; fi
 git commit -m "Release $new_version"
 git tag "v$new_version"
 git push && git push --tags
@@ -137,10 +137,10 @@ echo ""
 echo "========================================================"
 echo "  Release $new_version complete!"
 if $BUILD_WINDOWS; then
-  echo "  Windows:  listy-windows.zip ready"
+  echo "  Windows:  listyyy-windows.zip ready"
 fi
-if [ -n "${LISTY_IMAGE:-}" ]; then
-  echo "  Docker:   ${LISTY_IMAGE}:${new_version} pushed"
+if [ -n "${LISTYYY_IMAGE:-}" ]; then
+  echo "  Docker:   ${LISTYYY_IMAGE}:${new_version} pushed"
 fi
 if ! $SKIP_DEPLOY && [ -n "${EC2_PEM:-}" ] && [ -n "${EC2_HOST:-}" ]; then
   echo "  EC2:      deployed to $EC2_HOST"

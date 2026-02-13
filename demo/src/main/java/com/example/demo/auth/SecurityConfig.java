@@ -27,7 +27,7 @@ public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
 
-    @Value("${listy.cors.allowed-origins:http://localhost:5173}")
+    @Value("${listyyy.cors.allowed-origins:http://localhost:5173}")
     private String corsAllowedOrigins;
 
     @Bean

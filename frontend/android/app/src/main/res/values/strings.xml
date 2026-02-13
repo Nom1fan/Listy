@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Listy</string>
-    <string name="title_activity_main">Listy</string>
-    <string name="package_name">com.listy.app</string>
-    <string name="custom_url_scheme">com.listy.app</string>
+    <string name="app_name">Listyyy</string>
+    <string name="title_activity_main">Listyyy</string>
+    <string name="package_name">com.listyyy.app</string>
+    <string name="custom_url_scheme">com.listyyy.app</string>
 </resources>

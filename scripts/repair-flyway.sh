@@ -3,7 +3,7 @@
 # Override with env: FLYWAY_URL, FLYWAY_USER, FLYWAY_PASSWORD (or pass -Dflyway.url=... to mvnw).
 set -e
 cd "$(dirname "$0")/.."
-DB_URL="${FLYWAY_URL:-jdbc:postgresql://localhost:5432/listy}"
+DB_URL="${FLYWAY_URL:-jdbc:postgresql://localhost:5432/listyyy}"
 DB_USER="${FLYWAY_USER:-postgres}"
 DB_PASS="${FLYWAY_PASSWORD:-postgres}"
 ./demo/mvnw -q -Dflyway.url="$DB_URL" -Dflyway.user="$DB_USER" -Dflyway.password="$DB_PASS" flyway:repair
