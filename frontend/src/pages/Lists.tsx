@@ -112,8 +112,8 @@ export function Lists() {
     e.preventDefault();
     if (!editList) return;
     const nameVal = editName.trim() || editList.name;
-    const iconId = editDisplayImageType === 'icon' ? (editIconId || null) : null;
-    const imageUrl = (editDisplayImageType === 'link' || editDisplayImageType === 'web') ? (editImageUrl.trim() || null) : null;
+    const iconId = editDisplayImageType === 'icon' ? (editIconId || '') : '';
+    const imageUrl = (editDisplayImageType === 'link' || editDisplayImageType === 'web') ? (editImageUrl.trim() || '') : '';
     if (editDisplayImageType === 'device' && pendingEditFileRef.current) {
       updateListMutation.mutate({ listId: editList.id, payload: { name: nameVal } });
       return;
@@ -368,12 +368,12 @@ export function Lists() {
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button
                 onClick={() => {
-                  const iconId = createDisplayImageType === 'icon' ? createIconId || null : null;
-                  const imageUrl = createDisplayImageType === 'link' || createDisplayImageType === 'web' ? createImageUrl || null : null;
+                  const iconId = createDisplayImageType === 'icon' ? createIconId || '' : '';
+                  const imageUrl = createDisplayImageType === 'link' || createDisplayImageType === 'web' ? createImageUrl || '' : '';
                   createMutation.mutate({
                     name: name || 'רשימה חדשה',
-                    iconId: iconId ?? null,
-                    imageUrl: imageUrl ?? null,
+                    iconId: iconId || undefined,
+                    imageUrl: imageUrl || undefined,
                   });
                 }}
                 disabled={createMutation.isPending}

@@ -98,8 +98,8 @@ public class CategoryController {
         Category c = categoryAccessService.getCategoryOrThrow(id, user);
         if (!categoryAccessService.canEdit(user, id)) throw new IllegalArgumentException("אין גישה");
         if (req.getNameHe() != null && !req.getNameHe().isBlank()) c.setNameHe(req.getNameHe().trim());
-        if (req.getIconId() != null) c.setIconId(req.getIconId());
-        if (req.getImageUrl() != null) c.setImageUrl(req.getImageUrl());
+        if (req.getIconId() != null) c.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
+        if (req.getImageUrl() != null) c.setImageUrl(req.getImageUrl().isBlank() ? null : req.getImageUrl());
         if (req.getSortOrder() != null) c.setSortOrder(req.getSortOrder());
         c = categoryRepository.save(c);
         int memberCount = categoryMemberRepository.findByCategoryId(id).size();
