@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict UDDGo1pqiB7zA8BIrUplJ4gvqRuaeOxcfHpeosLiOOzGpSufyUNlmPJONQETG8M
+\restrict 2UJDc1vLDttV4jvjmz2z3K2uXh4aaRNr3cxXn5lhBAxPjSwnxZqSCk47u1NDuME
 
 -- Dumped from database version 11.0 (Debian 11.0-1.pgdg90+2)
 -- Dumped by pg_dump version 14.21 (Homebrew)
@@ -195,7 +195,8 @@ CREATE TABLE public.products (
     default_unit character varying(50) DEFAULT 'יחידה'::character varying,
     image_url character varying(2048),
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    icon_id character varying(64)
+    icon_id character varying(64),
+    note text
 );
 
 
@@ -283,6 +284,7 @@ COPY public.flyway_schema_history (installed_rank, version, description, type, s
 8	8	categories per user and sharing	SQL	V8__categories_per_user_and_sharing.sql	-34353407	postgres	2026-02-13 01:02:18.631634	34	t
 9	9	transfer system categories to user	SQL	V9__transfer_system_categories_to_user.sql	631804778	postgres	2026-02-13 08:12:44.181886	9	t
 10	10	backfill category members from lists	SQL	V10__backfill_category_members_from_lists.sql	-704229878	postgres	2026-02-13 08:16:05.893667	9	t
+11	11	add product note	SQL	V11__add_product_note.sql	-921681721	postgres	2026-02-13 16:56:24.202243	8	t
 \.
 
 
@@ -296,6 +298,7 @@ COPY public.list_items (id, list_id, product_id, custom_name_he, quantity, unit,
 526adb72-4252-49fc-acdb-acdde88017dd	b967eaf3-c307-405a-a61a-ff5b1341a478	c0a87c32-b0dd-4644-a657-65a46ac88665	\N	1.000	יחידה	רק של Kikkoman	f	https://d3m9l0v76dty0.cloudfront.net/system/photos/5094742/large/ca1f052b134edb1f68dc67bfc86ad6a3.jpg	0	2026-02-12 04:45:53.609523+00	2026-02-12 05:43:49.13446+00	\N
 2445b628-9d0d-4312-acd2-91caf713019a	bca09daf-bdc5-402f-b095-21aae66cf9f6	\N	כיסא עץ	6.000	יחידה	\N	f	https://images.unsplash.com/photo-1730373451883-45a448eb9bfc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NzI5Njh8MHwxfHNlYXJjaHw2fHx3b29kZW4lMjBjaGFpcnxlbnwwfHx8fDE3NzA4ODk3NzZ8MA&ixlib=rb-4.1.0&q=80&w=1080	0	2026-02-12 09:49:43.269403+00	2026-02-12 12:13:25.884753+00	\N
 0eed67f0-3f09-4eaf-9e36-f9befe68140e	bca09daf-bdc5-402f-b095-21aae66cf9f6	\N	מתקן למטריות	1.000	יחידה	\N	f	https://images.unsplash.com/photo-1532135468830-e51699205b70?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NzI5Njh8MHwxfHNlYXJjaHwzfHx1bWJyZWxsYXxlbnwwfHx8fDE3NzA4OTg1MzJ8MA&ixlib=rb-4.1.0&q=80&w=1080	0	2026-02-12 12:15:36.271635+00	2026-02-12 12:15:36.27164+00	\N
+b8674e3f-8f1d-4f43-bbb7-f239fae06a21	b967eaf3-c307-405a-a61a-ff5b1341a478	f6bcd76e-0484-4757-9e7a-a342f482b6f8	\N	1.000	יחידה	ורוד שקוף	f	\N	0	2026-02-13 15:21:21.033582+00	2026-02-13 15:21:21.033592+00	\N
 \.
 
 
@@ -340,6 +343,7 @@ COPY public.otp_request_log (phone, requested_at, id) FROM stdin;
 +972549966847	2026-02-12 12:14:43.165795+00	12
 +972542258808	2026-02-12 20:48:15.400016+00	13
 +972542258808	2026-02-13 05:41:03.405654+00	14
++972542258808	2026-02-13 15:05:12.999454+00	15
 \.
 
 
@@ -355,34 +359,34 @@ COPY public.phone_otp (phone, code, expires_at) FROM stdin;
 -- Data for Name: products; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY public.products (id, category_id, name_he, default_unit, image_url, created_at, icon_id) FROM stdin;
-b0000005-0000-0000-0000-000000000005	a0000002-0000-0000-0000-000000000002	לחם	כיכר	\N	2026-02-11 21:01:48.965446+00	\N
-b000000a-0000-0000-0000-00000000000a	a0000003-0000-0000-0000-000000000003	חסה	יחידה	\N	2026-02-11 21:01:48.965446+00	\N
-b000000c-0000-0000-0000-00000000000c	a0000004-0000-0000-0000-000000000004	תפוח	יחידה	\N	2026-02-11 21:01:48.965446+00	\N
-b000000f-0000-0000-0000-00000000000f	a0000004-0000-0000-0000-000000000004	אבטיח	יחידה	\N	2026-02-11 21:01:48.965446+00	\N
-b0000011-0000-0000-0000-000000000011	a0000006-0000-0000-0000-000000000006	פסטה	חבילה	\N	2026-02-11 21:01:48.965446+00	\N
-b0000012-0000-0000-0000-000000000012	a0000006-0000-0000-0000-000000000006	שמן	בקבוק	\N	2026-02-11 21:01:48.965446+00	\N
-b0000013-0000-0000-0000-000000000013	a0000006-0000-0000-0000-000000000006	מלח	יחידה	\N	2026-02-11 21:01:48.965446+00	\N
-b0000008-0000-0000-0000-000000000008	a0000003-0000-0000-0000-000000000003	מלפפון	יחידה	https://images.emojiterra.com/google/android-11/512px/1f952.png	2026-02-11 21:01:48.965446+00	\N
-b000000e-0000-0000-0000-00000000000e	a0000004-0000-0000-0000-000000000004	תפוז	יחידה	https://images.emojiterra.com/microsoft/fluent-emoji/15.1/512px/1f34a_color.png	2026-02-11 21:01:48.965446+00	\N
-906c86b2-053f-4f3a-a2a0-5a8d1e28ca01	a0000003-0000-0000-0000-000000000003	קישוא	יחידה	https://cdn-icons-png.flaticon.com/512/3944/3944047.png	2026-02-11 21:49:31.696254+00	\N
-7509365b-36b7-4dd0-a8f4-7466dcab4b8f	a0000004-0000-0000-0000-000000000004	פומלה	יחידה	\N	2026-02-12 04:45:00.094435+00	\N
-4ba9c2aa-2cc8-4783-8be1-d0a495626413	a0000004-0000-0000-0000-000000000004	פומלית	יחידה	\N	2026-02-12 04:45:03.783863+00	\N
-c0a87c32-b0dd-4644-a657-65a46ac88665	a0000006-0000-0000-0000-000000000006	רוטב סויה	יחידה	\N	2026-02-12 04:45:25.957712+00	\N
-b0000010-0000-0000-0000-000000000010	a0000006-0000-0000-0000-000000000006	אורז	קילו	https://imgproxy.attic.sh/insecure/f:png/plain/https://attic.sh/icw3k5e0dqvcj9seryeahq0e0sfl	2026-02-11 21:01:48.965446+00	\N
-b000000d-0000-0000-0000-00000000000d	a0000004-0000-0000-0000-000000000004	בננה	יחידה	https://images.emojiterra.com/google/noto-emoji/unicode-16.0/color/512px/1f34c.png	2026-02-11 21:01:48.965446+00	\N
-b0000009-0000-0000-0000-000000000009	a0000003-0000-0000-0000-000000000003	גזר	יחידה	\N	2026-02-11 21:01:48.965446+00	carrot
-b000000b-0000-0000-0000-00000000000b	a0000003-0000-0000-0000-000000000003	בצל	קילו	\N	2026-02-11 21:01:48.965446+00	onion
-b0000006-0000-0000-0000-000000000006	a0000002-0000-0000-0000-000000000002	פיתות	חבילה	/uploads/product/08128529-a371-4df4-a154-360b4829f8a9.png	2026-02-11 21:01:48.965446+00	\N
-b0000007-0000-0000-0000-000000000007	a0000003-0000-0000-0000-000000000003	עגבניה	יחידה	\N	2026-02-11 21:01:48.965446+00	tomato
-7dfce2ec-e86b-4126-8f90-024c788c00a4	a0000003-0000-0000-0000-000000000003	פלפל אדום	3	https://em-content.zobj.net/source/facebook/304/bell-pepper_1fad1.png	2026-02-12 08:04:16.487542+00	\N
-7de5e174-134a-4b74-872e-8ce1661043b5	a0000003-0000-0000-0000-000000000003	פלפל צהוב	3	https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQW-dQZB2kSyEz9s-VTVWj9YPKqZfucyzEi8w&s	2026-02-12 08:09:09.581874+00	\N
-9dca8572-3f34-49bc-99d6-5bd11d6f00e4	a0000003-0000-0000-0000-000000000003	בצל סגול	קילו	https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQXVvbvQX51MeVH4v-AosF50CL2KsNLSHri7g&s	2026-02-12 08:10:11.300062+00	\N
-7f52efb5-bf24-4337-b432-d0b13919cfed	a0000003-0000-0000-0000-000000000003	בטטה	קילו	\N	2026-02-12 08:23:25.578952+00	yam
-4217770e-34d3-4afa-a8c6-c8e5c5eab2cb	a0000003-0000-0000-0000-000000000003	ברוקולי	קילו	\N	2026-02-12 08:23:48.542632+00	broccoli
-e41e463f-b762-4b8a-a426-8bf01c0aa477	a0000003-0000-0000-0000-000000000003	פיטרוזיליה	יחידה	\N	2026-02-12 08:24:12.853384+00	leaf
-5be797ba-b12c-4448-99a3-d6c4f2a8f603	a0000003-0000-0000-0000-000000000003	שמיר	יחידה	\N	2026-02-12 08:24:29.886638+00	leaf
-f6bcd76e-0484-4757-9e7a-a342f482b6f8	0e3c4192-d471-4e27-83b2-719d7622f947	מרכך כביסה	יחידה	https://images.unsplash.com/photo-1649005011845-ef225c89da86?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NzI5Njh8MHwxfHNlYXJjaHwyfHxsYXVuZHJ5JTIwZGV0ZXJnZW50fGVufDB8fHx8MTc3MDk2MzYxNnww&ixlib=rb-4.1.0&q=80&w=1080	2026-02-13 06:20:27.640609+00	\N
+COPY public.products (id, category_id, name_he, default_unit, image_url, created_at, icon_id, note) FROM stdin;
+b0000005-0000-0000-0000-000000000005	a0000002-0000-0000-0000-000000000002	לחם	כיכר	\N	2026-02-11 21:01:48.965446+00	\N	\N
+b000000a-0000-0000-0000-00000000000a	a0000003-0000-0000-0000-000000000003	חסה	יחידה	\N	2026-02-11 21:01:48.965446+00	\N	\N
+b000000c-0000-0000-0000-00000000000c	a0000004-0000-0000-0000-000000000004	תפוח	יחידה	\N	2026-02-11 21:01:48.965446+00	\N	\N
+b000000f-0000-0000-0000-00000000000f	a0000004-0000-0000-0000-000000000004	אבטיח	יחידה	\N	2026-02-11 21:01:48.965446+00	\N	\N
+b0000011-0000-0000-0000-000000000011	a0000006-0000-0000-0000-000000000006	פסטה	חבילה	\N	2026-02-11 21:01:48.965446+00	\N	\N
+b0000012-0000-0000-0000-000000000012	a0000006-0000-0000-0000-000000000006	שמן	בקבוק	\N	2026-02-11 21:01:48.965446+00	\N	\N
+b0000013-0000-0000-0000-000000000013	a0000006-0000-0000-0000-000000000006	מלח	יחידה	\N	2026-02-11 21:01:48.965446+00	\N	\N
+b0000008-0000-0000-0000-000000000008	a0000003-0000-0000-0000-000000000003	מלפפון	יחידה	https://images.emojiterra.com/google/android-11/512px/1f952.png	2026-02-11 21:01:48.965446+00	\N	\N
+b000000e-0000-0000-0000-00000000000e	a0000004-0000-0000-0000-000000000004	תפוז	יחידה	https://images.emojiterra.com/microsoft/fluent-emoji/15.1/512px/1f34a_color.png	2026-02-11 21:01:48.965446+00	\N	\N
+906c86b2-053f-4f3a-a2a0-5a8d1e28ca01	a0000003-0000-0000-0000-000000000003	קישוא	יחידה	https://cdn-icons-png.flaticon.com/512/3944/3944047.png	2026-02-11 21:49:31.696254+00	\N	\N
+7509365b-36b7-4dd0-a8f4-7466dcab4b8f	a0000004-0000-0000-0000-000000000004	פומלה	יחידה	\N	2026-02-12 04:45:00.094435+00	\N	\N
+4ba9c2aa-2cc8-4783-8be1-d0a495626413	a0000004-0000-0000-0000-000000000004	פומלית	יחידה	\N	2026-02-12 04:45:03.783863+00	\N	\N
+c0a87c32-b0dd-4644-a657-65a46ac88665	a0000006-0000-0000-0000-000000000006	רוטב סויה	יחידה	\N	2026-02-12 04:45:25.957712+00	\N	\N
+b0000010-0000-0000-0000-000000000010	a0000006-0000-0000-0000-000000000006	אורז	קילו	https://imgproxy.attic.sh/insecure/f:png/plain/https://attic.sh/icw3k5e0dqvcj9seryeahq0e0sfl	2026-02-11 21:01:48.965446+00	\N	\N
+b000000d-0000-0000-0000-00000000000d	a0000004-0000-0000-0000-000000000004	בננה	יחידה	https://images.emojiterra.com/google/noto-emoji/unicode-16.0/color/512px/1f34c.png	2026-02-11 21:01:48.965446+00	\N	\N
+b0000009-0000-0000-0000-000000000009	a0000003-0000-0000-0000-000000000003	גזר	יחידה	\N	2026-02-11 21:01:48.965446+00	carrot	\N
+b000000b-0000-0000-0000-00000000000b	a0000003-0000-0000-0000-000000000003	בצל	קילו	\N	2026-02-11 21:01:48.965446+00	onion	\N
+b0000006-0000-0000-0000-000000000006	a0000002-0000-0000-0000-000000000002	פיתות	חבילה	/uploads/product/08128529-a371-4df4-a154-360b4829f8a9.png	2026-02-11 21:01:48.965446+00	\N	\N
+b0000007-0000-0000-0000-000000000007	a0000003-0000-0000-0000-000000000003	עגבניה	יחידה	\N	2026-02-11 21:01:48.965446+00	tomato	\N
+7dfce2ec-e86b-4126-8f90-024c788c00a4	a0000003-0000-0000-0000-000000000003	פלפל אדום	3	https://em-content.zobj.net/source/facebook/304/bell-pepper_1fad1.png	2026-02-12 08:04:16.487542+00	\N	\N
+7de5e174-134a-4b74-872e-8ce1661043b5	a0000003-0000-0000-0000-000000000003	פלפל צהוב	3	https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQW-dQZB2kSyEz9s-VTVWj9YPKqZfucyzEi8w&s	2026-02-12 08:09:09.581874+00	\N	\N
+9dca8572-3f34-49bc-99d6-5bd11d6f00e4	a0000003-0000-0000-0000-000000000003	בצל סגול	קילו	https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQXVvbvQX51MeVH4v-AosF50CL2KsNLSHri7g&s	2026-02-12 08:10:11.300062+00	\N	\N
+7f52efb5-bf24-4337-b432-d0b13919cfed	a0000003-0000-0000-0000-000000000003	בטטה	קילו	\N	2026-02-12 08:23:25.578952+00	yam	\N
+4217770e-34d3-4afa-a8c6-c8e5c5eab2cb	a0000003-0000-0000-0000-000000000003	ברוקולי	קילו	\N	2026-02-12 08:23:48.542632+00	broccoli	\N
+e41e463f-b762-4b8a-a426-8bf01c0aa477	a0000003-0000-0000-0000-000000000003	פיטרוזיליה	יחידה	\N	2026-02-12 08:24:12.853384+00	leaf	\N
+5be797ba-b12c-4448-99a3-d6c4f2a8f603	a0000003-0000-0000-0000-000000000003	שמיר	יחידה	\N	2026-02-12 08:24:29.886638+00	leaf	\N
+f6bcd76e-0484-4757-9e7a-a342f482b6f8	0e3c4192-d471-4e27-83b2-719d7622f947	מרכך כביסה	יחידה	/uploads/product/c9d9312c-bf15-4118-af93-c3219a3d22c6.jpg	2026-02-13 06:20:27.640609+00	\N	ורוד שקוף
 \.
 
 
@@ -400,7 +404,7 @@ f9490ba3-2bce-4a6d-8d3c-941c3bb9b265	\N	+972542258808	\N	מור	he	2026-02-11 21
 -- Name: otp_request_log_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.otp_request_log_id_seq', 14, true);
+SELECT pg_catalog.setval('public.otp_request_log_id_seq', 15, true);
 
 
 --
@@ -676,5 +680,5 @@ ALTER TABLE ONLY public.products
 -- PostgreSQL database dump complete
 --
 
-\unrestrict UDDGo1pqiB7zA8BIrUplJ4gvqRuaeOxcfHpeosLiOOzGpSufyUNlmPJONQETG8M
+\unrestrict 2UJDc1vLDttV4jvjmz2z3K2uXh4aaRNr3cxXn5lhBAxPjSwnxZqSCk47u1NDuME
 
