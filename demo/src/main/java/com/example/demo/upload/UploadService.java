@@ -17,7 +17,7 @@ import java.util.UUID;
 @Slf4j
 public class UploadService {
 
-    @Value("${listy.upload.dir:./uploads}")
+    @Value("${listyyy.upload.dir:./uploads}")
     private String uploadDirRaw;
 
     /** Resolved absolute upload base; avoids relative path under Tomcat work dir. */
@@ -29,7 +29,7 @@ public class UploadService {
         log.info("Upload directory: {}", uploadBase);
     }
 
-    @Value("${listy.app.base-url:}")
+    @Value("${listyyy.app.base-url:}")
     private String baseUrl;
 
     public String saveCategoryImage(MultipartFile file) throws IOException {

@@ -1,6 +1,6 @@
 # Copy to release.config and set your image (repo name, no tag).
 # The release script will tag with the version it bumps (e.g. 0.2.0).
-# LISTY_IMAGE=your-dockerhub-username/listy
-# or: LISTY_IMAGE=ghcr.io/yourorg/listy
+# LISTYYY_IMAGE=your-dockerhub-username/listyyy
+# or: LISTYYY_IMAGE=ghcr.io/yourorg/listyyy
 
-LISTY_IMAGE=your-username/listy
+LISTYYY_IMAGE=your-username/listyyy

@@ -28,10 +28,10 @@ public class AuthService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-    @Value("${listy.otp.ttl-minutes:5}")
+    @Value("${listyyy.otp.ttl-minutes:5}")
     private int otpTtlMinutes;
 
-    @Value("${listy.otp.rate-limit-per-phone-per-hour:5}")
+    @Value("${listyyy.otp.rate-limit-per-phone-per-hour:5}")
     private int rateLimitPerPhonePerHour;
 
     @Transactional

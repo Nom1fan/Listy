@@ -17,7 +17,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       user: null,
       setAuth: (res) => {
-        if (res.token) localStorage.setItem('listy_token', res.token);
+        if (res.token) localStorage.setItem('listyyy_token', res.token);
         set({
           token: res.token,
           user: {
@@ -32,11 +32,11 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         // Revoke refresh token on server (clears HttpOnly cookie)
         serverLogout();
-        localStorage.removeItem('listy_token');
+        localStorage.removeItem('listyyy_token');
         set({ token: null, user: null });
       },
       isAuthenticated: () => !!get().token,
     }),
-    { name: 'listy-auth' }
+    { name: 'listyyy-auth' }
   )
 );

@@ -170,7 +170,7 @@
                 <artifactId>flyway-maven-plugin</artifactId>
                 <version>10.10.0</version>
                 <configuration>
-                    <url>${flyway.url:-jdbc:postgresql://localhost:5432/listy}</url>
+                    <url>${flyway.url:-jdbc:postgresql://localhost:5432/listyyy}</url>
                     <user>${flyway.user:-postgres}</user>
                     <password>${flyway.password:-postgres}</password>
                     <locations>classpath:db/migration</locations>

@@ -11,13 +11,13 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class SmsService {
 
-    @Value("${listy.twilio.account-sid:}")
+    @Value("${listyyy.twilio.account-sid:}")
     private String accountSid;
 
-    @Value("${listy.twilio.auth-token:}")
+    @Value("${listyyy.twilio.auth-token:}")
     private String authToken;
 
-    @Value("${listy.twilio.from-number:}")
+    @Value("${listyyy.twilio.from-number:}")
     private String fromNumber;
 
     public void sendOtp(String toPhone, String code) {
@@ -30,7 +30,7 @@ public class SmsService {
             Message.creator(
                     new PhoneNumber(toPhone),
                     new PhoneNumber(fromNumber),
-                    "Listy: הקוד שלך הוא " + code
+                    "Listyyy: הקוד שלך הוא " + code
             ).create();
         } catch (Exception e) {
             log.error("Failed to send SMS to {}", toPhone, e);

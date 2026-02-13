@@ -62,8 +62,8 @@ class ImageSearchMockIntegrationTest extends AbstractIntegrationTest {
 
     @DynamicPropertySource
     static void wireMockProps(DynamicPropertyRegistry registry) {
-        registry.add("listy.unsplash.api-url", () -> "http://localhost:" + wireMock.port());
-        registry.add("listy.unsplash.access-key", () -> "test-key");
+        registry.add("listyyy.unsplash.api-url", () -> "http://localhost:" + wireMock.port());
+        registry.add("listyyy.unsplash.access-key", () -> "test-key");
     }
 
     @Test

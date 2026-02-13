@@ -24,7 +24,7 @@ describe('authStore', () => {
     expect(useAuthStore.getState().isAuthenticated()).toBe(true)
     expect(useAuthStore.getState().token).toBe('jwt-123')
     expect(useAuthStore.getState().user?.email).toBe('a@b.com')
-    expect(localStorage.getItem('listy_token')).toBe('jwt-123')
+    expect(localStorage.getItem('listyyy_token')).toBe('jwt-123')
   })
 
   it('logout clears state and localStorage', () => {
@@ -39,6 +39,6 @@ describe('authStore', () => {
     useAuthStore.getState().logout()
     expect(useAuthStore.getState().isAuthenticated()).toBe(false)
     expect(useAuthStore.getState().token).toBeNull()
-    expect(localStorage.getItem('listy_token')).toBeNull()
+    expect(localStorage.getItem('listyyy_token')).toBeNull()
   })
 })

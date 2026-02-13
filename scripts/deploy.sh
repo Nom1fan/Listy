@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy Listy to EC2: copy compose file, update remote .env, pull image, restart.
+# Deploy Listyyy to EC2: copy compose file, update remote .env, pull image, restart.
 # Can be run standalone or called automatically from release.sh.
 #
 # Usage:
@@ -15,10 +15,10 @@
 #
 # Optional in .env:
 #   EC2_USER        SSH user (default: ubuntu)
-#   EC2_DEPLOY_DIR  Remote dir, full path (default: /home/$EC2_USER/listy)
+#   EC2_DEPLOY_DIR  Remote dir, full path (default: /home/$EC2_USER/listyyy)
 #   JWT_SECRET      Propagated to EC2 on first deploy
 #
-# LISTY_IMAGE must be set in release.config (e.g. mmerhav/listy).
+# LISTYYY_IMAGE must be set in release.config (e.g. mmerhav/listyyy).
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -52,11 +52,11 @@ append_env() { # append key=value to .env
   fi
 }
 
-if [ -z "${LISTY_IMAGE:-}" ]; then
-  echo "LISTY_IMAGE not configured."
-  read -rp "  Docker image name (e.g. your-username/listy): " LISTY_IMAGE
-  if [ -n "$LISTY_IMAGE" ]; then
-    echo "LISTY_IMAGE=$LISTY_IMAGE" > "$REPO_ROOT/release.config"
+if [ -z "${LISTYYY_IMAGE:-}" ]; then
+  echo "LISTYYY_IMAGE not configured."
+  read -rp "  Docker image name (e.g. your-username/listyyy): " LISTYYY_IMAGE
+  if [ -n "$LISTYYY_IMAGE" ]; then
+    echo "LISTYYY_IMAGE=$LISTYYY_IMAGE" > "$REPO_ROOT/release.config"
     echo "  Saved to release.config"
   fi
 fi
@@ -80,12 +80,12 @@ fi
 # ── Validate ─────────────────────────────────────────────────
 : "${EC2_PEM:?EC2_PEM is required}"
 : "${EC2_HOST:?EC2_HOST is required}"
-: "${LISTY_IMAGE:?LISTY_IMAGE is required}"
+: "${LISTYYY_IMAGE:?LISTYYY_IMAGE is required}"
 
 EC2_USER="${EC2_USER:-ubuntu}"
-EC2_DEPLOY_DIR="${EC2_DEPLOY_DIR:-/home/${EC2_USER}/listy}"
+EC2_DEPLOY_DIR="${EC2_DEPLOY_DIR:-/home/${EC2_USER}/listyyy}"
 VERSION="${VERSION:-$(cat "$REPO_ROOT/VERSION")}"
-IMAGE_TAG="${LISTY_IMAGE}:${VERSION}"
+IMAGE_TAG="${LISTYYY_IMAGE}:${VERSION}"
 JWT="${JWT_SECRET}"
 
 # Resolve to absolute path (handles relative paths like key.pem)
@@ -103,7 +103,7 @@ REMOTE="${EC2_USER}@${EC2_HOST}"
 
 echo ""
 echo "========================================================"
-echo "  Deploying Listy $VERSION to $EC2_HOST"
+echo "  Deploying Listyyy $VERSION to $EC2_HOST"
 echo "  Image: $IMAGE_TAG"
 echo "========================================================"
 echo ""
@@ -122,10 +122,10 @@ ssh $SSH_OPTS "$REMOTE" "chmod +x $EC2_DEPLOY_DIR/init-ssl.sh"
 
 # ── 3. Copy DB dump if requested ────────────────────────────
 if $DEPLOY_DB; then
-  DB_DUMP="$REPO_ROOT/db/listy-db.sql"
+  DB_DUMP="$REPO_ROOT/db/listyyy-db.sql"
   if [ -f "$DB_DUMP" ]; then
     echo "[3/5] Copying DB dump and import script ..."
-    scp $SSH_OPTS "$DB_DUMP" "$REMOTE:$EC2_DEPLOY_DIR/listy-db.sql"
+    scp $SSH_OPTS "$DB_DUMP" "$REMOTE:$EC2_DEPLOY_DIR/listyyy-db.sql"
     scp $SSH_OPTS "$SCRIPT_DIR/import-db-ec2.sh" "$REMOTE:$EC2_DEPLOY_DIR/import-db-ec2.sh"
   else
     echo "[3/5] WARNING: --db requested but $DB_DUMP not found. Run export-db.sh first."
@@ -136,16 +136,16 @@ else
 fi
 
 # ── 4. Update remote .env ───────────────────────────────────
-echo "[4/5] Updating remote .env (LISTY_IMAGE=$IMAGE_TAG) ..."
+echo "[4/5] Updating remote .env (LISTYYY_IMAGE=$IMAGE_TAG) ..."
 ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
   if [ -f .env ]; then \
-    if grep -q '^LISTY_IMAGE=' .env; then \
-      sed -i 's|^LISTY_IMAGE=.*|LISTY_IMAGE=$IMAGE_TAG|' .env; \
+    if grep -q '^LISTYYY_IMAGE=' .env; then \
+      sed -i 's|^LISTYYY_IMAGE=.*|LISTYYY_IMAGE=$IMAGE_TAG|' .env; \
     else \
-      echo 'LISTY_IMAGE=$IMAGE_TAG' >> .env; \
+      echo 'LISTYYY_IMAGE=$IMAGE_TAG' >> .env; \
     fi; \
   else \
-    echo 'LISTY_IMAGE=$IMAGE_TAG' > .env; \
+    echo 'LISTYYY_IMAGE=$IMAGE_TAG' > .env; \
     echo 'JWT_SECRET=$JWT' >> .env; \
     echo '  (created new .env with JWT_SECRET)'; \
   fi"
@@ -164,13 +164,13 @@ if $DEPLOY_DB; then
       echo '  waiting ...'; sleep 2; \
     done"
   echo "[+] Importing DB dump on EC2 ..."
-  ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && chmod +x import-db-ec2.sh && ./import-db-ec2.sh ./listy-db.sql"
+  ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && chmod +x import-db-ec2.sh && ./import-db-ec2.sh ./listyyy-db.sql"
 fi
 
 echo ""
 echo "========================================================"
 echo "  Deployment complete!"
-echo "  Listy $VERSION is running at https://web.listyyy.com"
+echo "  Listyyy $VERSION is running at https://web.listyyy.com"
 echo ""
 echo "  If this is the FIRST deploy with SSL, run on EC2:"
 echo "    cd $EC2_DEPLOY_DIR && ./init-ssl.sh your@email.com"

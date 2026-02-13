@@ -1,7 +1,7 @@
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 function getToken(): string | null {
-  return localStorage.getItem('listy_token');
+  return localStorage.getItem('listyyy_token');
 }
 
 // ---- silent token refresh logic ----
@@ -24,10 +24,10 @@ async function tryRefreshToken(): Promise<boolean> {
       if (!res.ok) return false;
       const data = await res.json();
       if (data.token) {
-        localStorage.setItem('listy_token', data.token);
+        localStorage.setItem('listyyy_token', data.token);
         // Also update the Zustand persisted store so it stays in sync
         try {
-          const raw = localStorage.getItem('listy-auth');
+          const raw = localStorage.getItem('listyyy-auth');
           if (raw) {
             const parsed = JSON.parse(raw);
             if (parsed?.state) {
@@ -39,7 +39,7 @@ async function tryRefreshToken(): Promise<boolean> {
                 displayName: data.displayName,
                 locale: data.locale,
               };
-              localStorage.setItem('listy-auth', JSON.stringify(parsed));
+              localStorage.setItem('listyyy-auth', JSON.stringify(parsed));
             }
           }
         } catch {
@@ -58,8 +58,8 @@ async function tryRefreshToken(): Promise<boolean> {
 }
 
 function handleAuthFailure(): never {
-  localStorage.removeItem('listy_token');
-  localStorage.removeItem('listy-auth');
+  localStorage.removeItem('listyyy_token');
+  localStorage.removeItem('listyyy-auth');
   window.location.href = '/login';
   throw new Error('Session expired');
 }

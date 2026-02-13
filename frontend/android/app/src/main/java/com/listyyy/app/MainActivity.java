@@ -1,4 +1,4 @@
-package com.listy.app;
+package com.listyyy.app;
 
 import com.getcapacitor.BridgeActivity;
 

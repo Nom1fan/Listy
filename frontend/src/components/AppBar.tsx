@@ -42,6 +42,7 @@ export function AppBar({ title, titleRight, backTo, right, showMenuButton = true
             →
           </Link>
         )}
+        <img src="/logo.png" alt="Listyyy" style={{ height: 32, width: 32, objectFit: 'contain' }} />
         <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{title}</h1>
         {titleRight}
       </div>

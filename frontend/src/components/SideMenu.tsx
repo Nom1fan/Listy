@@ -61,7 +61,10 @@ export function SideMenu() {
             flexShrink: 0,
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600 }}>תפריט</h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <img src="/logo.png" alt="Listyyy" style={{ height: 28, width: 28, objectFit: 'contain' }} />
+            <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600 }}>Listyyy</h2>
+          </div>
           <button
             type="button"
             onClick={close}

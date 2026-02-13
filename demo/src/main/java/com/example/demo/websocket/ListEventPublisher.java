@@ -29,7 +29,7 @@ public class ListEventPublisher {
         messagingTemplate.convertAndSend("/topic/lists/" + listId, event);
         String who = user.getDisplayName() != null ? user.getDisplayName() : user.getEmail() != null ? user.getEmail() : user.getPhone();
         String msg = who + " הוסיף: " + item.getDisplayName() + " " + item.getQuantity() + " " + item.getUnit();
-        fcmService.notifyListUpdated(listId, user.getId(), "Listy", msg);
+        fcmService.notifyListUpdated(listId, user.getId(), "Listyyy", msg);
     }
 
     public void publishItemRemoved(UUID listId, UUID itemId, String itemDisplayName, String quantityUnit, User user) {
@@ -45,7 +45,7 @@ public class ListEventPublisher {
         messagingTemplate.convertAndSend("/topic/lists/" + listId, event);
         String who = user.getDisplayName() != null ? user.getDisplayName() : user.getEmail() != null ? user.getEmail() : user.getPhone();
         String msg = who + " הסיר: " + itemDisplayName + " " + quantityUnit;
-        fcmService.notifyListUpdated(listId, user.getId(), "Listy", msg);
+        fcmService.notifyListUpdated(listId, user.getId(), "Listyyy", msg);
     }
 
     public void publishItemUpdated(UUID listId, ListItem item, User user) {
@@ -61,6 +61,6 @@ public class ListEventPublisher {
         messagingTemplate.convertAndSend("/topic/lists/" + listId, event);
         String who = user.getDisplayName() != null ? user.getDisplayName() : user.getEmail() != null ? user.getEmail() : user.getPhone();
         String msg = who + " עדכן: " + item.getDisplayName() + " " + item.getQuantity() + " " + item.getUnit();
-        fcmService.notifyListUpdated(listId, user.getId(), "Listy", msg);
+        fcmService.notifyListUpdated(listId, user.getId(), "Listyyy", msg);
     }
 }

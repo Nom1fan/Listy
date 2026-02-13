@@ -41,7 +41,7 @@ describe('api', () => {
   })
 
   it('adds Authorization when token in localStorage', async () => {
-    localStorage.setItem('listy_token', 'abc')
+    localStorage.setItem('listyyy_token', 'abc')
     ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
       status: 200,

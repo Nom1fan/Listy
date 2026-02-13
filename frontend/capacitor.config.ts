@@ -1,8 +1,8 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.listy.app',
-  appName: 'Listy',
+  appId: 'com.listyyy.app',
+  appName: 'Listyyy',
   webDir: 'dist',
   server: {
     // For production, set androidScheme and optionally url to your API

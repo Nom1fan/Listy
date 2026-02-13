@@ -13,7 +13,7 @@ import java.util.List;
 
 /**
  * Proxies image search to Unsplash API so the access key stays server-side.
- * Set listy.unsplash.access-key or UNSPLASH_ACCESS_KEY to enable.
+ * Set listyyy.unsplash.access-key or UNSPLASH_ACCESS_KEY to enable.
  */
 @RestController
 @RequiredArgsConstructor
@@ -21,13 +21,13 @@ public class ImageSearchController {
 
     private static final Logger log = LoggerFactory.getLogger(ImageSearchController.class);
 
-    @Value("${listy.unsplash.access-key:}")
+    @Value("${listyyy.unsplash.access-key:}")
     private String unsplashAccessKey;
 
-    @Value("${listy.unsplash.api-url:}")
+    @Value("${listyyy.unsplash.api-url:}")
     private String unsplashApiUrl;
 
-    @Value("${listy.unsplash.insecure-ssl:false}")
+    @Value("${listyyy.unsplash.insecure-ssl:false}")
     private boolean unsplashInsecureSsl;
 
     @GetMapping("/api/images/search")
@@ -36,7 +36,7 @@ public class ImageSearchController {
             @RequestParam(value = "per_page", defaultValue = "12") int perPage) {
         if (unsplashAccessKey == null || unsplashAccessKey.isBlank()) {
             log.debug("Unsplash image search: no key configured");
-            return ResponseEntity.ok(new ImageSearchResponse(List.of(), "לא הוגדר מפתח Unsplash. הגדר UNSPLASH_ACCESS_KEY או listy.unsplash.access-key בשרת."));
+            return ResponseEntity.ok(new ImageSearchResponse(List.of(), "לא הוגדר מפתח Unsplash. הגדר UNSPLASH_ACCESS_KEY או listyyy.unsplash.access-key בשרת."));
         }
         String q = query == null ? "" : query.trim();
         if (q.isEmpty()) {
