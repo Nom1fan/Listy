@@ -16,8 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Verifies the full image search flow (controller + HTTP client + JSON parsing)
- * by mocking the Unsplash API with WireMock. Avoids real HTTPS so SSL/certificate
- * issues (e.g. PKIX) and network are not required.
+ * by mocking GIPHY and Pixabay APIs with WireMock.
  */
 class ImageSearchMockIntegrationTest extends AbstractIntegrationTest {
 
@@ -27,30 +26,63 @@ class ImageSearchMockIntegrationTest extends AbstractIntegrationTest {
     static void startWireMock() {
         wireMock = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
         wireMock.start();
-        String unsplashBody = """
+
+        // ── GIPHY sticker stub ──
+        String giphyBody = """
+                {
+                  "data": [
+                    {
+                      "type": "gif",
+                      "id": "test1",
+                      "images": {
+                        "fixed_height": {
+                          "url": "https://example.com/fixed_height.gif",
+                          "width": "200",
+                          "height": "200"
+                        },
+                        "fixed_height_small": {
+                          "url": "https://example.com/fixed_height_small.gif",
+                          "width": "100",
+                          "height": "100"
+                        }
+                      }
+                    }
+                  ],
+                  "pagination": {
+                    "total_count": 1,
+                    "count": 1,
+                    "offset": 0
+                  }
+                }
+                """;
+        wireMock.stubFor(
+                get(urlPathEqualTo("/v1/stickers/search"))
+                        .willReturn(aResponse()
+                                .withStatus(200)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody(giphyBody)));
+
+        // ── Pixabay stub ──
+        String pixabayBody = """
                 {
                   "total": 1,
-                  "total_pages": 1,
-                  "results": [
+                  "totalHits": 1,
+                  "hits": [
                     {
-                      "id": "test1",
-                      "urls": {
-                        "raw": "https://example.com/raw.jpg",
-                        "full": "https://example.com/full.jpg",
-                        "regular": "https://example.com/regular.jpg",
-                        "small": "https://example.com/small.jpg",
-                        "thumb": "https://example.com/thumb.jpg"
-                      }
+                      "id": 123,
+                      "webformatURL": "https://example.com/milk_web.jpg",
+                      "previewURL": "https://example.com/milk_preview.jpg",
+                      "largeImageURL": "https://example.com/milk_large.jpg"
                     }
                   ]
                 }
                 """;
         wireMock.stubFor(
-                get(urlPathEqualTo("/search/photos"))
+                get(urlPathEqualTo("/api/"))
                         .willReturn(aResponse()
                                 .withStatus(200)
                                 .withHeader("Content-Type", "application/json")
-                                .withBody(unsplashBody)));
+                                .withBody(pixabayBody)));
     }
 
     @AfterAll
@@ -62,21 +94,51 @@ class ImageSearchMockIntegrationTest extends AbstractIntegrationTest {
 
     @DynamicPropertySource
     static void wireMockProps(DynamicPropertyRegistry registry) {
-        registry.add("listyyy.unsplash.api-url", () -> "http://localhost:" + wireMock.port());
-        registry.add("listyyy.unsplash.access-key", () -> "test-key");
+        String baseUrl = "http://localhost:" + wireMock.port();
+        registry.add("listyyy.giphy.api-url", () -> baseUrl);
+        registry.add("listyyy.giphy.api-key", () -> "test-giphy-key");
+        registry.add("listyyy.pixabay.api-url", () -> baseUrl);
+        registry.add("listyyy.pixabay.api-key", () -> "test-pixabay-key");
     }
 
     @Test
-    void search_returns_mocked_unsplash_results_when_key_and_api_configured() throws Exception {
+    void search_giphy_returns_sticker_results() throws Exception {
+        mvc.perform(MockMvcRequestBuilders.get("/api/images/search")
+                        .header("Authorization", getBearerToken())
+                        .param("q", "milk")
+                        .param("per_page", "12")
+                        .param("source", "giphy"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.error").doesNotExist())
+                .andExpect(jsonPath("$.results").isArray())
+                .andExpect(jsonPath("$.results.length()").value(1))
+                .andExpect(jsonPath("$.results[0].url").value("https://example.com/fixed_height.gif"))
+                .andExpect(jsonPath("$.results[0].thumbUrl").value("https://example.com/fixed_height_small.gif"));
+    }
+
+    @Test
+    void search_pixabay_returns_image_results() throws Exception {
+        mvc.perform(MockMvcRequestBuilders.get("/api/images/search")
+                        .header("Authorization", getBearerToken())
+                        .param("q", "milk")
+                        .param("per_page", "12")
+                        .param("source", "pixabay"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.error").doesNotExist())
+                .andExpect(jsonPath("$.results").isArray())
+                .andExpect(jsonPath("$.results.length()").value(1))
+                .andExpect(jsonPath("$.results[0].url").value("https://example.com/milk_web.jpg"))
+                .andExpect(jsonPath("$.results[0].thumbUrl").value("https://example.com/milk_preview.jpg"));
+    }
+
+    @Test
+    void search_defaults_to_giphy_when_no_source_param() throws Exception {
         mvc.perform(MockMvcRequestBuilders.get("/api/images/search")
                         .header("Authorization", getBearerToken())
                         .param("q", "milk")
                         .param("per_page", "12"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.error").doesNotExist())
-                .andExpect(jsonPath("$.results").isArray())
-                .andExpect(jsonPath("$.results.length()").value(1))
-                .andExpect(jsonPath("$.results[0].url").value("https://example.com/regular.jpg"))
-                .andExpect(jsonPath("$.results[0].thumbUrl").value("https://example.com/thumb.jpg"));
+                .andExpect(jsonPath("$.results[0].url").value("https://example.com/fixed_height.gif"));
     }
 }

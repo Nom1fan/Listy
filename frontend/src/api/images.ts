@@ -10,7 +10,9 @@ export interface ImageSearchResponse {
   error?: string | null;
 }
 
-export async function searchImages(query: string, perPage = 12): Promise<ImageSearchResult[]> {
+export type ImageSource = 'giphy' | 'pixabay';
+
+export async function searchImages(query: string, perPage = 12, source: ImageSource = 'giphy'): Promise<ImageSearchResult[]> {
   const token = localStorage.getItem('listyyy_token');
   const headers: HeadersInit = {};
   if (token) {
@@ -18,10 +20,13 @@ export async function searchImages(query: string, perPage = 12): Promise<ImageSe
   }
   const q = encodeURIComponent(query.trim());
   const res = await fetch(
-    `${API_BASE}/api/images/search?q=${q}&per_page=${perPage}`,
+    `${API_BASE}/api/images/search?q=${q}&per_page=${perPage}&source=${source}`,
     { headers }
   );
   if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      throw new Error('יש להתחבר מחדש כדי לחפש תמונות');
+    }
     const text = await res.text();
     let msg = text;
     try {
@@ -30,7 +35,7 @@ export async function searchImages(query: string, perPage = 12): Promise<ImageSe
     } catch {
       // ignore
     }
-    throw new Error(msg || `HTTP ${res.status}`);
+    throw new Error(msg || `שגיאת שרת (${res.status})`);
   }
   const data: ImageSearchResponse = await res.json();
   if (data.error) {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { searchImages, type ImageSearchResult } from '../api/images';
+import { searchImages, type ImageSearchResult, type ImageSource } from '../api/images';
 
 type Props = {
   onSelect: (url: string) => void;
@@ -9,19 +9,21 @@ type Props = {
 
 export function ImageSearchPicker({ onSelect, placeholder = 'חיפוש תמונות...', initialQuery = '' }: Props) {
   const [query, setQuery] = useState(initialQuery);
+  const [source, setSource] = useState<ImageSource>('giphy');
   const [results, setResults] = useState<ImageSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
 
-  async function runSearch() {
+  async function runSearch(overrideSource?: ImageSource) {
     const q = query.trim();
     if (!q) return;
+    const src = overrideSource ?? source;
     setLoading(true);
     setError(null);
     setSearched(true);
     try {
-      const list = await searchImages(q, 12);
+      const list = await searchImages(q, 12, src);
       setResults(list);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'חיפוש נכשל');
@@ -31,8 +33,58 @@ export function ImageSearchPicker({ onSelect, placeholder = 'חיפוש תמונ
     }
   }
 
+  function switchSource(newSource: ImageSource) {
+    if (newSource === source) return;
+    setSource(newSource);
+    setResults([]);
+    setError(null);
+    setSearched(false);
+    // Auto-search if there's a query
+    if (query.trim()) {
+      runSearch(newSource);
+    }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Source toggle */}
+      <div style={{ display: 'flex', gap: 0, borderRadius: 8, overflow: 'hidden', border: '1px solid #ccc' }}>
+        <button
+          type="button"
+          onClick={() => switchSource('giphy')}
+          style={{
+            flex: 1,
+            padding: '8px 12px',
+            border: 'none',
+            background: source === 'giphy' ? 'var(--color-primary)' : '#f5f5f5',
+            color: source === 'giphy' ? '#fff' : '#333',
+            fontWeight: 600,
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          סטיקרים
+        </button>
+        <button
+          type="button"
+          onClick={() => switchSource('pixabay')}
+          style={{
+            flex: 1,
+            padding: '8px 12px',
+            border: 'none',
+            borderRight: '1px solid #ccc',
+            background: source === 'pixabay' ? 'var(--color-primary)' : '#f5f5f5',
+            color: source === 'pixabay' ? '#fff' : '#333',
+            fontWeight: 600,
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          תמונות
+        </button>
+      </div>
+
+      {/* Search input + button */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <input
           type="text"
@@ -44,7 +96,7 @@ export function ImageSearchPicker({ onSelect, placeholder = 'חיפוש תמונ
         />
         <button
           type="button"
-          onClick={runSearch}
+          onClick={() => runSearch()}
           disabled={loading || !query.trim()}
           style={{
             padding: '10px 16px',
@@ -66,7 +118,7 @@ export function ImageSearchPicker({ onSelect, placeholder = 'חיפוש תמונ
       )}
       {searched && !loading && results.length === 0 && !error && (
         <p style={{ margin: 0, fontSize: 13, color: '#666' }}>
-          לא נמצאו תמונות. נסה מילות חיפוש אחרות או הוסף מפתח Unsplash בשרת.
+          לא נמצאו תמונות. נסה מילות חיפוש אחרות.
         </p>
       )}
       {results.length > 0 && (
