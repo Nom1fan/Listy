@@ -27,6 +27,9 @@ export function Login() {
     <>
       <AppBar title="התחברות עם אימייל" backTo="/login" />
       <main style={{ padding: 24, maxWidth: 400, margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+          <img src="/logo.png?v=3" alt="Listyyy" style={{ height: 80, objectFit: 'contain' }} />
+        </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', flexDirection: 'column', width: 'fit-content', margin: '0 auto', gap: 16 }}>
             <div>

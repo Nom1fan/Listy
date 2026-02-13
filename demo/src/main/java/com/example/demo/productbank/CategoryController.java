@@ -96,7 +96,7 @@ public class CategoryController {
     ) {
         if (user == null) return ResponseEntity.status(401).build();
         Category c = categoryAccessService.getCategoryOrThrow(id, user);
-        if (!categoryAccessService.canEdit(user, id)) throw new IllegalArgumentException("Access denied");
+        if (!categoryAccessService.canEdit(user, id)) throw new IllegalArgumentException("אין גישה");
         if (req.getNameHe() != null && !req.getNameHe().isBlank()) c.setNameHe(req.getNameHe().trim());
         if (req.getIconId() != null) c.setIconId(req.getIconId());
         if (req.getImageUrl() != null) c.setImageUrl(req.getImageUrl());
@@ -114,7 +114,7 @@ public class CategoryController {
     ) {
         if (user == null) return ResponseEntity.status(401).build();
         Category c = categoryAccessService.getCategoryOrThrow(id, user);
-        if (!categoryAccessService.isOwner(user, id)) throw new IllegalArgumentException("Only owner can delete category");
+        if (!categoryAccessService.isOwner(user, id)) throw new IllegalArgumentException("רק בעל הקטגוריה יכול למחוק");
         categoryMemberRepository.deleteByCategoryId(id);
         categoryRepository.delete(c);
         return ResponseEntity.noContent().build();

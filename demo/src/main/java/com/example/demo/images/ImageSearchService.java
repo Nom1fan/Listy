@@ -58,7 +58,7 @@ class ImageSearchService {
                 }}, new SecureRandom());
                 builder.sslContext(sslContext);
             } catch (Exception e) {
-                throw new RuntimeException("Failed to create relaxed SSL context for Unsplash client", e);
+                throw new RuntimeException("שגיאה ביצירת חיבור SSL עבור Unsplash", e);
             }
         }
         return builder.build();
@@ -76,7 +76,7 @@ class ImageSearchService {
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         if (response.statusCode() != 200) {
             String body = response.body();
-            String msg = body != null && body.length() < 200 ? body : "Unsplash API returned " + response.statusCode();
+            String msg = body != null && body.length() < 200 ? body : "שגיאת Unsplash API: " + response.statusCode();
             throw new RuntimeException(msg);
         }
         JsonNode root = objectMapper.readTree(response.body());

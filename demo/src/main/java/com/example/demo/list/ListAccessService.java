@@ -23,8 +23,8 @@ public class ListAccessService {
     }
 
     public GroceryList getListOrThrow(UUID listId, User user) {
-        GroceryList list = listRepository.findById(listId).orElseThrow(() -> new IllegalArgumentException("List not found"));
-        if (!canAccess(user, listId)) throw new IllegalArgumentException("Access denied");
+        GroceryList list = listRepository.findById(listId).orElseThrow(() -> new IllegalArgumentException("הרשימה לא נמצאה"));
+        if (!canAccess(user, listId)) throw new IllegalArgumentException("אין גישה");
         return list;
     }
 }

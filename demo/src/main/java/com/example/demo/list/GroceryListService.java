@@ -48,9 +48,9 @@ public class GroceryListService {
     }
 
     public GroceryList get(UUID listId, User user) {
-        GroceryList list = listRepository.findById(listId).orElseThrow(() -> new IllegalArgumentException("List not found"));
+        GroceryList list = listRepository.findById(listId).orElseThrow(() -> new IllegalArgumentException("הרשימה לא נמצאה"));
         if (!listAccessService.canAccess(user, listId)) {
-            throw new IllegalArgumentException("Access denied");
+            throw new IllegalArgumentException("אין גישה");
         }
         return list;
     }
@@ -58,7 +58,7 @@ public class GroceryListService {
     @Transactional
     public GroceryList update(UUID listId, User user, String name, String iconId, String imageUrl) {
         GroceryList list = get(listId, user);
-        if (!listAccessService.canEdit(user, listId)) throw new IllegalArgumentException("Cannot edit");
+        if (!listAccessService.canEdit(user, listId)) throw new IllegalArgumentException("אין הרשאה לערוך");
         if (name != null && !name.isBlank()) list.setName(name);
         if (iconId != null) list.setIconId(iconId);
         if (imageUrl != null) list.setImageUrl(imageUrl);
@@ -69,7 +69,7 @@ public class GroceryListService {
     public void delete(UUID listId, User user) {
         GroceryList list = get(listId, user);
         if (!list.getOwner().getId().equals(user.getId())) {
-            throw new IllegalArgumentException("Only owner can delete list");
+            throw new IllegalArgumentException("רק בעל הרשימה יכול למחוק");
         }
         listMemberRepository.deleteByListId(listId);
         listItemRepository.deleteByListId(listId);

@@ -37,8 +37,8 @@ public class CategoryAccessService {
     }
 
     public Category getCategoryOrThrow(UUID categoryId, User user) {
-        Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new IllegalArgumentException("Category not found"));
-        if (!canAccess(user, categoryId)) throw new IllegalArgumentException("Access denied");
+        Category category = categoryRepository.findById(categoryId).orElseThrow(() -> new IllegalArgumentException("הקטגוריה לא נמצאה"));
+        if (!canAccess(user, categoryId)) throw new IllegalArgumentException("אין גישה");
         return category;
     }
 }

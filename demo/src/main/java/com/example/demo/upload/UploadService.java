@@ -49,7 +49,7 @@ public class UploadService {
     }
 
     private String saveFile(MultipartFile file, String subdir) throws IOException {
-        if (file == null || file.isEmpty()) throw new IllegalArgumentException("No file");
+        if (file == null || file.isEmpty()) throw new IllegalArgumentException("לא נבחר קובץ");
         String ext = getExtension(file.getOriginalFilename());
         String filename = UUID.randomUUID() + ext;
         Path dir = uploadBase.resolve(subdir);
