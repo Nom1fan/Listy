@@ -62,6 +62,8 @@ export interface ProductDto {
   nameHe: string;
   defaultUnit: string;
   imageUrl: string | null;
+  /** Permanent note on this product (set at category level). */
+  note: string | null;
   /** Times this product was added to any list (for frequency sort). */
   addCount: number;
 }

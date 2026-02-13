@@ -77,12 +77,14 @@ public class ProductController {
                 ? req.getDefaultUnit().trim() : "יחידה";
         String iconId = req.getIconId() != null && !req.getIconId().isBlank() ? req.getIconId().trim() : null;
         String imageUrl = req.getImageUrl() != null && !req.getImageUrl().isBlank() ? req.getImageUrl().trim() : null;
+        String note = req.getNote() != null && !req.getNote().isBlank() ? req.getNote().trim() : null;
         Product p = Product.builder()
                 .category(category)
                 .nameHe(req.getNameHe().trim())
                 .defaultUnit(unit)
                 .iconId(iconId)
                 .imageUrl(imageUrl)
+                .note(note)
                 .build();
         p = productRepository.save(p);
         return ResponseEntity.ok(toDto(p, 0L));
@@ -112,10 +114,16 @@ public class ProductController {
         Product p = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Product not found"));
         categoryAccessService.getCategoryOrThrow(p.getCategory().getId(), user);
         if (!categoryAccessService.canEdit(user, p.getCategory().getId())) throw new IllegalArgumentException("Access denied");
+        // nameHe: set when provided and not blank
+        if (req.getNameHe() != null && !req.getNameHe().isBlank()) p.setNameHe(req.getNameHe().trim());
+        // defaultUnit: set when provided and not blank
+        if (req.getDefaultUnit() != null && !req.getDefaultUnit().isBlank()) p.setDefaultUnit(req.getDefaultUnit().trim());
         // imageUrl: set when provided; use empty string in request to clear
         if (req.getImageUrl() != null) p.setImageUrl(req.getImageUrl().isBlank() ? null : req.getImageUrl());
         // iconId: set when provided; use empty string in request to clear override
         if (req.getIconId() != null) p.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
+        // note: set when provided; use empty string in request to clear
+        if (req.getNote() != null) p.setNote(req.getNote().isBlank() ? null : req.getNote().trim());
         p = productRepository.save(p);
         return ResponseEntity.ok(toDto(p, getProductAddCounts().getOrDefault(p.getId(), 0L)));
     }
@@ -143,6 +151,7 @@ public class ProductController {
                 .nameHe(p.getNameHe())
                 .defaultUnit(p.getDefaultUnit())
                 .imageUrl(p.getImageUrl())
+                .note(p.getNote())
                 .addCount(addCount)
                 .build();
     }

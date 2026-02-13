@@ -18,6 +18,8 @@ public class ProductDto {
     private String nameHe;
     private String defaultUnit;
     private String imageUrl;
+    /** Permanent note on this product (set at category level). */
+    private String note;
     /** Number of times this product has been added to any list (for sorting by frequency). */
     private long addCount;
 }
