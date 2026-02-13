@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { requestPhoneOtp, verifyPhoneOtp } from '../api/auth';
@@ -25,6 +25,7 @@ export function PhoneLogin() {
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const setAuth = useAuthStore((s) => s.setAuth);
   const navigate = useNavigate();
   const segmentRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -39,6 +40,15 @@ export function PhoneLogin() {
   const isPhoneComplete =
     segmentValues.length === country.segments.length &&
     segmentValues.every((v, i) => v.length === country.segments[i]);
+
+  const formattedPhone = useMemo(() => segmentValues.join('-'), [segmentValues]);
+
+  // Countdown timer for resend
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [countdown]);
 
   useEffect(() => {
     segmentRefs.current = segmentRefs.current.slice(0, country.segments.length);
@@ -75,6 +85,20 @@ export function PhoneLogin() {
     try {
       await requestPhoneOtp(fullPhone);
       setStep('code');
+      setCountdown(60);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    setError('');
+    setLoading(true);
+    try {
+      await requestPhoneOtp(fullPhone);
+      setCountdown(60);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'שגיאה');
     } finally {
@@ -192,40 +216,60 @@ export function PhoneLogin() {
           </form>
         ) : (
           <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p style={{ margin: 0 }}>הקוד נשלח ל־<span dir="ltr">{fullPhone}</span></p>
-            <div>
-              <label style={{ display: 'block', marginBottom: 4 }}>קוד</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="123456"
-                required
-                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-              />
+            <div style={{ display: 'flex', flexDirection: 'column', width: 'fit-content', margin: '0 auto', gap: 16 }}>
+              <p style={{ margin: 0, textAlign: 'center' }}>
+                הקוד נשלח ל־<span dir="ltr" style={{ fontWeight: 600, unicodeBidi: 'embed' }}>{formattedPhone}</span>
+              </p>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4 }}>קוד</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="123456"
+                  required
+                  autoFocus
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box', minWidth: 280 }}
+                />
+              </div>
+              {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
+              <button
+                type="submit"
+                disabled={loading || code.length < 4}
+                style={{
+                  padding: 12,
+                  width: '100%',
+                  background: 'var(--color-primary)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  opacity: loading || code.length < 4 ? 0.5 : 1,
+                }}
+              >
+                {loading ? 'בודק...' : 'אימות'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setStep('phone'); setCode(''); setError(''); setCountdown(0); }}
+                style={{ background: 'transparent', color: '#666' }}
+              >
+                החלף מספר
+              </button>
+              {countdown > 0 ? (
+                <p style={{ margin: 0, textAlign: 'center', color: '#999', fontSize: 14 }}>
+                  שליחה חוזרת בעוד {countdown} שניות
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={loading}
+                  style={{ background: 'transparent', color: 'var(--color-primary)', fontSize: 14, fontWeight: 500 }}
+                >
+                  שלח קוד שוב
+                </button>
+              )}
             </div>
-            {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
-            <button
-              type="submit"
-              disabled={loading || code.length < 4}
-              style={{
-                padding: 12,
-                background: 'var(--color-primary)',
-                color: '#fff',
-                fontWeight: 600,
-                opacity: loading || code.length < 4 ? 0.5 : 1,
-              }}
-            >
-              {loading ? 'בודק...' : 'אימות'}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setStep('phone'); setCode(''); setError(''); }}
-              style={{ background: 'transparent', color: '#666' }}
-            >
-              החלף מספר
-            </button>
           </form>
         )}
         <p style={{ marginTop: 16, textAlign: 'center' }}>
