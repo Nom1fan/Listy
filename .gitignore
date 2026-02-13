@@ -47,3 +47,6 @@ listy-windows.zip
 
 # Optional: uncomment if you don't want to track Cursor project skills
 # .cursor/
+
+# Keys and secrets
+*.pem
