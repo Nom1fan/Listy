@@ -168,7 +168,7 @@ export function ProductBank() {
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
           <input
             type="search"
-            placeholder="חיפוש מוצרים"
+            placeholder="חיפוש פריטים"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
@@ -476,7 +476,7 @@ export function ProductBank() {
                 width: '100%',
               }}
             >
-              <h3 style={{ margin: '0 0 16px' }}>תמונת מוצר: {editImageProduct.nameHe}</h3>
+              <h3 style={{ margin: '0 0 16px' }}>תמונת פריט: {editImageProduct.nameHe}</h3>
               <form onSubmit={handleProductImageSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <DisplayImageForm
                   displayType={productDisplayImageType}

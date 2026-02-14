@@ -10,7 +10,7 @@ import {
   updateList,
   deleteList,
 } from '../api/lists';
-import { updateProduct } from '../api/products';
+import { getCategories, updateProduct } from '../api/products';
 import { uploadFile } from '../api/client';
 import { useListEvents } from '../hooks/useListEvents';
 import { AppBar } from '../components/AppBar';
@@ -47,6 +47,7 @@ export function ListDetail() {
   const [quickAddImageUrl, setQuickAddImageUrl] = useState('');
   const [quickAddImageFile, setQuickAddImageFile] = useState<File | null>(null);
   const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
+  const [quickAddCategoryId, setQuickAddCategoryId] = useState('');
   const quickAddFileInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useViewMode();
   const [listDetailMenuOpen, setListDetailMenuOpen] = useState(false);
@@ -68,6 +69,12 @@ export function ListDetail() {
     queryKey: ['listItems', listId],
     queryFn: () => getListItems(listId!),
     enabled: !!listId,
+  });
+
+  const { data: workspaceCategories = [] } = useQuery({
+    queryKey: ['categories', list?.workspaceId],
+    queryFn: () => getCategories(list!.workspaceId),
+    enabled: !!list?.workspaceId,
   });
 
   useListEvents(listId ?? null, useCallback((event: ListEvent) => {
@@ -152,6 +159,7 @@ export function ListDetail() {
     setQuickAddImageUrl('');
     setQuickAddImageFile(null);
     setQuickAddSubmitting(false);
+    setQuickAddCategoryId('');
   }
 
   async function handleQuickAddSubmit(e: React.FormEvent) {
@@ -164,6 +172,7 @@ export function ListDetail() {
       quantity: quickAddQuantity,
       unit: quickAddUnit || 'יחידה',
       note: quickAddNote.trim() || undefined,
+      categoryId: quickAddCategoryId || undefined,
     };
     if (quickAddImageType === 'icon' && quickAddIconId) {
       body.iconId = quickAddIconId;
@@ -638,7 +647,7 @@ export function ListDetail() {
                     type="text"
                     value={quickAddName}
                     onChange={(e) => setQuickAddName(e.target.value)}
-                    placeholder="למשל: חלב, לחם"
+                    placeholder="למשל: סוכר, עט, מגבת"
                     required
                     style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
                   />
@@ -684,6 +693,28 @@ export function ListDetail() {
                     placeholder="אופציונלי"
                     style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', resize: 'vertical' }}
                   />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4 }}>קטגוריה</label>
+                  <select
+                    value={quickAddCategoryId}
+                    onChange={(e) => setQuickAddCategoryId(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: 10,
+                      borderRadius: 8,
+                      border: '1px solid #ccc',
+                      background: '#fff',
+                      fontSize: 14,
+                    }}
+                  >
+                    <option value="">ללא קטגוריה (אחר)</option>
+                    {workspaceCategories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.nameHe}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <DisplayImageForm
                   label="תמונה / אייקון"
