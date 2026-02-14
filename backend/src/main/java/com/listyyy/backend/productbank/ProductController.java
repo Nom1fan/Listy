@@ -75,6 +75,10 @@ public class ProductController {
         if (user == null) return ResponseEntity.status(401).build();
         var category = categoryAccessService.getCategoryOrThrow(req.getCategoryId(), user);
         if (!categoryAccessService.canEdit(user, req.getCategoryId())) throw new AccessDeniedException("לא ניתן להוסיף פריט לקטגוריה זו");
+        String trimmedName = req.getNameHe().trim();
+        if (productRepository.existsByCategoryIdAndNameHe(req.getCategoryId(), trimmedName)) {
+            throw new IllegalArgumentException("כבר קיים פריט בשם זה בקטגוריה");
+        }
         String unit = req.getDefaultUnit() != null && !req.getDefaultUnit().isBlank()
                 ? req.getDefaultUnit().trim() : "יחידה";
         String iconId = req.getIconId() != null && !req.getIconId().isBlank() ? req.getIconId().trim() : null;
@@ -82,7 +86,7 @@ public class ProductController {
         String note = req.getNote() != null && !req.getNote().isBlank() ? req.getNote().trim() : null;
         Product p = Product.builder()
                 .category(category)
-                .nameHe(req.getNameHe().trim())
+                .nameHe(trimmedName)
                 .defaultUnit(unit)
                 .iconId(iconId)
                 .imageUrl(imageUrl)
@@ -117,7 +121,13 @@ public class ProductController {
         categoryAccessService.getCategoryOrThrow(p.getCategory().getId(), user);
         if (!categoryAccessService.canEdit(user, p.getCategory().getId())) throw new AccessDeniedException("אין גישה");
         // nameHe: set when provided and not blank
-        if (req.getNameHe() != null && !req.getNameHe().isBlank()) p.setNameHe(req.getNameHe().trim());
+        if (req.getNameHe() != null && !req.getNameHe().isBlank()) {
+            String trimmedName = req.getNameHe().trim();
+            if (!trimmedName.equals(p.getNameHe()) && productRepository.existsByCategoryIdAndNameHeAndIdNot(p.getCategory().getId(), trimmedName, p.getId())) {
+                throw new IllegalArgumentException("כבר קיים פריט בשם זה בקטגוריה");
+            }
+            p.setNameHe(trimmedName);
+        }
         // defaultUnit: set when provided and not blank
         if (req.getDefaultUnit() != null && !req.getDefaultUnit().isBlank()) p.setDefaultUnit(req.getDefaultUnit().trim());
         // imageUrl: set when provided; use empty string in request to clear

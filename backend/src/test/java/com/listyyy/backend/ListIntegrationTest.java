@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -191,6 +192,98 @@ class ListIntegrationTest extends AbstractIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("name", "x", "workspaceId", workspaceId.toString()))))
                 .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    void cannot_add_same_product_twice_to_list() throws Exception {
+        String listId = createList("Dup product test");
+
+        // First add succeeds
+        mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "productId", productId.toString(),
+                                "quantity", 1))))
+                .andExpect(status().isOk());
+
+        // Second add of the same product should fail
+        mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "productId", productId.toString(),
+                                "quantity", 3))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("כבר קיים")));
+    }
+
+    @Test
+    void cannot_add_duplicate_custom_item_name_to_list() throws Exception {
+        String listId = createList("Dup custom test");
+
+        // First custom item succeeds
+        mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "customNameHe", "פריט מותאם",
+                                "quantity", 1))))
+                .andExpect(status().isOk());
+
+        // Second custom item with the same name should fail
+        mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "customNameHe", "פריט מותאם",
+                                "quantity", 2))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("כבר קיים")));
+    }
+
+    @Test
+    void can_add_same_product_to_different_lists() throws Exception {
+        String listA = createList("List A");
+        String listB = createList("List B");
+
+        mvc.perform(post("/api/lists/" + listA + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "productId", productId.toString(),
+                                "quantity", 1))))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/lists/" + listB + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "productId", productId.toString(),
+                                "quantity", 1))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void can_add_same_custom_name_to_different_lists() throws Exception {
+        String listA = createList("List A");
+        String listB = createList("List B");
+
+        mvc.perform(post("/api/lists/" + listA + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "customNameHe", "פריט מותאם",
+                                "quantity", 1))))
+                .andExpect(status().isOk());
+
+        mvc.perform(post("/api/lists/" + listB + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "customNameHe", "פריט מותאם",
+                                "quantity", 1))))
+                .andExpect(status().isOk());
     }
 
     private String createList(String name) throws Exception {

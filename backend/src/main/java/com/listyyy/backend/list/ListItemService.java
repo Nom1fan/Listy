@@ -41,6 +41,10 @@ public class ListItemService {
             if (product.getCategory() == null || !product.getCategory().getWorkspace().getId().equals(list.getWorkspace().getId())) {
                 throw new IllegalArgumentException("הפריט לא שייך למרחב העבודה של הרשימה");
             }
+            // Prevent adding the same product twice to a list
+            if (listItemRepository.existsByListIdAndProductId(listId, req.getProductId())) {
+                throw new IllegalArgumentException("הפריט כבר קיים ברשימה");
+            }
             // Use the product's permanent note as default if no note provided on the list item
             String note = req.getNote() != null ? req.getNote() : product.getNote();
             item = ListItem.builder()
@@ -56,6 +60,10 @@ public class ListItemService {
         } else {
             if (req.getCustomNameHe() == null || req.getCustomNameHe().isBlank()) {
                 throw new IllegalArgumentException("יש להזין שם מותאם אישית או לבחור פריט");
+            }
+            // Prevent adding a custom item with the same name twice to a list
+            if (listItemRepository.existsByListIdAndCustomNameHe(listId, req.getCustomNameHe())) {
+                throw new IllegalArgumentException("פריט בשם זה כבר קיים ברשימה");
             }
             Category category = null;
             if (req.getCategoryId() != null) {

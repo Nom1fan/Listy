@@ -14,4 +14,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     List<Product> findByCategory_IdIn(Set<UUID> categoryIds, Sort sort);
 
     List<Product> findByNameHeContainingIgnoreCase(String nameHe);
+
+    boolean existsByCategoryIdAndNameHe(UUID categoryId, String nameHe);
+
+    boolean existsByCategoryIdAndNameHeAndIdNot(UUID categoryId, String nameHe, UUID id);
 }
