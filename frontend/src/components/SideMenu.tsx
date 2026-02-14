@@ -2,19 +2,38 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSideMenuStore } from '../store/sideMenuStore';
 
-const accordionSections = [
-  { id: 'section-1', label: 'קטע 1' },
-  { id: 'section-2', label: 'קטע 2' },
-  { id: 'section-3', label: 'קטע 3' },
-] as const;
+const APP_VERSION = __APP_VERSION__;
+const SUPPORT_EMAIL = 'listyyysupp@gmail.com';
 
 export function SideMenu() {
   const isOpen = useSideMenuStore((s) => s.isOpen);
   const close = useSideMenuStore((s) => s.close);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const toggleSection = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id));
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [shareToast, setShareToast] = useState(false);
+
+  const handleSupport = () => {
+    const subject = encodeURIComponent('פנייה לתמיכה - Listyyy');
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}`;
+  };
+
+  const handleShare = async () => {
+    const shareData = {
+      title: 'Listyyy',
+      text: 'Listyyy - אפליקציה חכמה לניהול רשימות.\nשתפו רשימות עם המשפחה והחברים, ותנהלו הכל בצורה קלה ומהירה.',
+      url: 'https://listyyy.com',
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);
+        setShareToast(true);
+        setTimeout(() => setShareToast(false), 2000);
+      }
+    } catch {
+      // User cancelled share - ignore
+    }
   };
 
   if (!isOpen) return null;
@@ -51,6 +70,7 @@ export function SideMenu() {
           animation: 'sideMenuPanelIn 0.25s ease-out',
         }}
       >
+        {/* Header */}
         <div
           style={{
             padding: '16px 20px',
@@ -79,75 +99,101 @@ export function SideMenu() {
             ×
           </button>
         </div>
+
+        {/* Menu Items */}
         <nav style={{ flex: 1, overflow: 'auto', padding: '8px 0' }}>
           <Link
             to="/profile"
             onClick={close}
-            style={{
-              display: 'block',
-              padding: '14px 20px',
-              textAlign: 'right',
-              fontSize: 15,
-              fontWeight: 500,
-              color: 'inherit',
-              textDecoration: 'none',
-              borderBottom: '1px solid #f0f0f0',
-            }}
+            style={menuItemStyle}
           >
+            <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>👤</span>
             הפרופיל שלי
           </Link>
-          {accordionSections.map(({ id, label }) => {
-            const isExpanded = expandedId === id;
-            return (
-              <div
-                key={id}
-                style={{
-                  borderBottom: '1px solid #f0f0f0',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleSection(id)}
-                  style={{
-                    width: '100%',
-                    padding: '14px 20px',
-                    textAlign: 'right',
-                    background: 'transparent',
-                    fontSize: 15,
-                    fontWeight: 500,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                  }}
-                  aria-expanded={isExpanded}
-                  aria-controls={`${id}-content`}
-                  id={`${id}-header`}
-                >
-                  {label}
-                  <span style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-                    ▼
-                  </span>
-                </button>
-                <div
-                  id={`${id}-content`}
-                  role="region"
-                  aria-labelledby={`${id}-header`}
-                  style={{
-                    overflow: 'hidden',
-                    maxHeight: isExpanded ? 200 : 0,
-                    transition: 'max-height 0.25s ease-out',
-                  }}
-                >
-                  <div style={{ padding: '8px 20px 16px', color: '#666', fontSize: 14 }}>
-                    {/* Placeholder for future content */}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+
+          <button type="button" onClick={handleSupport} style={menuItemStyle}>
+            <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>💬</span>
+            פנייה לתמיכה
+          </button>
+
+          <button type="button" onClick={handleShare} style={menuItemStyle}>
+            <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>📤</span>
+            שיתוף האפליקציה
+          </button>
+
+          <button type="button" onClick={() => setAboutOpen(true)} style={menuItemStyle}>
+            <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>ℹ️</span>
+            אודות
+          </button>
         </nav>
+
+        {/* Version footer */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid #eee', fontSize: 12, color: '#aaa', textAlign: 'center' }}>
+          גרסה {APP_VERSION}
+        </div>
       </aside>
+
+      {/* About Dialog */}
+      {aboutOpen && (
+        <div style={overlayStyle} onClick={() => setAboutOpen(false)}>
+          <div style={{ ...dialogStyle, textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <img src="/logo.png?v=3" alt="Listyyy" style={{ width: 72, height: 72, objectFit: 'contain', marginBottom: 12 }} />
+            <h3 style={{ margin: '0 0 4px', fontSize: 20, fontWeight: 700 }}>Listyyy</h3>
+            <p style={{ margin: '0 0 16px', fontSize: 13, color: '#999' }}>גרסה {APP_VERSION}</p>
+            <p style={{ margin: '0 0 8px', fontSize: 15, color: '#444', lineHeight: 1.7 }}>
+              אפליקציה חכמה לניהול רשימות.<br />
+              שתפו רשימות עם המשפחה והחברים,<br />
+              ותנהלו הכל בצורה קלה ומהירה.
+            </p>
+            <div style={{ margin: '16px 0 0', padding: '12px 0 0', borderTop: '1px solid #eee' }}>
+              <p style={{ margin: 0, fontSize: 13, color: '#888' }}>
+                נוצר ופותח על ידי
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: 15, fontWeight: 600, color: '#333' }}>
+                מור מרחב
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAboutOpen(false)}
+              style={{
+                marginTop: 20,
+                padding: '10px 32px',
+                borderRadius: 8,
+                background: 'var(--color-primary)',
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: 14,
+              }}
+            >
+              סגירה
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Share toast */}
+      {shareToast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 32,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#333',
+            color: '#fff',
+            padding: '10px 24px',
+            borderRadius: 24,
+            fontSize: 14,
+            fontWeight: 500,
+            zIndex: 2000,
+            animation: 'sideMenuOverlayIn 0.2s ease-out',
+          }}
+        >
+          הקישור הועתק ללוח
+        </div>
+      )}
+
       <style>{`
         @keyframes sideMenuOverlayIn {
           from { opacity: 0; }
@@ -161,3 +207,39 @@ export function SideMenu() {
     </>
   );
 }
+
+const menuItemStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+  width: '100%',
+  padding: '14px 20px',
+  textAlign: 'right',
+  fontSize: 15,
+  fontWeight: 500,
+  color: 'inherit',
+  textDecoration: 'none',
+  background: 'transparent',
+  borderBottom: '1px solid #f0f0f0',
+};
+
+const overlayStyle: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  background: 'rgba(0,0,0,0.5)',
+  zIndex: 1500,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  animation: 'sideMenuOverlayIn 0.2s ease-out',
+};
+
+const dialogStyle: React.CSSProperties = {
+  background: '#fff',
+  borderRadius: 16,
+  padding: 24,
+  width: 'min(400px, 90vw)',
+  maxHeight: '80vh',
+  overflow: 'auto',
+  direction: 'rtl',
+};

@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import pkg from './package.json'
 
 export default defineConfig({
   plugins: [react()],
@@ -12,6 +13,7 @@ export default defineConfig({
   define: {
     // sockjs-client (and others) expect Node's `global`; browsers have globalThis
     global: 'globalThis',
+    __APP_VERSION__: JSON.stringify(pkg.version),
   },
   server: {
     host: true, // listen on 0.0.0.0 so you can open the app from your phone on the same WiFi
