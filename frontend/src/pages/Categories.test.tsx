@@ -44,7 +44,7 @@ describe('Categories', () => {
         status: 200,
         json: () =>
           Promise.resolve([
-            { id: 'c1', nameHe: 'מכולת', iconId: 'groceries', imageUrl: null, sortOrder: 0 },
+            { id: 'c1', nameHe: 'מכולת', iconId: 'groceries', imageUrl: null, sortOrder: 0, workspaceId: 'ws1' },
           ]),
       })
       .mockResolvedValueOnce({ ok: true, status: 200, json: () => Promise.resolve([]) })

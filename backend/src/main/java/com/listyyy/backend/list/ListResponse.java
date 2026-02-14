@@ -12,7 +12,7 @@ public class ListResponse {
 
     private UUID id;
     private String name;
-    private UUID ownerId;
+    private UUID workspaceId;
     private String iconId;
     private String imageUrl;
     private int sortOrder;

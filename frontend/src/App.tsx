@@ -7,10 +7,9 @@ import { Login } from './pages/Login';
 import { PhoneLogin } from './pages/PhoneLogin';
 import { Lists } from './pages/Lists';
 import { ListDetail } from './pages/ListDetail';
-import { ShareList } from './pages/ShareList';
 import { ProductBank } from './pages/ProductBank';
 import { Categories } from './pages/Categories';
-import { ShareCategory } from './pages/ShareCategory';
+import { ShareWorkspace } from './pages/ShareWorkspace';
 import { Profile } from './pages/Profile';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -46,14 +45,6 @@ export default function App() {
           }
         />
         <Route
-          path="/lists/:listId/share"
-          element={
-            <PrivateRoute>
-              <ShareList />
-            </PrivateRoute>
-          }
-        />
-        <Route
           path="/lists/:listId/bank"
           element={
             <PrivateRoute>
@@ -70,10 +61,10 @@ export default function App() {
           }
         />
         <Route
-          path="/categories/:categoryId/share"
+          path="/workspaces/:workspaceId/share"
           element={
             <PrivateRoute>
-              <ShareCategory />
+              <ShareWorkspace />
             </PrivateRoute>
           }
         />
