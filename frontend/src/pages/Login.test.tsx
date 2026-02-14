@@ -27,44 +27,42 @@ describe('Login (email)', () => {
     globalThis.fetch = originalFetch
   })
 
-  it('renders email and password fields and submit button', () => {
+  it('renders name, email fields and submit button', () => {
     render(<Wrapper><Login /></Wrapper>)
+    expect(screen.getByText('שם')).toBeInTheDocument()
     expect(screen.getByText('אימייל')).toBeInTheDocument()
-    expect(screen.getByText('סיסמה')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'התחבר' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'שלח קוד' })).toBeInTheDocument()
   })
 
   it('submit button is disabled when fields are empty', () => {
     render(<Wrapper><Login /></Wrapper>)
-    expect(screen.getByRole('button', { name: 'התחבר' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'שלח קוד' })).toBeDisabled()
   })
 
   it('submit button is disabled with invalid email format', async () => {
     const user = userEvent.setup()
     render(<Wrapper><Login /></Wrapper>)
-    const emailInput = screen.getByRole('textbox') // email input
-    const passwordInput = document.querySelector('input[type="password"]')!
+    const [nameInput, emailInput] = screen.getAllByRole('textbox')
+    await user.type(nameInput, 'Test User')
     await user.type(emailInput, 'notanemail')
-    await user.type(passwordInput, 'password123')
-    expect(screen.getByRole('button', { name: 'התחבר' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'שלח קוד' })).toBeDisabled()
   })
 
-  it('submit button is disabled with email but no password', async () => {
+  it('submit button is disabled with email but no name', async () => {
     const user = userEvent.setup()
     render(<Wrapper><Login /></Wrapper>)
-    const emailInput = screen.getByRole('textbox')
+    const [, emailInput] = screen.getAllByRole('textbox')
     await user.type(emailInput, 'test@example.com')
-    expect(screen.getByRole('button', { name: 'התחבר' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'שלח קוד' })).toBeDisabled()
   })
 
-  it('submit button enables with valid email and password', async () => {
+  it('submit button enables with valid email and name', async () => {
     const user = userEvent.setup()
     render(<Wrapper><Login /></Wrapper>)
-    const emailInput = screen.getByRole('textbox')
-    const passwordInput = document.querySelector('input[type="password"]')!
+    const [nameInput, emailInput] = screen.getAllByRole('textbox')
+    await user.type(nameInput, 'Test User')
     await user.type(emailInput, 'test@example.com')
-    await user.type(passwordInput, 'password123')
-    expect(screen.getByRole('button', { name: 'התחבר' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'שלח קוד' })).toBeEnabled()
   })
 
   it('shows link to phone login', () => {
