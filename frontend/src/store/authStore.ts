@@ -5,7 +5,7 @@ import { serverLogout } from '../api/auth';
 
 interface AuthState {
   token: string | null;
-  user: Pick<AuthResponse, 'userId' | 'email' | 'phone' | 'displayName' | 'locale'> | null;
+  user: Pick<AuthResponse, 'userId' | 'email' | 'phone' | 'displayName' | 'profileImageUrl' | 'locale'> | null;
   setAuth: (res: AuthResponse) => void;
   logout: () => void;
   isAuthenticated: () => boolean;
@@ -25,6 +25,7 @@ export const useAuthStore = create<AuthState>()(
             email: res.email,
             phone: res.phone,
             displayName: res.displayName,
+            profileImageUrl: res.profileImageUrl,
             locale: res.locale,
           },
         });

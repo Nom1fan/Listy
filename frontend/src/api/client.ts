@@ -37,6 +37,7 @@ async function tryRefreshToken(): Promise<boolean> {
                 email: data.email,
                 phone: data.phone,
                 displayName: data.displayName,
+                profileImageUrl: data.profileImageUrl,
                 locale: data.locale,
               };
               localStorage.setItem('listyyy-auth', JSON.stringify(parsed));

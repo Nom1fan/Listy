@@ -33,6 +33,9 @@ public class User {
     @Column(name = "display_name")
     private String displayName;
 
+    @Column(name = "profile_image_url", length = 1024)
+    private String profileImageUrl;
+
     @Column(length = 10)
     @Builder.Default
     private String locale = "he";

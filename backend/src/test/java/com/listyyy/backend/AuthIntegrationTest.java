@@ -6,14 +6,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class AuthIntegrationTest extends AbstractIntegrationTest {
@@ -119,5 +119,100 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                                 "email", "nodisplay@example.com",
                                 "password", "secret123"))))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ---- Profile image tests ----
+
+    @Test
+    void update_profile_sets_profile_image_url() throws Exception {
+        mvc.perform(patch("/api/auth/me")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "displayName", "Test User",
+                                "profileImageUrl", "https://example.com/photo.jpg"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profileImageUrl").value("https://example.com/photo.jpg"))
+                .andExpect(jsonPath("$.displayName").value("Test User"));
+    }
+
+    @Test
+    void update_profile_clears_profile_image_url() throws Exception {
+        // First set it
+        mvc.perform(patch("/api/auth/me")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "displayName", "Test User",
+                                "profileImageUrl", "https://example.com/photo.jpg"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profileImageUrl").value("https://example.com/photo.jpg"));
+
+        // Then clear it with empty string
+        mvc.perform(patch("/api/auth/me")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "displayName", "Test User",
+                                "profileImageUrl", ""))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profileImageUrl").doesNotExist());
+    }
+
+    @Test
+    void update_profile_image_only_keeps_existing_display_name() throws Exception {
+        mvc.perform(patch("/api/auth/me")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "profileImageUrl", "https://example.com/avatar.png"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("Test User"))
+                .andExpect(jsonPath("$.profileImageUrl").value("https://example.com/avatar.png"));
+    }
+
+    @Test
+    void login_response_includes_profile_image_url() throws Exception {
+        // Set a profile image first
+        testUser.setProfileImageUrl("https://example.com/me.jpg");
+        userRepository.save(testUser);
+
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "test@example.com", "password", "password123"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profileImageUrl").value("https://example.com/me.jpg"));
+    }
+
+    @Test
+    void login_response_has_null_profile_image_url_when_not_set() throws Exception {
+        mvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "email", "test@example.com", "password", "password123"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profileImageUrl").doesNotExist());
+    }
+
+    @Test
+    void upload_profile_image() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "avatar.png", "image/png", new byte[]{1, 2, 3, 4});
+
+        mvc.perform(multipart("/api/upload/profile")
+                        .file(file)
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.url").exists());
+    }
+
+    @Test
+    void upload_profile_image_requires_auth() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "avatar.png", "image/png", new byte[]{1, 2, 3, 4});
+
+        mvc.perform(multipart("/api/upload/profile").file(file))
+                .andExpect(status().is4xxClientError());
     }
 }

@@ -4,6 +4,7 @@ export interface AuthResponse {
   email: string | null;
   phone: string | null;
   displayName: string | null;
+  profileImageUrl: string | null;
   locale: string;
 }
 
@@ -88,6 +89,7 @@ export interface ListEvent {
 export interface ListMemberDto {
   userId: string;
   displayName: string | null;
+  profileImageUrl: string | null;
   email: string | null;
   phone: string | null;
   role: string;

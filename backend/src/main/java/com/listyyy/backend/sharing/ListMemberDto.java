@@ -11,6 +11,7 @@ public class ListMemberDto {
 
     private UUID userId;
     private String displayName;
+    private String profileImageUrl;
     private String email;
     private String phone;
     private String role;

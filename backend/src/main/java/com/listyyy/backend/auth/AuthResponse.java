@@ -18,5 +18,6 @@ public class AuthResponse {
     private String email;
     private String phone;
     private String displayName;
+    private String profileImageUrl;
     private String locale;
 }

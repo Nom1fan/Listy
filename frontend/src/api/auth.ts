@@ -45,10 +45,13 @@ export async function verifyEmailOtp(email: string, code: string, displayName: s
   });
 }
 
-export async function updateProfile(displayName: string | null): Promise<AuthResponse> {
+export async function updateProfile(body: {
+  displayName?: string | null;
+  profileImageUrl?: string | null;
+}): Promise<AuthResponse> {
   return api<AuthResponse>('/api/auth/me', {
     method: 'PATCH',
-    body: JSON.stringify({ displayName: displayName || null }),
+    body: JSON.stringify(body),
   });
 }
 
