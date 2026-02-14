@@ -2,9 +2,12 @@
 # Full release: bump version, export DB, optionally build Windows package,
 # build/push Docker image, git commit + tag + push, deploy to EC2.
 #
-# Usage: ./scripts/release.sh [--db] [--windows] [--skip-deploy]
+# Usage: ./scripts/release.sh [--major|--patch] [--db] [--windows] [--skip-deploy]
 #
 # Flags:
+#   --major           Bump major version (e.g. 0.10.0 -> 1.0.0)
+#   --patch           Bump patch version (e.g. 0.10.0 -> 0.10.1)
+#   (default)         Bump minor version (e.g. 0.10.0 -> 0.11.0)
 #   --db              Include DB dump in EC2 deployment (SCP + import)
 #   --windows         Also build the Windows package and zip
 #   --skip-deploy     Skip EC2 deployment (build and push only)
@@ -25,8 +28,11 @@ VERSION_FILE="$REPO_ROOT/VERSION"
 DEPLOY_DB=false
 BUILD_WINDOWS=false
 SKIP_DEPLOY=false
+BUMP_TYPE=minor
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --major)         BUMP_TYPE=major; shift ;;
+    --patch)         BUMP_TYPE=patch; shift ;;
     --db)            DEPLOY_DB=true; shift ;;
     --windows)       BUILD_WINDOWS=true; shift ;;
     --skip-deploy)   SKIP_DEPLOY=true; shift ;;
@@ -53,14 +59,18 @@ if [ -z "${LISTYYY_IMAGE:-}" ]; then
   fi
 fi
 
-# ── 0. Bump minor version ───────────────────────────────────
+# ── 0. Bump version ──────────────────────────────────────────
 current=$(cat "$VERSION_FILE")
 IFS=. read -r major minor patch <<EOF
 $current
 EOF
-new_version="$major.$((minor + 1)).0"
+case "$BUMP_TYPE" in
+  major) new_version="$((major + 1)).0.0" ;;
+  patch) new_version="$major.$minor.$((patch + 1))" ;;
+  *)     new_version="$major.$((minor + 1)).0" ;;
+esac
 echo "$new_version" > "$VERSION_FILE"
-echo "=== 0. Bump version: $current -> $new_version ==="
+echo "=== 0. Bump version ($BUMP_TYPE): $current -> $new_version ==="
 # Update pom.xml (project version, not parent)
 sed -i.bak "s|<version>${current}-SNAPSHOT</version>|<version>${new_version}-SNAPSHOT</version>|" "$REPO_ROOT/backend/pom.xml" && rm -f "$REPO_ROOT/backend/pom.xml.bak"
 # Update package.json
