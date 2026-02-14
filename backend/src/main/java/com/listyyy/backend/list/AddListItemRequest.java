@@ -9,6 +9,7 @@ import java.util.UUID;
 public class AddListItemRequest {
 
     private UUID productId;
+    private UUID categoryId;
     private String customNameHe;
     private BigDecimal quantity;
     private String unit;

@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { requestPhoneOtp, verifyPhoneOtp } from '../api/auth';
+import { requestPhoneOtp, verifyPhoneOtp, devLogin } from '../api/auth';
 import { AppBar } from '../components/AppBar';
 import { COUNTRY_OPTIONS } from '../data/countries';
 
@@ -106,6 +106,20 @@ export function PhoneLogin() {
     }
   }
 
+  async function handleDevLogin() {
+    setError('');
+    setLoading(true);
+    try {
+      const res = await devLogin();
+      setAuth(res);
+      navigate('/lists', { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'שגיאה');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
     setError('');
@@ -128,6 +142,30 @@ export function PhoneLogin() {
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
           <img src="/logo.png?v=3" alt="Listyyy" style={{ height: 80, objectFit: 'contain' }} />
         </div>
+        {import.meta.env.VITE_DEV_LOGIN === 'true' && (
+          <div style={{ marginBottom: 24, textAlign: 'center' }}>
+            <button
+              type="button"
+              onClick={handleDevLogin}
+              disabled={loading}
+              style={{
+                padding: '12px 32px',
+                background: '#e65100',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 16,
+                borderRadius: 8,
+                border: '2px dashed #bf360c',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.5 : 1,
+                width: '100%',
+                maxWidth: 300,
+              }}
+            >
+              {loading ? 'מתחבר...' : 'Dev Login (skip OTP)'}
+            </button>
+          </div>
+        )}
         {step === 'phone' ? (
           <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', flexDirection: 'column', width: 'fit-content', margin: '0 auto', gap: 16 }}>

@@ -237,7 +237,7 @@ public class AuthService {
 
     // ---- internal helpers ----
 
-    private LoginResult buildLoginResult(User user) {
+    LoginResult buildLoginResult(User user) {
         String accessToken = jwtService.generateToken(user);
         String refreshTokenValue = generateRefreshTokenValue();
         Instant expiresAt = Instant.now().plusMillis(jwtProperties.getRefreshExpirationMs());

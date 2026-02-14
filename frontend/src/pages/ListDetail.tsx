@@ -50,6 +50,7 @@ export function ListDetail() {
   const [quickAddCategoryId, setQuickAddCategoryId] = useState('');
   const quickAddFileInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useViewMode();
+  const [itemMenuOpenId, setItemMenuOpenId] = useState<number | null>(null);
   const [listDetailMenuOpen, setListDetailMenuOpen] = useState(false);
   const [editListOpen, setEditListOpen] = useState(false);
   const [editListName, setEditListName] = useState('');
@@ -491,38 +492,37 @@ export function ListDetail() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <button
-                        type="button"
-                        onClick={(e) => openEditItemImage(item, e)}
-                        style={{ padding: 6, background: 'transparent', color: '#666' }}
-                        aria-label="שנה תמונה"
-                        title="שנה תמונה"
-                      >
-                        🖼
-                      </button>
-                      <button
-                        onClick={() =>
+                      <input
+                        type="checkbox"
+                        checked={!!item.crossedOff}
+                        onChange={() =>
                           updateMutation.mutate({
                             itemId: item.id,
                             body: { crossedOff: !item.crossedOff },
                           })
                         }
-                        style={{
-                          padding: '6px 10px',
-                          background: item.crossedOff ? '#e0e0e0' : 'var(--color-primary)',
-                          color: item.crossedOff ? '#666' : '#fff',
-                          fontSize: 12,
-                        }}
-                      >
-                        {item.crossedOff ? 'בטל סימון' : 'סימן'}
-                      </button>
-                      <button
-                        onClick={() => removeMutation.mutate(item.id)}
-                        style={{ padding: 6, background: 'transparent', color: 'var(--color-strike)' }}
-                        aria-label="הסר"
-                      >
-                        ✕
-                      </button>
+                        style={{ width: 20, height: 20, cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                        aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
+                      />
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
+                          aria-label="תפריט פריט"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, padding: '4px 8px', lineHeight: 1, color: '#555', borderRadius: 6 }}
+                        >
+                          &#8942;
+                        </button>
+                        {itemMenuOpenId === item.id && (
+                          <>
+                            <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
+                            <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 120, overflow: 'hidden' }}>
+                              <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
+                              <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -571,39 +571,37 @@ export function ListDetail() {
                       </span>
                     )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                      <button
-                        type="button"
-                        onClick={(e) => openEditItemImage(item, e)}
-                        style={{ padding: 4, background: 'transparent', color: '#666', fontSize: 14 }}
-                        aria-label="שנה תמונה"
-                        title="שנה תמונה"
-                      >
-                        🖼
-                      </button>
-                      <button
-                        onClick={() =>
+                      <input
+                        type="checkbox"
+                        checked={!!item.crossedOff}
+                        onChange={() =>
                           updateMutation.mutate({
                             itemId: item.id,
                             body: { crossedOff: !item.crossedOff },
                           })
                         }
-                        style={{
-                          padding: '4px 8px',
-                          background: item.crossedOff ? '#e0e0e0' : 'var(--color-primary)',
-                          color: item.crossedOff ? '#666' : '#fff',
-                          fontSize: 11,
-                          borderRadius: 6,
-                        }}
-                      >
-                        {item.crossedOff ? 'בטל' : 'סימן'}
-                      </button>
-                      <button
-                        onClick={() => removeMutation.mutate(item.id)}
-                        style={{ padding: 4, background: 'transparent', color: 'var(--color-strike)', fontSize: 14 }}
-                        aria-label="הסר"
-                      >
-                        ✕
-                      </button>
+                        style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                        aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
+                      />
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          type="button"
+                          onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
+                          aria-label="תפריט פריט"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '2px 6px', lineHeight: 1, color: '#555', borderRadius: 6 }}
+                        >
+                          &#8942;
+                        </button>
+                        {itemMenuOpenId === item.id && (
+                          <>
+                            <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
+                            <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 110, overflow: 'hidden' }}>
+                              <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
+                              <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
