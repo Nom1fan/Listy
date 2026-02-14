@@ -34,6 +34,7 @@ export const useAuthStore = create<AuthState>()(
         // Revoke refresh token on server (clears HttpOnly cookie)
         serverLogout();
         localStorage.removeItem('listyyy_token');
+        localStorage.removeItem('listyyy-workspace');
         set({ token: null, user: null });
       },
       isAuthenticated: () => !!get().token,
