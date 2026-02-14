@@ -57,7 +57,7 @@ public class UploadController {
             @AuthenticationPrincipal User user
     ) throws IOException {
         if (user == null) return ResponseEntity.status(401).build();
-        Product product = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("המוצר לא נמצא"));
+        Product product = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("הפריט לא נמצא"));
         categoryAccessService.getCategoryOrThrow(product.getCategory().getId(), user);
         if (!categoryAccessService.canEdit(user, product.getCategory().getId())) throw new IllegalArgumentException("אין גישה");
         String url = uploadService.saveProductImage(file);

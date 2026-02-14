@@ -1,6 +1,8 @@
 package com.listyyy.backend.list;
 
 import com.listyyy.backend.auth.User;
+import com.listyyy.backend.productbank.Category;
+import com.listyyy.backend.productbank.CategoryRepository;
 import com.listyyy.backend.productbank.Product;
 import com.listyyy.backend.productbank.ProductRepository;
 import com.listyyy.backend.websocket.ListEventPublisher;
@@ -20,6 +22,7 @@ public class ListItemService {
     private final GroceryListRepository listRepository;
     private final ListAccessService listAccessService;
     private final ProductRepository productRepository;
+    private final CategoryRepository categoryRepository;
     private final ListEventPublisher listEventPublisher;
 
     public List<ListItem> getItems(UUID listId, User user) {
@@ -32,10 +35,10 @@ public class ListItemService {
         GroceryList list = listAccessService.getListOrThrow(listId, user);
         ListItem item;
         if (req.getProductId() != null) {
-            Product product = productRepository.findById(req.getProductId()).orElseThrow(() -> new IllegalArgumentException("המוצר לא נמצא"));
+            Product product = productRepository.findById(req.getProductId()).orElseThrow(() -> new IllegalArgumentException("הפריט לא נמצא"));
             // Verify product belongs to the same workspace as the list
             if (product.getCategory() == null || !product.getCategory().getWorkspace().getId().equals(list.getWorkspace().getId())) {
-                throw new IllegalArgumentException("המוצר לא שייך למרחב העבודה של הרשימה");
+                throw new IllegalArgumentException("הפריט לא שייך למרחב העבודה של הרשימה");
             }
             // Use the product's permanent note as default if no note provided on the list item
             String note = req.getNote() != null ? req.getNote() : product.getNote();
@@ -51,11 +54,20 @@ public class ListItemService {
                     .build();
         } else {
             if (req.getCustomNameHe() == null || req.getCustomNameHe().isBlank()) {
-                throw new IllegalArgumentException("יש להזין שם מותאם אישית או לבחור מוצר");
+                throw new IllegalArgumentException("יש להזין שם מותאם אישית או לבחור פריט");
+            }
+            Category category = null;
+            if (req.getCategoryId() != null) {
+                category = categoryRepository.findById(req.getCategoryId())
+                        .orElseThrow(() -> new IllegalArgumentException("הקטגוריה לא נמצאה"));
+                if (!category.getWorkspace().getId().equals(list.getWorkspace().getId())) {
+                    throw new IllegalArgumentException("הקטגוריה לא שייכת למרחב העבודה של הרשימה");
+                }
             }
             item = ListItem.builder()
                     .list(list)
                     .customNameHe(req.getCustomNameHe())
+                    .category(category)
                     .quantity(req.getQuantity() != null ? req.getQuantity() : BigDecimal.ONE)
                     .unit(req.getUnit() != null ? req.getUnit() : "יחידה")
                     .note(req.getNote())

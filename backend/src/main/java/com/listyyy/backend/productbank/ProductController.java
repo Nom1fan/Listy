@@ -59,7 +59,7 @@ public class ProductController {
     @GetMapping("/{id}")
     public ResponseEntity<ProductDto> get(@PathVariable UUID id, @AuthenticationPrincipal User user) {
         if (user == null) return ResponseEntity.status(401).build();
-        Product p = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("המוצר לא נמצא"));
+        Product p = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("הפריט לא נמצא"));
         categoryAccessService.getCategoryOrThrow(p.getCategory().getId(), user);
         Map<UUID, Long> addCountByProduct = getProductAddCounts();
         return ResponseEntity.ok(toDto(p, addCountByProduct.getOrDefault(p.getId(), 0L)));
@@ -72,7 +72,7 @@ public class ProductController {
     ) {
         if (user == null) return ResponseEntity.status(401).build();
         var category = categoryAccessService.getCategoryOrThrow(req.getCategoryId(), user);
-        if (!categoryAccessService.canEdit(user, req.getCategoryId())) throw new IllegalArgumentException("לא ניתן להוסיף מוצר לקטגוריה זו");
+        if (!categoryAccessService.canEdit(user, req.getCategoryId())) throw new IllegalArgumentException("לא ניתן להוסיף פריט לקטגוריה זו");
         String unit = req.getDefaultUnit() != null && !req.getDefaultUnit().isBlank()
                 ? req.getDefaultUnit().trim() : "יחידה";
         String iconId = req.getIconId() != null && !req.getIconId().isBlank() ? req.getIconId().trim() : null;
@@ -96,7 +96,7 @@ public class ProductController {
             @AuthenticationPrincipal User user
     ) {
         if (user == null) return ResponseEntity.status(401).build();
-        Product p = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("המוצר לא נמצא"));
+        Product p = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("הפריט לא נמצא"));
         categoryAccessService.getCategoryOrThrow(p.getCategory().getId(), user);
         if (!categoryAccessService.canEdit(user, p.getCategory().getId())) throw new IllegalArgumentException("אין גישה");
         productRepository.delete(p);
@@ -111,7 +111,7 @@ public class ProductController {
             @RequestBody UpdateProductRequest req
     ) {
         if (user == null) return ResponseEntity.status(401).build();
-        Product p = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("המוצר לא נמצא"));
+        Product p = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("הפריט לא נמצא"));
         categoryAccessService.getCategoryOrThrow(p.getCategory().getId(), user);
         if (!categoryAccessService.canEdit(user, p.getCategory().getId())) throw new IllegalArgumentException("אין גישה");
         // nameHe: set when provided and not blank

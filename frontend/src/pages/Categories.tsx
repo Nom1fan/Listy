@@ -154,7 +154,7 @@ export function Categories() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setEditProduct(null);
-      setProductImageToast('המוצר עודכן');
+      setProductImageToast('הפריט עודכן');
       setTimeout(() => setProductImageToast(null), 3000);
     },
   });
@@ -355,7 +355,7 @@ export function Categories() {
           {displayImageType === 'web' && (
             <div style={{ minWidth: 200 }}>
               <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>חיפוש תמונה באינטרנט</label>
-              <ImageSearchPicker onSelect={(url) => setImageUrl(url)} placeholder="למשל: חלב, לחם, ירקות" />
+              <ImageSearchPicker onSelect={(url) => setImageUrl(url)} placeholder="למשל: ספורט, אוכל, ספרים" />
               {imageUrl && (
                 <p style={{ marginTop: 8, fontSize: 12, color: '#2e7d32' }}>נבחרה תמונה ✓</p>
               )}
@@ -496,7 +496,7 @@ export function Categories() {
                       <label style={{ fontSize: 12, marginBottom: 2, display: 'block' }}>חיפוש תמונה באינטרנט</label>
                       <ImageSearchPicker
                         onSelect={(url) => setEditImageUrl(url)}
-                        placeholder="למשל: חלב, לחם"
+                        placeholder="למשל: ספורט, אוכל"
                       />
                       {editImageUrl && <p style={{ marginTop: 6, fontSize: 12, color: '#2e7d32' }}>נבחרה תמונה ✓</p>}
                     </div>
@@ -601,7 +601,7 @@ export function Categories() {
 
               {editing?.id !== c.id && (
                 <div style={{ padding: '0 12px 12px 12px', borderTop: '1px solid #eee', marginTop: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, marginTop: 8 }}>מוצרים בקטגוריה</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, marginTop: 8 }}>פריטים בקטגוריה</div>
                   {viewMode === 'list' ? (
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px 0' }}>
                     {(productsByCategory[c.id] || []).map((p) => (
@@ -629,7 +629,7 @@ export function Categories() {
                           <button
                             type="button"
                             onClick={() => setProductMenuOpenId((prev) => prev === p.id ? null : p.id)}
-                            aria-label="תפריט מוצר"
+                            aria-label="תפריט פריט"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '2px 6px', lineHeight: 1, color: '#555', borderRadius: 6 }}
                           >
                             &#8942;
@@ -641,7 +641,7 @@ export function Categories() {
                                 <button type="button" onClick={() => { setProductMenuOpenId(null); openEditProduct(p); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}>
                                   ערוך
                                 </button>
-                                <button type="button" onClick={() => { setProductMenuOpenId(null); if (window.confirm(`למחוק את המוצר "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', color: '#c00' }}>
+                                <button type="button" onClick={() => { setProductMenuOpenId(null); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', color: '#c00' }}>
                                   מחק
                                 </button>
                               </div>
@@ -681,7 +681,7 @@ export function Categories() {
                           <button
                             type="button"
                             onClick={() => setProductMenuOpenId((prev) => prev === p.id ? null : p.id)}
-                            aria-label="תפריט מוצר"
+                            aria-label="תפריט פריט"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '2px 6px', lineHeight: 1, color: '#555', borderRadius: 6 }}
                           >
                             &#8942;
@@ -693,7 +693,7 @@ export function Categories() {
                                 <button type="button" onClick={() => { setProductMenuOpenId(null); openEditProduct(p); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}>
                                   ערוך
                                 </button>
-                                <button type="button" onClick={() => { setProductMenuOpenId(null); if (window.confirm(`למחוק את המוצר "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', color: '#c00' }}>
+                                <button type="button" onClick={() => { setProductMenuOpenId(null); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', color: '#c00' }}>
                                   מחק
                                 </button>
                               </div>
@@ -714,7 +714,7 @@ export function Categories() {
                           type="text"
                           value={newProductName}
                           onChange={(e) => setNewProductName(e.target.value)}
-                          placeholder="שם מוצר"
+                          placeholder="שם פריט"
                           style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', minWidth: 120 }}
                         />
                         <input
@@ -736,7 +736,7 @@ export function Categories() {
                           disabled={createProductMutation.isPending || !newProductName.trim()}
                           style={{ padding: '8px 12px', background: 'var(--color-primary)', color: '#fff', borderRadius: 8, fontSize: 14 }}
                         >
-                          {createProductMutation.isPending ? 'מוסיף...' : 'הוסף מוצר'}
+                          {createProductMutation.isPending ? 'מוסיף...' : 'הוסף פריט'}
                         </button>
                         <button
                           type="button"
@@ -756,7 +756,7 @@ export function Categories() {
                         </button>
                       </div>
                       <DisplayImageForm
-                        label="תמונת מוצר"
+                        label="תמונת פריט"
                         displayType={newProductDisplayImageType}
                         iconId={newProductIconId}
                         imageUrl={newProductImageUrl}
@@ -791,7 +791,7 @@ export function Categories() {
                       onClick={() => setAddProductCategoryId(c.id)}
                       style={{ padding: '6px 12px', background: '#e8f5e9', color: '#2e7d32', borderRadius: 8, fontSize: 14 }}
                     >
-                      + הוסף מוצר לקטגוריה
+                      + הוסף פריט לקטגוריה
                     </button>
                   )}
                 </div>
@@ -896,10 +896,10 @@ export function Categories() {
               overflowY: 'auto',
             }}
           >
-            <h3 style={{ margin: '0 0 16px' }}>עריכת מוצר</h3>
+            <h3 style={{ margin: '0 0 16px' }}>עריכת פריט</h3>
             <form onSubmit={handleEditProductSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>שם מוצר</label>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>שם פריט</label>
                 <input
                   type="text"
                   value={editProductName}
@@ -922,7 +922,7 @@ export function Categories() {
                   value={editProductNote}
                   onChange={(e) => setEditProductNote(e.target.value)}
                   rows={2}
-                  placeholder="תופיע אוטומטית כשמוסיפים את המוצר לרשימה"
+                  placeholder="תופיע אוטומטית כשמוסיפים את הפריט לרשימה"
                   style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', resize: 'vertical', boxSizing: 'border-box' }}
                 />
               </div>
