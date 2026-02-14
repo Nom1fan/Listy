@@ -95,7 +95,7 @@ public class WorkspaceController {
     public ResponseEntity<ListMemberDto> invite(
             @PathVariable UUID id,
             @AuthenticationPrincipal User user,
-            @RequestBody InviteRequest req
+            @Valid @RequestBody InviteRequest req
     ) {
         if (user == null) return ResponseEntity.status(401).build();
         return ResponseEntity.ok(workspaceService.invite(id, user, req));

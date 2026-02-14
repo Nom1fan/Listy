@@ -32,6 +32,9 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        // CSRF is disabled because this is a stateless JWT API. Refresh tokens use
+        // HttpOnly cookies with SameSite=Lax, which prevents cross-origin POST abuse.
+        // If SameSite policy changes, re-evaluate CSRF protection.
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(c -> c.configurationSource(corsConfigurationSource()))

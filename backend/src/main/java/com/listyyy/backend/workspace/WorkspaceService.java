@@ -29,17 +29,17 @@ public class WorkspaceService {
                         row -> (UUID) row[0],
                         row -> ((Number) row[1]).intValue()
                 ));
+        // Batch-load user roles to avoid N+1 queries (one per workspace)
+        Map<UUID, String> rolesByWorkspace = workspaceMemberRepository.findByUserIdWithRole(user.getId()).stream()
+                .collect(Collectors.toMap(WorkspaceMember::getWorkspaceId, WorkspaceMember::getRole));
         return workspaces.stream()
-                .map(w -> {
-                    String role = workspaceAccessService.getRole(user, w.getId());
-                    return WorkspaceDto.builder()
-                            .id(w.getId())
-                            .name(w.getName())
-                            .iconId(w.getIconId())
-                            .memberCount(memberCounts.getOrDefault(w.getId(), 1))
-                            .role(role)
-                            .build();
-                })
+                .map(w -> WorkspaceDto.builder()
+                        .id(w.getId())
+                        .name(w.getName())
+                        .iconId(w.getIconId())
+                        .memberCount(memberCounts.getOrDefault(w.getId(), 1))
+                        .role(rolesByWorkspace.getOrDefault(w.getId(), null))
+                        .build())
                 .toList();
     }
 
@@ -97,7 +97,7 @@ public class WorkspaceService {
 
     public List<ListMemberDto> getMembers(UUID workspaceId, User user) {
         workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
-        return workspaceMemberRepository.findByWorkspaceId(workspaceId).stream()
+        return workspaceMemberRepository.findByWorkspaceIdWithUser(workspaceId).stream()
                 .map(m -> ListMemberDto.builder()
                         .userId(m.getUserId())
                         .displayName(m.getUser().getDisplayName())

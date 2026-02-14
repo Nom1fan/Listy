@@ -22,6 +22,8 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import java.util.Collections;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -40,10 +42,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final UserRepository userRepository;
     private final ListAccessService listAccessService;
 
+    @Value("${listyyy.cors.allowed-origins:http://localhost:5173}")
+    private String corsAllowedOrigins;
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*")
+                .setAllowedOriginPatterns(corsAllowedOrigins.split(",\\s*"))
                 .withSockJS();
     }
 

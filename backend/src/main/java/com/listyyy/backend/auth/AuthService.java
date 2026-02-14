@@ -89,15 +89,18 @@ public class AuthService {
     @Transactional
     public LoginResult verifyPhoneOtp(PhoneVerifyRequest req) {
         String phone = PhoneNormalizer.normalize(req.getPhone());
-        Optional<PhoneOtp> opt = phoneOtpRepository.findById(phone);
-        if (opt.isEmpty() || !opt.get().getCode().equals(req.getCode())) {
+        // Check expiration first (and clean up expired OTPs)
+        phoneOtpRepository.findById(phone).ifPresent(otp -> {
+            if (otp.getExpiresAt().isBefore(Instant.now())) {
+                phoneOtpRepository.delete(otp);
+                throw new IllegalArgumentException("הקוד פג תוקף");
+            }
+        });
+        // Atomic verify + delete: only one concurrent request can succeed
+        int deleted = phoneOtpRepository.deleteByPhoneAndCode(phone, req.getCode());
+        if (deleted == 0) {
             throw new IllegalArgumentException("קוד לא תקין או שפג תוקפו");
         }
-        if (opt.get().getExpiresAt().isBefore(Instant.now())) {
-            phoneOtpRepository.delete(opt.get());
-            throw new IllegalArgumentException("הקוד פג תוקף");
-        }
-        phoneOtpRepository.delete(opt.get());
         final boolean[] isNew = {false};
         User user = userRepository.findByPhone(phone).orElseGet(() -> {
             isNew[0] = true;
@@ -138,15 +141,18 @@ public class AuthService {
     @Transactional
     public LoginResult verifyEmailOtp(EmailVerifyRequest req) {
         String email = req.getEmail().trim().toLowerCase();
-        Optional<EmailOtp> opt = emailOtpRepository.findById(email);
-        if (opt.isEmpty() || !opt.get().getCode().equals(req.getCode())) {
+        // Check expiration first (and clean up expired OTPs)
+        emailOtpRepository.findById(email).ifPresent(otp -> {
+            if (otp.getExpiresAt().isBefore(Instant.now())) {
+                emailOtpRepository.delete(otp);
+                throw new IllegalArgumentException("הקוד פג תוקף");
+            }
+        });
+        // Atomic verify + delete: only one concurrent request can succeed
+        int deleted = emailOtpRepository.deleteByEmailAndCode(email, req.getCode());
+        if (deleted == 0) {
             throw new IllegalArgumentException("קוד לא תקין או שפג תוקפו");
         }
-        if (opt.get().getExpiresAt().isBefore(Instant.now())) {
-            emailOtpRepository.delete(opt.get());
-            throw new IllegalArgumentException("הקוד פג תוקף");
-        }
-        emailOtpRepository.delete(opt.get());
         final boolean[] isNewEmail = {false};
         User user = userRepository.findByEmail(email).orElseGet(() -> {
             isNewEmail[0] = true;
@@ -181,9 +187,14 @@ public class AuthService {
             }
             user.setDisplayName(displayName.trim());
         }
-        // Allow setting or clearing profile image URL
+        // Allow setting or clearing profile image URL (only http/https URLs)
         if (req.getProfileImageUrl() != null) {
             String url = req.getProfileImageUrl().trim();
+            if (!url.isEmpty()) {
+                if (!url.startsWith("http://") && !url.startsWith("https://") && !url.startsWith("/uploads/")) {
+                    throw new IllegalArgumentException("כתובת תמונה לא תקינה");
+                }
+            }
             user.setProfileImageUrl(url.isEmpty() ? null : url);
         }
         user = userRepository.save(user);

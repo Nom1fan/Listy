@@ -33,6 +33,10 @@ public class ListItemService {
         ListItem item;
         if (req.getProductId() != null) {
             Product product = productRepository.findById(req.getProductId()).orElseThrow(() -> new IllegalArgumentException("המוצר לא נמצא"));
+            // Verify product belongs to the same workspace as the list
+            if (product.getCategory() == null || !product.getCategory().getWorkspace().getId().equals(list.getWorkspace().getId())) {
+                throw new IllegalArgumentException("המוצר לא שייך למרחב העבודה של הרשימה");
+            }
             // Use the product's permanent note as default if no note provided on the list item
             String note = req.getNote() != null ? req.getNote() : product.getNote();
             item = ListItem.builder()
