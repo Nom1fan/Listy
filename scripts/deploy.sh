@@ -165,6 +165,12 @@ ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
   fi"
 upsert_remote_env "GIPHY_API_KEY" "${GIPHY_API_KEY:-}"
 upsert_remote_env "PIXABAY_API_KEY" "${PIXABAY_API_KEY:-}"
+upsert_remote_env "DB_PASSWORD" "${DB_PASSWORD:-postgres}"
+upsert_remote_env "TWILIO_ACCOUNT_SID" "${TWILIO_ACCOUNT_SID:-}"
+upsert_remote_env "TWILIO_AUTH_TOKEN" "${TWILIO_AUTH_TOKEN:-}"
+upsert_remote_env "TWILIO_FROM_NUMBER" "${TWILIO_FROM_NUMBER:-}"
+upsert_remote_env "MAIL_USERNAME" "${MAIL_USERNAME:-}"
+upsert_remote_env "MAIL_PASSWORD" "${MAIL_PASSWORD:-}"
 
 # ── 5. Pull and restart ─────────────────────────────────────
 echo "[5/5] Pulling image and restarting services ..."
