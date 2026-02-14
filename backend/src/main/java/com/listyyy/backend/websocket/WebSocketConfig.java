@@ -3,7 +3,9 @@ package com.listyyy.backend.websocket;
 import com.listyyy.backend.auth.JwtService;
 import com.listyyy.backend.auth.User;
 import com.listyyy.backend.auth.UserRepository;
+import com.listyyy.backend.list.ListAccessService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -21,17 +23,22 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
+@Slf4j
 @Configuration
 @EnableWebSocketMessageBroker
 @Order(Ordered.HIGHEST_PRECEDENCE + 99)
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    private static final Pattern LIST_TOPIC_PATTERN = Pattern.compile("^/topic/lists/([0-9a-fA-F-]{36})$");
+
     private final JwtService jwtService;
     private final UserRepository userRepository;
+    private final ListAccessService listAccessService;
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
@@ -52,7 +59,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
-                if (accessor != null && StompCommand.CONNECT.equals(accessor.getCommand())) {
+                if (accessor == null) return message;
+
+                if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                     String auth = accessor.getFirstNativeHeader("Authorization");
                     if (auth != null && auth.startsWith("Bearer ")) {
                         String token = auth.substring(7);
@@ -67,8 +76,38 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         }
                     }
                 }
+
+                if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+                    String destination = accessor.getDestination();
+                    if (destination != null) {
+                        Matcher matcher = LIST_TOPIC_PATTERN.matcher(destination);
+                        if (matcher.matches()) {
+                            User user = getAuthenticatedUser(accessor);
+                            if (user == null) {
+                                log.warn("Unauthenticated SUBSCRIBE to {}", destination);
+                                throw new IllegalArgumentException("אין גישה");
+                            }
+                            UUID listId = UUID.fromString(matcher.group(1));
+                            if (!listAccessService.canAccess(user, listId)) {
+                                log.warn("User {} denied SUBSCRIBE to list {}", user.getId(), listId);
+                                throw new IllegalArgumentException("אין גישה");
+                            }
+                        }
+                    }
+                }
+
                 return message;
             }
         });
+    }
+
+    private User getAuthenticatedUser(StompHeaderAccessor accessor) {
+        if (accessor.getUser() instanceof UsernamePasswordAuthenticationToken auth) {
+            Object principal = auth.getPrincipal();
+            if (principal instanceof User user) {
+                return user;
+            }
+        }
+        return null;
     }
 }
