@@ -4,9 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, updateProduct } from '../api/products';
 import { addListItem } from '../api/lists';
 import { uploadFile } from '../api/client';
+import { useWorkspaceStore } from '../store/workspaceStore';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
+import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import type { ProductDto } from '../types';
 
 function isErrorToast(msg: string): boolean {
@@ -15,6 +17,8 @@ function isErrorToast(msg: string): boolean {
 
 export function ProductBank() {
   const { listId } = useParams<{ listId: string }>();
+  const [viewMode, setViewMode] = useViewMode();
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [addModal, setAddModal] = useState<ProductDto | null>(null);
@@ -29,8 +33,8 @@ export function ProductBank() {
   const queryClient = useQueryClient();
 
   const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
-    queryFn: getCategories,
+    queryKey: ['categories', activeWorkspaceId],
+    queryFn: () => getCategories(activeWorkspaceId || undefined),
   });
 
   const { data: products = [] } = useQuery({
@@ -139,7 +143,7 @@ export function ProductBank() {
 
   return (
     <>
-      <AppBar title="בנק מוצרים" backTo={`/lists/${listId}`} />
+      <AppBar title="הוסף מקטגוריות" backTo={`/lists/${listId}`} right={<ViewModeToggle viewMode={viewMode} onChange={setViewMode} />} />
       {toast && (
         <div
           style={{
@@ -193,8 +197,8 @@ export function ProductBank() {
           <>
             {categoryOrder.map((catId) => {
               const cat = categories.find((c) => c.id === catId);
-              const list = productsByCategory[catId] ?? [];
-              if (!cat || list.length === 0) return null;
+              const catProducts = productsByCategory[catId] ?? [];
+              if (!cat || catProducts.length === 0) return null;
               return (
                 <section key={catId} style={{ marginBottom: 20 }}>
                   <div
@@ -210,8 +214,9 @@ export function ProductBank() {
                     <CategoryIcon iconId={cat.iconId} imageUrl={cat.imageUrl} size={24} />
                     <span style={{ fontWeight: 600, fontSize: 15 }}>{cat.nameHe}</span>
                   </div>
+                  {viewMode === 'grid' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-                    {list.map((p) => (
+                    {catProducts.map((p) => (
                       <div
                         key={p.id}
                         style={{
@@ -273,11 +278,62 @@ export function ProductBank() {
                       </div>
                     ))}
                   </div>
+                  ) : (
+                  <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                    {catProducts.map((p) => (
+                      <li
+                        key={p.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          padding: '8px 0',
+                          borderBottom: '1px solid #f0f0f0',
+                        }}
+                      >
+                        <button
+                          onClick={() => openAdd(p)}
+                          style={{
+                            border: 'none',
+                            background: 'none',
+                            cursor: 'pointer',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+                          <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={28} />
+                          <span style={{ fontWeight: 500, flex: 1, textAlign: 'right' }}>{p.nameHe}</span>
+                          <span style={{ fontSize: 12, color: '#666' }}>{p.defaultUnit}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => openEditImage(p, e)}
+                          style={{
+                            padding: '4px 8px',
+                            background: '#eee',
+                            borderRadius: 6,
+                            fontSize: 12,
+                            border: 'none',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                          }}
+                          aria-label="שנה תמונה"
+                        >
+                          🖼
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  )}
                 </section>
               );
             })}
           </>
-        ) : (
+        ) : viewMode === 'grid' ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
             {products.map((p) => (
               <div
@@ -341,6 +397,59 @@ export function ProductBank() {
               </div>
             ))}
           </div>
+        ) : (
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+            {products.map((p) => (
+              <li
+                key={p.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 12px',
+                  background: '#fff',
+                  borderRadius: 10,
+                  marginBottom: 6,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                }}
+              >
+                <button
+                  onClick={() => openAdd(p)}
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={28} />
+                  <span style={{ fontWeight: 500, flex: 1, textAlign: 'right' }}>{p.nameHe}</span>
+                  <span style={{ fontSize: 12, color: '#666' }}>{p.defaultUnit}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => openEditImage(p, e)}
+                  style={{
+                    padding: '4px 8px',
+                    background: '#eee',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    border: 'none',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                  }}
+                  aria-label="שנה תמונה"
+                >
+                  🖼
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
 
         {editImageProduct && (

@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getList, getListMembers, inviteListMember, removeListMember } from '../api/lists';
+import { getWorkspace, getWorkspaceMembers, inviteWorkspaceMember, removeWorkspaceMember } from '../api/workspaces';
 import { AppBar } from '../components/AppBar';
 import { useAuthStore } from '../store/authStore';
 import type { ListMemberDto } from '../types';
 
 function memberLabel(m: ListMemberDto, currentUserId: string): string {
-  const name = m.displayName?.trim() || m.email || m.phone || 'חבר/ה ברשימה';
+  const name = m.displayName?.trim() || m.email || m.phone || 'חבר/ה';
   return m.userId === currentUserId ? `${name} (את/ה)` : name;
 }
 
-export function ShareList() {
-  const { listId } = useParams<{ listId: string }>();
+export function ShareWorkspace() {
+  const { workspaceId } = useParams<{ workspaceId: string }>();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
@@ -22,22 +22,23 @@ export function ShareList() {
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteError, setInviteError] = useState<string | null>(null);
 
-  const { data: list } = useQuery({
-    queryKey: ['list', listId],
-    queryFn: () => getList(listId!),
-    enabled: !!listId,
+  const { data: workspace } = useQuery({
+    queryKey: ['workspace', workspaceId],
+    queryFn: () => getWorkspace(workspaceId!),
+    enabled: !!workspaceId,
   });
 
   const { data: members = [], isLoading } = useQuery({
-    queryKey: ['listMembers', listId],
-    queryFn: () => getListMembers(listId!),
-    enabled: !!listId,
+    queryKey: ['workspaceMembers', workspaceId],
+    queryFn: () => getWorkspaceMembers(workspaceId!),
+    enabled: !!workspaceId,
   });
 
   const inviteMutation = useMutation({
-    mutationFn: (body: { email?: string; phone?: string }) => inviteListMember(listId!, body),
+    mutationFn: (body: { email?: string; phone?: string }) => inviteWorkspaceMember(workspaceId!, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['listMembers', listId] });
+      queryClient.invalidateQueries({ queryKey: ['workspaceMembers', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       setInviteEmail('');
       setInvitePhone('');
       setInviteError(null);
@@ -48,10 +49,10 @@ export function ShareList() {
   });
 
   const removeMutation = useMutation({
-    mutationFn: (memberUserId: string) => removeListMember(listId!, memberUserId),
+    mutationFn: (memberUserId: string) => removeWorkspaceMember(workspaceId!, memberUserId),
     onSuccess: (_data, memberUserId) => {
-      queryClient.invalidateQueries({ queryKey: ['listMembers', listId] });
-      queryClient.invalidateQueries({ queryKey: ['lists'] });
+      queryClient.invalidateQueries({ queryKey: ['workspaceMembers', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       if (memberUserId === currentUserId) navigate('/lists');
     },
     onError: (err: Error) => {
@@ -59,7 +60,7 @@ export function ShareList() {
     },
   });
 
-  const isOwner = list?.ownerId === currentUserId;
+  const isOwner = workspace?.role === 'owner';
 
   function handleInvite(e: React.FormEvent) {
     e.preventDefault();
@@ -76,12 +77,12 @@ export function ShareList() {
   return (
     <>
       <AppBar
-        title={list ? `שיתוף: ${list.name}` : 'שיתוף רשימה'}
-        backTo={`/lists/${listId}`}
+        title={workspace ? `שיתוף: ${workspace.name}` : 'שיתוף מרחב'}
+        backTo="/lists"
       />
       <main style={{ padding: 16 }}>
         <p style={{ margin: '0 0 20px', color: '#555', fontSize: 15 }}>
-          חברים ברשימה יכולים לערוך את הרשימה יחד. הוסף משתמשים לפי אימייל או מספר טלפון.
+          חברים במרחב יראו את כל הרשימות והקטגוריות במרחב ויוכלו לערוך. הוסף משתמשים לפי אימייל או מספר טלפון.
         </p>
 
         {isLoading ? (
@@ -89,7 +90,7 @@ export function ShareList() {
         ) : (
           <>
             <section style={{ marginBottom: 24 }}>
-              <h2 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600 }}>חברים ברשימה</h2>
+              <h2 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 600 }}>חברים במרחב</h2>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {members.map((m) => (
                   <li
@@ -107,7 +108,7 @@ export function ShareList() {
                     <div>
                       <span style={{ fontWeight: 500 }}>{memberLabel(m, currentUserId)}</span>
                       <span style={{ marginRight: 8, fontSize: 13, color: '#666' }}>
-                        {m.role === 'owner' ? 'בעל/ת הרשימה' : 'עורך/ת'}
+                        {m.role === 'owner' ? 'בעל/ת המרחב' : 'עורך/ת'}
                       </span>
                     </div>
                     {m.role !== 'owner' && (
@@ -122,7 +123,7 @@ export function ShareList() {
                           fontSize: 13,
                         }}
                       >
-                        {m.userId === currentUserId ? 'עזוב רשימה' : 'הסר'}
+                        {m.userId === currentUserId ? 'עזוב מרחב' : 'הסר'}
                       </button>
                     )}
                   </li>

@@ -1,6 +1,5 @@
 package com.listyyy.backend.productbank;
 
-import com.listyyy.backend.auth.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -11,9 +10,16 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
     List<Category> findAllByOrderBySortOrderAsc();
 
-    List<Category> findByOwnerIdOrderBySortOrderAsc(UUID ownerId);
+    List<Category> findByWorkspaceIdOrderBySortOrderAsc(UUID workspaceId);
 
-    /** Categories visible to user: owned by user or shared with user (member). */
-    @Query("SELECT DISTINCT c FROM Category c LEFT JOIN FETCH c.owner LEFT JOIN CategoryMember m ON m.categoryId = c.id AND m.userId = :userId WHERE c.owner.id = :userId OR m.userId IS NOT NULL ORDER BY c.sortOrder ASC")
+    /** Categories visible to user: in any workspace the user is a member of. */
+    @Query("SELECT DISTINCT c FROM Category c " +
+           "JOIN com.listyyy.backend.workspace.WorkspaceMember wm ON wm.workspaceId = c.workspace.id " +
+           "WHERE wm.userId = :userId " +
+           "ORDER BY c.sortOrder ASC")
     List<Category> findVisibleToUser(UUID userId);
+
+    /** Categories in a specific workspace. */
+    @Query("SELECT c FROM Category c WHERE c.workspace.id = :workspaceId ORDER BY c.sortOrder ASC")
+    List<Category> findByWorkspaceId(UUID workspaceId);
 }

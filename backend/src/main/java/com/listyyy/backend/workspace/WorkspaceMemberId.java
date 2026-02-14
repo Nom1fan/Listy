@@ -1,4 +1,4 @@
-package com.listyyy.backend.productbank;
+package com.listyyy.backend.workspace;
 
 import lombok.*;
 
@@ -10,8 +10,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode
-public class CategoryMemberId implements Serializable {
-
-    private UUID categoryId;
+public class WorkspaceMemberId implements Serializable {
+    private UUID workspaceId;
     private UUID userId;
 }

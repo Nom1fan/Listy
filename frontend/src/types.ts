@@ -10,7 +10,7 @@ export interface AuthResponse {
 export interface ListResponse {
   id: string;
   name: string;
-  ownerId: string;
+  workspaceId: string;
   iconId: string | null;
   imageUrl: string | null;
   sortOrder: number;
@@ -42,15 +42,21 @@ export interface ListItemResponse {
 
 export interface CategoryDto {
   id: string;
-  ownerId: string;
+  workspaceId: string;
   nameHe: string;
   iconId: string | null;
   imageUrl: string | null;
   sortOrder: number;
   /** Total list-item adds for products in this category (for frequency sort). */
   addCount: number;
-  /** Number of members (including owner). > 1 means category is shared. */
+}
+
+export interface WorkspaceDto {
+  id: string;
+  name: string;
+  iconId: string | null;
   memberCount: number;
+  role: string;
 }
 
 export interface ProductDto {
@@ -87,8 +93,3 @@ export interface ListMemberDto {
   role: string;
 }
 
-export interface ShareAllCategoriesResult {
-  member: ListMemberDto;
-  categoriesAdded: number;
-  totalCategories: number;
-}

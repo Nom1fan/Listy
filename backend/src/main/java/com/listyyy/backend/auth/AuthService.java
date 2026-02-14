@@ -1,5 +1,6 @@
 package com.listyyy.backend.auth;
 
+import com.listyyy.backend.workspace.WorkspaceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,6 +28,7 @@ public class AuthService {
     private final JwtProperties jwtProperties;
     private final SmsService smsService;
     private final EmailService emailService;
+    private final WorkspaceService workspaceService;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
@@ -51,6 +53,7 @@ public class AuthService {
                 .locale("he")
                 .build();
         user = userRepository.save(user);
+        workspaceService.createDefaultWorkspace(user);
         return buildLoginResult(user);
     }
 
@@ -95,7 +98,9 @@ public class AuthService {
             throw new IllegalArgumentException("הקוד פג תוקף");
         }
         phoneOtpRepository.delete(opt.get());
+        final boolean[] isNew = {false};
         User user = userRepository.findByPhone(phone).orElseGet(() -> {
+            isNew[0] = true;
             String name = req.getDisplayName() != null && !req.getDisplayName().isBlank()
                     ? req.getDisplayName().trim() : phone;
             User newUser = User.builder()
@@ -105,6 +110,9 @@ public class AuthService {
                     .build();
             return userRepository.save(newUser);
         });
+        if (isNew[0]) {
+            workspaceService.createDefaultWorkspace(user);
+        }
         return buildLoginResult(user);
     }
 
@@ -139,7 +147,9 @@ public class AuthService {
             throw new IllegalArgumentException("הקוד פג תוקף");
         }
         emailOtpRepository.delete(opt.get());
+        final boolean[] isNewEmail = {false};
         User user = userRepository.findByEmail(email).orElseGet(() -> {
+            isNewEmail[0] = true;
             String name = req.getDisplayName() != null && !req.getDisplayName().isBlank()
                     ? req.getDisplayName().trim() : email;
             User newUser = User.builder()
@@ -149,6 +159,9 @@ public class AuthService {
                     .build();
             return userRepository.save(newUser);
         });
+        if (isNewEmail[0]) {
+            workspaceService.createDefaultWorkspace(user);
+        }
         return buildLoginResult(user);
     }
 

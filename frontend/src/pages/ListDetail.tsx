@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getList,
@@ -47,6 +47,7 @@ export function ListDetail() {
   const [quickAddImageFile, setQuickAddImageFile] = useState<File | null>(null);
   const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
   const quickAddFileInputRef = useRef<HTMLInputElement>(null);
+  const [listDetailMenuOpen, setListDetailMenuOpen] = useState(false);
   const [editListOpen, setEditListOpen] = useState(false);
   const [editListName, setEditListName] = useState('');
   const [editListDisplayImageType, setEditListDisplayImageType] = useState<DisplayImageType>('icon');
@@ -283,30 +284,71 @@ export function ListDetail() {
         titleRight={list ? <CategoryIcon iconId={list.iconId} imageUrl={list.imageUrl} size={28} /> : null}
         backTo="/lists"
         right={
-          <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Link
-              to={`/lists/${listId}/share`}
-              style={{ background: 'transparent', color: 'inherit', fontSize: 14, fontWeight: 500, textDecoration: 'none' }}
-            >
-              שיתוף
-            </Link>
+          <div style={{ position: 'relative' }}>
             <button
               type="button"
-              onClick={openEditList}
-              style={{ background: 'transparent', color: 'inherit', fontSize: 14, fontWeight: 500 }}
-              title="ערוך רשימה"
+              onClick={() => setListDetailMenuOpen((v) => !v)}
+              aria-label="תפריט רשימה"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 22,
+                padding: '4px 8px',
+                lineHeight: 1,
+                color: '#fff',
+                borderRadius: 6,
+              }}
             >
-              ערוך
+              &#8942;
             </button>
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              style={{ background: 'transparent', color: '#ffcdd2', fontSize: 14, fontWeight: 500 }}
-              title="מחק רשימה"
-            >
-              מחק
-            </button>
-          </span>
+            {listDetailMenuOpen && (
+              <>
+                <div
+                  style={{ position: 'fixed', inset: 0, zIndex: 999 }}
+                  onClick={() => setListDetailMenuOpen(false)}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: 4,
+                    background: '#fff',
+                    borderRadius: 10,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                    zIndex: 1000,
+                    minWidth: 140,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => { setListDetailMenuOpen(false); openEditList(); }}
+                    style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', borderBottom: '1px solid #f0f0f0', color: '#333' }}
+                  >
+                    ערוך
+                  </button>
+                  {list?.workspaceId && (
+                    <button
+                      type="button"
+                      onClick={() => { setListDetailMenuOpen(false); navigate(`/workspaces/${list.workspaceId}/share`); }}
+                      style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', borderBottom: '1px solid #f0f0f0', color: '#333' }}
+                    >
+                      שיתוף
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { setListDetailMenuOpen(false); setConfirmDelete(true); }}
+                    style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', color: '#c00' }}
+                  >
+                    מחק
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         }
       />
       <main style={{ padding: 16 }}>
@@ -349,7 +391,7 @@ export function ListDetail() {
                 }}
               >
                 <span>➕</span>
-                <span>הוסף פריט (ללא בנק מוצרים)</span>
+                <span>הוסף פריט חופשי</span>
               </button>
             </div>
             <div style={{ marginBottom: 20 }}>
@@ -369,7 +411,7 @@ export function ListDetail() {
                 }}
               >
                 <span style={{ fontSize: 28 }}>🛒</span>
-                <span>בנק מוצרים – הוסף מוצרים לרשימה</span>
+                <span>הוסף מקטגוריות</span>
               </Link>
             </div>
           </>

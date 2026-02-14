@@ -8,4 +8,5 @@ public class CreateListRequest {
     private String name;
     private String iconId;
     private String imageUrl;
+    private java.util.UUID workspaceId;
 }

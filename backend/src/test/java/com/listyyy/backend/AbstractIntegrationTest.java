@@ -7,13 +7,14 @@ import com.listyyy.backend.auth.User;
 import com.listyyy.backend.auth.UserRepository;
 import com.listyyy.backend.list.GroceryListRepository;
 import com.listyyy.backend.list.ListItemRepository;
-import com.listyyy.backend.list.ListMemberRepository;
 import com.listyyy.backend.productbank.Category;
-import com.listyyy.backend.productbank.CategoryMember;
-import com.listyyy.backend.productbank.CategoryMemberRepository;
 import com.listyyy.backend.productbank.CategoryRepository;
 import com.listyyy.backend.productbank.Product;
 import com.listyyy.backend.productbank.ProductRepository;
+import com.listyyy.backend.workspace.Workspace;
+import com.listyyy.backend.workspace.WorkspaceMember;
+import com.listyyy.backend.workspace.WorkspaceMemberRepository;
+import com.listyyy.backend.workspace.WorkspaceRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,30 +55,31 @@ public abstract class AbstractIntegrationTest {
     @Autowired
     protected ListItemRepository listItemRepository;
     @Autowired
-    protected ListMemberRepository listMemberRepository;
-    @Autowired
     protected GroceryListRepository listRepository;
     @Autowired
-    protected CategoryMemberRepository categoryMemberRepository;
-    @Autowired
     protected RefreshTokenRepository refreshTokenRepository;
+    @Autowired
+    protected WorkspaceRepository workspaceRepository;
+    @Autowired
+    protected WorkspaceMemberRepository workspaceMemberRepository;
 
     protected String authToken;
     protected User testUser;
+    protected UUID workspaceId;
     protected UUID categoryId;
     protected UUID productId;
 
     @BeforeEach
     void baseSetUp() throws Exception {
         listItemRepository.deleteAll();
-        listMemberRepository.deleteAll();
         listRepository.deleteAll();
         phoneOtpRepository.deleteAll();
         emailOtpRepository.deleteAll();
         refreshTokenRepository.deleteAll();
-        categoryMemberRepository.deleteAll();
         productRepository.deleteAll();
         categoryRepository.deleteAll();
+        workspaceMemberRepository.deleteAll();
+        workspaceRepository.deleteAll();
         userRepository.deleteAll();
 
         testUser = User.builder()
@@ -88,22 +90,29 @@ public abstract class AbstractIntegrationTest {
                 .build();
         testUser = userRepository.save(testUser);
 
+        // Create default workspace for test user
+        Workspace workspace = Workspace.builder()
+                .name("הרשימות שלי")
+                .build();
+        workspace = workspaceRepository.save(workspace);
+        workspaceId = workspace.getId();
+        workspaceMemberRepository.save(WorkspaceMember.builder()
+                .workspaceId(workspace.getId())
+                .userId(testUser.getId())
+                .workspace(workspace)
+                .user(testUser)
+                .role("owner")
+                .build());
+
         authToken = login("test@example.com", "password123");
 
         Category cat = Category.builder()
-                .owner(testUser)
+                .workspace(workspace)
                 .nameHe("מכולת")
                 .iconId("groceries")
                 .sortOrder(0)
                 .build();
         cat = categoryRepository.save(cat);
-        categoryMemberRepository.save(CategoryMember.builder()
-                .categoryId(cat.getId())
-                .userId(testUser.getId())
-                .category(cat)
-                .user(testUser)
-                .role("owner")
-                .build());
         categoryId = cat.getId();
 
         Product product = Product.builder()

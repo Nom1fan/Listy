@@ -18,9 +18,17 @@ public class ListController {
     private final ListItemService listItemService;
 
     @GetMapping
-    public ResponseEntity<List<ListResponse>> list(@AuthenticationPrincipal User user) {
+    public ResponseEntity<List<ListResponse>> list(
+            @RequestParam(required = false) UUID workspaceId,
+            @AuthenticationPrincipal User user
+    ) {
         if (user == null) return ResponseEntity.status(401).build();
-        List<GroceryList> lists = listService.listsForUser(user);
+        List<GroceryList> lists;
+        if (workspaceId != null) {
+            lists = listService.listsForWorkspace(workspaceId, user);
+        } else {
+            lists = listService.listsForUser(user);
+        }
         List<ListResponse> body = lists.stream().map(this::toListResponse).toList();
         return ResponseEntity.ok(body);
     }
@@ -31,7 +39,8 @@ public class ListController {
             @RequestBody CreateListRequest req
     ) {
         if (user == null) return ResponseEntity.status(401).build();
-        GroceryList list = listService.create(user, req.getName(), req.getIconId(), req.getImageUrl());
+        if (req.getWorkspaceId() == null) throw new IllegalArgumentException("חובה לציין מרחב");
+        GroceryList list = listService.create(user, req.getWorkspaceId(), req.getName(), req.getIconId(), req.getImageUrl());
         return ResponseEntity.ok(toListResponse(list));
     }
 
@@ -125,7 +134,7 @@ public class ListController {
         return ListResponse.builder()
                 .id(list.getId())
                 .name(list.getName())
-                .ownerId(list.getOwner().getId())
+                .workspaceId(list.getWorkspace().getId())
                 .iconId(list.getIconId())
                 .imageUrl(list.getImageUrl())
                 .sortOrder(list.getSortOrder())

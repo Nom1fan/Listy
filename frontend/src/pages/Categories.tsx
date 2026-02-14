@@ -1,13 +1,14 @@
 import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCategories, getProducts, createCategory, createProduct, updateCategory, updateProduct, deleteCategory, deleteProduct, inviteToAllCategories } from '../api/products';
+import { getCategories, getProducts, createCategory, createProduct, updateCategory, updateProduct, deleteCategory, deleteProduct } from '../api/products';
+import { useWorkspaceStore } from '../store/workspaceStore';
 import { uploadFile } from '../api/client';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, ICON_OPTIONS } from '../components/DisplayImageForm';
 import { ImageSearchPicker } from '../components/ImageSearchPicker';
-import { useAuthStore } from '../store/authStore';
+import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import type { CategoryDto, ProductDto } from '../types';
 
 type DisplayImageType = 'icon' | 'device' | 'link' | 'web';
@@ -18,8 +19,8 @@ function isProductImageErrorToast(msg: string): boolean {
 
 export function Categories() {
   const queryClient = useQueryClient();
-  const user = useAuthStore((s) => s.user);
-  const currentUserId = user?.userId ?? '';
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const [viewMode, setViewMode] = useViewMode();
   const [nameHe, setNameHe] = useState('');
   const [displayImageType, setDisplayImageType] = useState<DisplayImageType>('icon');
   const [iconId, setIconId] = useState<string>('');
@@ -52,14 +53,12 @@ export function Categories() {
   const [newProductNote, setNewProductNote] = useState('');
   const [productImageToast, setProductImageToast] = useState<string | null>(null);
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<CategoryDto | null>(null);
-  const [shareAllOpen, setShareAllOpen] = useState(false);
-  const [shareAllEmail, setShareAllEmail] = useState('');
-  const [shareAllPhone, setShareAllPhone] = useState('');
-  const [shareAllError, setShareAllError] = useState<string | null>(null);
+  const [categoryMenuOpenId, setCategoryMenuOpenId] = useState<string | null>(null);
+  const [productMenuOpenId, setProductMenuOpenId] = useState<string | null>(null);
 
   const { data: categories = [] } = useQuery({
-    queryKey: ['categories'],
-    queryFn: getCategories,
+    queryKey: ['categories', activeWorkspaceId],
+    queryFn: () => getCategories(activeWorkspaceId || undefined),
   });
 
   const { data: allProducts = [] } = useQuery({
@@ -76,7 +75,7 @@ export function Categories() {
   const [createError, setCreateError] = useState<string | null>(null);
 
   const createMutation = useMutation({
-    mutationFn: (body: { nameHe: string; iconId?: string | null; imageUrl?: string | null; sortOrder?: number }) =>
+    mutationFn: (body: { nameHe: string; iconId?: string | null; imageUrl?: string | null; sortOrder?: number; workspaceId: string }) =>
       createCategory(body),
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -161,26 +160,6 @@ export function Categories() {
     },
   });
 
-  const shareAllMutation = useMutation({
-    mutationFn: (body: { email?: string; phone?: string }) => inviteToAllCategories(body),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      setShareAllOpen(false);
-      setShareAllEmail('');
-      setShareAllPhone('');
-      setShareAllError(null);
-      const msg = data.categoriesAdded === data.totalCategories
-        ? `הוזמן ל־${data.categoriesAdded} קטגוריות`
-        : `הוזמן ל־${data.categoriesAdded} מתוך ${data.totalCategories} קטגוריות`;
-      setProductImageToast(msg);
-      setTimeout(() => setProductImageToast(null), 3000);
-    },
-    onError: (err: Error) => {
-      setShareAllError(err.message || 'שגיאה בהזמנה');
-    },
-  });
-
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setCreateError(null);
@@ -194,6 +173,7 @@ export function Categories() {
       iconId: displayImageType === 'icon' ? (iconId || '') : '',
       imageUrl: (displayImageType === 'link' || displayImageType === 'web') ? (imageUrl.trim() || '') : '',
       sortOrder: categories.length,
+      workspaceId: activeWorkspaceId!,
     });
   }
 
@@ -264,21 +244,9 @@ export function Categories() {
     });
   }
 
-  function handleShareAllSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setShareAllError(null);
-    const email = shareAllEmail.trim() || undefined;
-    const phone = shareAllPhone.trim() || undefined;
-    if (!email && !phone) {
-      setShareAllError('הזן אימייל או טלפון');
-      return;
-    }
-    shareAllMutation.mutate({ email, phone });
-  }
-
   return (
     <>
-      <AppBar title="ניהול קטגוריות" backTo="/lists" />
+      <AppBar title="ניהול קטגוריות" backTo="/lists" right={<ViewModeToggle viewMode={viewMode} onChange={setViewMode} />} />
       {productImageToast && (
         <div
           style={{
@@ -410,7 +378,7 @@ export function Categories() {
               (displayImageType === 'device' && !!pendingCategoryFile) ||
               (displayImageType === 'link' && !!imageUrl.trim()) ||
               (displayImageType === 'web' && !!imageUrl.trim());
-            const canSubmit = hasName && hasIconOrImage && !createMutation.isPending;
+            const canSubmit = !!activeWorkspaceId && hasName && hasIconOrImage && !createMutation.isPending;
             return (
               <button
                 type="submit"
@@ -436,43 +404,6 @@ export function Categories() {
           </p>
         )}
 
-        {categories.length > 0 && (
-          <div style={{
-            marginBottom: 24,
-            padding: 16,
-            background: 'linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)',
-            borderRadius: 12,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            flexWrap: 'wrap',
-          }}>
-            <div style={{ flex: 1, minWidth: 180 }}>
-              <div style={{ fontWeight: 600, color: '#1565c0', fontSize: 15 }}>שיתוף קטגוריות</div>
-              <div style={{ fontSize: 13, color: '#1976d2', marginTop: 2 }}>
-                שתף את כל הקטגוריות שלך עם משתמש אחר, או לחץ על קטגוריה לניהול שיתוף
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => { setShareAllOpen(true); setShareAllError(null); setShareAllEmail(''); setShareAllPhone(''); }}
-              style={{
-                padding: '10px 20px',
-                background: 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)',
-                color: '#fff',
-                borderRadius: 8,
-                fontWeight: 600,
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 15,
-                boxShadow: '0 2px 6px rgba(21,101,192,0.3)',
-              }}
-            >
-              👥 שיתוף כל הקטגוריות
-            </button>
-          </div>
-        )}
-
         <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
           {categories.map((c) => (
             <li
@@ -494,40 +425,6 @@ export function Categories() {
                 }}
               >
                 <CategoryIcon iconId={c.iconId} imageUrl={c.imageUrl} size={32} />
-                {c.memberCount > 1 && (
-                  <span
-                    title={`משותף עם ${c.memberCount - 1} משתמשים`}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 3,
-                      padding: '2px 8px',
-                      background: '#e3f2fd',
-                      color: '#1565c0',
-                      borderRadius: 12,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    👥 {c.memberCount}
-                  </span>
-                )}
-                {c.ownerId !== currentUserId && (
-                  <span
-                    style={{
-                      padding: '2px 8px',
-                      background: '#fff3e0',
-                      color: '#e65100',
-                      borderRadius: 12,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    קטגוריה משותפת
-                  </span>
-                )}
                 {editing?.id === c.id ? (
                 <form
                   onSubmit={handleUpdate}
@@ -640,39 +537,82 @@ export function Categories() {
               ) : (
                 <>
                   <span style={{ flex: 1, fontWeight: 500 }}>{c.nameHe}</span>
-                  <Link
-                    to={`/categories/${c.id}/share`}
-                    style={{
-                      padding: '6px 12px',
-                      background: c.ownerId === currentUserId
-                        ? 'linear-gradient(135deg, #1976d2 0%, #1565c0 100%)'
-                        : '#e3f2fd',
-                      color: c.ownerId === currentUserId ? '#fff' : '#1565c0',
-                      borderRadius: 8,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      textDecoration: 'none',
-                      boxShadow: c.ownerId === currentUserId ? '0 1px 3px rgba(21,101,192,0.3)' : 'none',
-                    }}
-                  >
-                    👥 {c.ownerId === currentUserId ? 'שיתוף' : 'חברים'}
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => startEdit(c)}
-                    style={{ padding: '6px 10px', background: '#eee', borderRadius: 8, fontSize: 14 }}
-                  >
-                    ערוך
-                  </button>
-                  {c.ownerId === currentUserId && (
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
                     <button
                       type="button"
-                      onClick={() => setConfirmDeleteCategory(c)}
-                      style={{ padding: '6px 10px', background: '#fee', color: '#c00', borderRadius: 8, fontSize: 14 }}
+                      onClick={() => setCategoryMenuOpenId((prev) => prev === c.id ? null : c.id)}
+                      aria-label="תפריט קטגוריה"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: 20,
+                        padding: '4px 8px',
+                        lineHeight: 1,
+                        color: '#555',
+                        borderRadius: 6,
+                      }}
                     >
-                      מחק
+                      &#8942;
                     </button>
-                  )}
+                    {categoryMenuOpenId === c.id && (
+                      <>
+                        <div
+                          style={{ position: 'fixed', inset: 0, zIndex: 999 }}
+                          onClick={() => setCategoryMenuOpenId(null)}
+                        />
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: 0,
+                            marginTop: 4,
+                            background: '#fff',
+                            borderRadius: 10,
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                            zIndex: 1000,
+                            minWidth: 120,
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => { setCategoryMenuOpenId(null); startEdit(c); }}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: '10px 16px',
+                              background: 'none',
+                              border: 'none',
+                              textAlign: 'right',
+                              fontSize: 14,
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f0f0f0',
+                            }}
+                          >
+                            ערוך
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setCategoryMenuOpenId(null); setConfirmDeleteCategory(c); }}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: '10px 16px',
+                              background: 'none',
+                              border: 'none',
+                              textAlign: 'right',
+                              fontSize: 14,
+                              cursor: 'pointer',
+                              color: '#c00',
+                            }}
+                          >
+                            מחק
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </>
               )}
               </div>
@@ -680,6 +620,7 @@ export function Categories() {
               {editing?.id !== c.id && (
                 <div style={{ padding: '0 12px 12px 12px', borderTop: '1px solid #eee', marginTop: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, marginTop: 8 }}>מוצרים בקטגוריה</div>
+                  {viewMode === 'list' ? (
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px 0' }}>
                     {(productsByCategory[c.id] || []).map((p) => (
                       <li
@@ -702,25 +643,85 @@ export function Categories() {
                           )}
                         </div>
                         <span style={{ fontSize: 12, color: '#666' }}>{p.defaultUnit}</span>
-                        <button
-                          type="button"
-                          onClick={() => openEditProduct(p)}
-                          style={{ padding: '4px 8px', background: '#eee', borderRadius: 6, fontSize: 12, border: 'none', cursor: 'pointer' }}
-                        >
-                          ערוך
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (window.confirm(`למחוק את המוצר "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id);
-                          }}
-                          style={{ padding: '4px 8px', background: '#fee', color: '#c00', borderRadius: 6, fontSize: 12, border: 'none', cursor: 'pointer' }}
-                        >
-                          מחק
-                        </button>
+                        <div style={{ position: 'relative', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => setProductMenuOpenId((prev) => prev === p.id ? null : p.id)}
+                            aria-label="תפריט מוצר"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '2px 6px', lineHeight: 1, color: '#555', borderRadius: 6 }}
+                          >
+                            &#8942;
+                          </button>
+                          {productMenuOpenId === p.id && (
+                            <>
+                              <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setProductMenuOpenId(null)} />
+                              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 110, overflow: 'hidden' }}>
+                                <button type="button" onClick={() => { setProductMenuOpenId(null); openEditProduct(p); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}>
+                                  ערוך
+                                </button>
+                                <button type="button" onClick={() => { setProductMenuOpenId(null); if (window.confirm(`למחוק את המוצר "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', color: '#c00' }}>
+                                  מחק
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </li>
                     ))}
                   </ul>
+                  ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 12 }}>
+                    {(productsByCategory[c.id] || []).map((p) => (
+                      <div
+                        key={p.id}
+                        style={{
+                          position: 'relative',
+                          padding: 10,
+                          background: '#fafafa',
+                          borderRadius: 10,
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 6,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={48} />
+                        <span style={{ fontWeight: 500, fontSize: 13 }}>{p.nameHe}</span>
+                        <span style={{ fontSize: 11, color: '#666' }}>{p.defaultUnit}</span>
+                        {p.note && (
+                          <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {p.note}
+                          </span>
+                        )}
+                        <div style={{ position: 'relative' }}>
+                          <button
+                            type="button"
+                            onClick={() => setProductMenuOpenId((prev) => prev === p.id ? null : p.id)}
+                            aria-label="תפריט מוצר"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '2px 6px', lineHeight: 1, color: '#555', borderRadius: 6 }}
+                          >
+                            &#8942;
+                          </button>
+                          {productMenuOpenId === p.id && (
+                            <>
+                              <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setProductMenuOpenId(null)} />
+                              <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 110, overflow: 'hidden' }}>
+                                <button type="button" onClick={() => { setProductMenuOpenId(null); openEditProduct(p); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}>
+                                  ערוך
+                                </button>
+                                <button type="button" onClick={() => { setProductMenuOpenId(null); if (window.confirm(`למחוק את המוצר "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', color: '#c00' }}>
+                                  מחק
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  )}
                   {addProductCategoryId === c.id ? (
                     <form
                       onSubmit={(e) => handleAddProduct(e, c.id)}
@@ -823,79 +824,6 @@ export function Categories() {
           </Link>
         </p>
       </main>
-
-      {shareAllOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1001,
-            padding: 24,
-          }}
-          onClick={() => { if (!shareAllError && !shareAllMutation.isPending) { setShareAllOpen(false); setShareAllError(null); } }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#fff',
-              borderRadius: 16,
-              padding: 24,
-              maxWidth: 360,
-              width: '100%',
-            }}
-          >
-            <h3 style={{ margin: '0 0 8px' }}>שיתוף כל הקטגוריות</h3>
-            <p style={{ margin: '0 0 16px', fontSize: 14, color: '#555' }}>
-              המשתמש יקבל גישה לעריכה לכל הקטגוריות שבבעלותך.
-            </p>
-            <form onSubmit={handleShareAllSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>אימייל</label>
-                <input
-                  type="email"
-                  value={shareAllEmail}
-                  onChange={(e) => { setShareAllEmail(e.target.value); setShareAllError(null); }}
-                  placeholder="email@example.com"
-                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>או מספר טלפון</label>
-                <input
-                  type="tel"
-                  value={shareAllPhone}
-                  onChange={(e) => { setShareAllPhone(e.target.value); setShareAllError(null); }}
-                  placeholder="050-1234567"
-                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-                />
-              </div>
-              {shareAllError && (
-                <p style={{ margin: 0, fontSize: 14, color: '#c00', fontWeight: 500 }}>{shareAllError}</p>
-              )}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  type="submit"
-                  disabled={shareAllMutation.isPending}
-                  style={{ flex: 1, padding: 12, background: 'var(--color-primary)', color: '#fff', fontWeight: 600, borderRadius: 8, border: 'none', cursor: 'pointer' }}
-                >
-                  {shareAllMutation.isPending ? 'שולח...' : 'הזמן'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShareAllOpen(false); setShareAllError(null); }}
-                  style={{ padding: 12, background: '#eee', borderRadius: 8, border: 'none', cursor: 'pointer' }}
-                >
-                  ביטול
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {confirmDeleteCategory && (
         <div

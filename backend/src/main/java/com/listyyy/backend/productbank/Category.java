@@ -1,6 +1,6 @@
 package com.listyyy.backend.productbank;
 
-import com.listyyy.backend.auth.User;
+import com.listyyy.backend.workspace.Workspace;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -22,8 +22,8 @@ public class Category {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false)
-    private User owner;
+    @JoinColumn(name = "workspace_id", nullable = false)
+    private Workspace workspace;
 
     @Column(name = "name_he", nullable = false)
     private String nameHe;

@@ -1,4 +1,4 @@
-package com.listyyy.backend.list;
+package com.listyyy.backend.workspace;
 
 import com.listyyy.backend.auth.User;
 import jakarta.persistence.*;
@@ -9,26 +9,26 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "list_members")
-@IdClass(ListMemberId.class)
+@Table(name = "workspace_members")
+@IdClass(WorkspaceMemberId.class)
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ListMember {
+public class WorkspaceMember {
 
     @Id
-    @Column(name = "list_id")
-    private UUID listId;
+    @Column(name = "workspace_id")
+    private UUID workspaceId;
 
     @Id
     @Column(name = "user_id")
     private UUID userId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "list_id", nullable = false, insertable = false, updatable = false)
-    private GroceryList list;
+    @JoinColumn(name = "workspace_id", nullable = false, insertable = false, updatable = false)
+    private Workspace workspace;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, insertable = false, updatable = false)
