@@ -74,8 +74,8 @@ async function fetchWithAuth(url: string, options: RequestInit): Promise<Respons
   } catch {
     throw new Error('אין חיבור לשרת. נסה שוב מאוחר יותר.');
   }
-  if (res.status === 401 && getToken()) {
-    // Access token expired — try silent refresh
+  if ((res.status === 401 || res.status === 403) && getToken()) {
+    // Access token expired or rejected — try silent refresh
     const refreshed = await tryRefreshToken();
     if (refreshed) {
       // Retry the original request with the new token

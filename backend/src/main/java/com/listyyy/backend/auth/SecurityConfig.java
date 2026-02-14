@@ -17,6 +17,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 import java.util.Arrays;
 import java.util.List;
 
@@ -52,6 +54,15 @@ public class SecurityConfig {
                                 && !req.getRequestURI().startsWith("/ws")
                                 && !req.getRequestURI().startsWith("/uploads")).permitAll()
                         .anyRequest().authenticated()
+                )
+                // Return 401 (not Spring's default 403) for unauthenticated API requests
+                // so the frontend can detect expired tokens and attempt silent refresh.
+                .exceptionHandling(e -> e
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"message\":\"יש להתחבר מחדש\"}");
+                        })
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
