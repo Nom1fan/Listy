@@ -14,10 +14,15 @@ import { WorkspaceTabs, type TabKey } from '../components/WorkspaceTabs';
 import { Categories } from './Categories';
 import type { ListResponse } from '../types';
 
+function isErrorToast(msg: string): boolean {
+  return /(401|403|404|500)\b|^HTTP\s|\bשגיאה\b|Forbidden|Unauthorized/i.test(msg);
+}
+
 export function Lists() {
   const [activeTab, setActiveTab] = useState<TabKey>('lists');
   const [name, setName] = useState('');
   const [showNew, setShowNew] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [createDisplayImageType, setCreateDisplayImageType] = useState<DisplayImageType>('icon');
   const [createIconId, setCreateIconId] = useState('');
   const [createImageUrl, setCreateImageUrl] = useState('');
@@ -59,6 +64,11 @@ export function Lists() {
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
 
+  function showToast(msg: string, duration = 4000) {
+    setToast(msg);
+    setTimeout(() => setToast(null), duration);
+  }
+
   const createWorkspaceMutation = useMutation({
     mutationFn: (body: { name: string }) => createWorkspace(body),
     onSuccess: (ws) => {
@@ -66,6 +76,9 @@ export function Lists() {
       setActiveWorkspace(ws.id);
       setShowCreateWorkspace(false);
       setNewWorkspaceName('');
+    },
+    onError: (err: Error) => {
+      showToast(err.message || 'שגיאה ביצירת מרחב עבודה');
     },
   });
 
@@ -76,6 +89,9 @@ export function Lists() {
       setEditingWorkspace(false);
       setEditWorkspaceName('');
     },
+    onError: (err: Error) => {
+      showToast(err.message || 'שגיאה בעדכון מרחב עבודה');
+    },
   });
 
   const deleteWorkspaceMutation = useMutation({
@@ -85,6 +101,9 @@ export function Lists() {
       setConfirmDeleteWorkspace(false);
       // Switch to another workspace if available, otherwise clear
       clearActiveWorkspace();
+    },
+    onError: (err: Error) => {
+      showToast(err.message || 'שגיאה במחיקת מרחב עבודה');
     },
   });
 
@@ -135,11 +154,17 @@ export function Lists() {
       setCreateIconId('');
       setCreateImageUrl('');
     },
+    onError: (err: Error) => {
+      showToast(err.message || 'שגיאה ביצירת הרשימה');
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (listId: string) => deleteList(listId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] }),
+    onError: (err: Error) => {
+      showToast(err.message || 'שגיאה במחיקת הרשימה');
+    },
   });
 
   const updateListMutation = useMutation({
@@ -159,11 +184,17 @@ export function Lists() {
       queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] });
       setEditList(null);
     },
+    onError: (err: Error) => {
+      showToast(err.message || 'שגיאה בעדכון הרשימה');
+    },
   });
 
   const reorderMutation = useMutation({
     mutationFn: (listIds: string[]) => reorderLists(listIds),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] }),
+    onError: (err: Error) => {
+      showToast(err.message || 'שגיאה בשינוי הסדר');
+    },
   });
 
   function openEditList(list: ListResponse) {
@@ -218,6 +249,26 @@ export function Lists() {
 
   return (
     <>
+      {toast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            left: 16,
+            right: 16,
+            padding: 14,
+            background: isErrorToast(toast) ? 'linear-gradient(135deg, #c62828 0%, #b71c1c 100%)' : 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)',
+            color: '#fff',
+            borderRadius: 12,
+            textAlign: 'center',
+            zIndex: 2000,
+            fontSize: 15,
+            fontWeight: 500,
+          }}
+        >
+          {isErrorToast(toast) ? '✕ ' : '✓ '}{toast}
+        </div>
+      )}
       <AppBar
         title={
           <Link to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
