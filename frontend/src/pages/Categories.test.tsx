@@ -28,6 +28,7 @@ describe('Categories', () => {
       email: 'test@test.com',
       phone: null,
       displayName: 'Test',
+      profileImageUrl: null,
       locale: 'he',
     })
   })
