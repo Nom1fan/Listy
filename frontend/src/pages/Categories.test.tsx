@@ -56,8 +56,6 @@ describe('Categories', () => {
     await waitFor(() => {
       expect(screen.getByText('מכולת')).toBeInTheDocument()
     })
-    expect(screen.getByText('ניהול קטגוריות')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /חזרה לרשימות/i })).toHaveAttribute('href', '/lists')
   })
 
   it('has form to add category', async () => {

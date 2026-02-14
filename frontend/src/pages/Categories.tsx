@@ -1,10 +1,8 @@
 import { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, createCategory, createProduct, updateCategory, updateProduct, deleteCategory, deleteProduct } from '../api/products';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { uploadFile } from '../api/client';
-import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm } from '../components/DisplayImageForm';
 import { EmojiPicker } from '../components/EmojiPicker';
@@ -247,7 +245,6 @@ export function Categories() {
 
   return (
     <>
-      <AppBar title="ניהול קטגוריות" backTo="/lists" right={<ViewModeToggle viewMode={viewMode} onChange={setViewMode} />} />
       {productImageToast && (
         <div
           style={{
@@ -268,7 +265,9 @@ export function Categories() {
           {isProductImageErrorToast(productImageToast) ? '✕ ' : '✓ '}{productImageToast}
         </div>
       )}
-      <main style={{ padding: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+        <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+      </div>
         <form
           onSubmit={handleCreate}
           style={{
@@ -800,13 +799,6 @@ export function Categories() {
             </li>
           ))}
         </ul>
-
-        <p style={{ marginTop: 24, fontSize: 14, color: '#666' }}>
-          <Link to="/lists" style={{ color: 'var(--color-primary)' }}>
-            ← חזרה לרשימות
-          </Link>
-        </p>
-      </main>
 
       {confirmDeleteCategory && (
         <div

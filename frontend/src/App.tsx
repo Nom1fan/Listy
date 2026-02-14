@@ -8,7 +8,6 @@ import { PhoneLogin } from './pages/PhoneLogin';
 import { Lists } from './pages/Lists';
 import { ListDetail } from './pages/ListDetail';
 import { ProductBank } from './pages/ProductBank';
-import { Categories } from './pages/Categories';
 import { ShareWorkspace } from './pages/ShareWorkspace';
 import { Profile } from './pages/Profile';
 
@@ -52,14 +51,7 @@ export default function App() {
             </PrivateRoute>
           }
         />
-        <Route
-          path="/categories"
-          element={
-            <PrivateRoute>
-              <Categories />
-            </PrivateRoute>
-          }
-        />
+        <Route path="/categories" element={<Navigate to="/lists" replace />} />
         <Route
           path="/workspaces/:workspaceId/share"
           element={
