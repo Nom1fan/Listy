@@ -6,7 +6,8 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { uploadFile } from '../api/client';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { DisplayImageForm, ICON_OPTIONS } from '../components/DisplayImageForm';
+import { DisplayImageForm } from '../components/DisplayImageForm';
+import { EmojiPicker } from '../components/EmojiPicker';
 import { ImageSearchPicker } from '../components/ImageSearchPicker';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import type { CategoryDto, ProductDto } from '../types';
@@ -311,21 +312,11 @@ export function Categories() {
             </select>
           </div>
           {displayImageType === 'icon' && (
-            <div>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>בחירת אייקון</label>
-              <select
-                value={iconId}
-                onChange={(e) => setIconId(e.target.value)}
-                style={{ padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-              >
-                <option value="">— בחר אייקון —</option>
-                {ICON_OPTIONS.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <EmojiPicker
+              label="בחירת אייקון"
+              value={iconId}
+              onChange={setIconId}
+            />
           )}
           {displayImageType === 'device' && (
             <div>
@@ -455,18 +446,10 @@ export function Categories() {
                     </select>
                   </div>
                   {editDisplayImageType === 'icon' && (
-                    <select
+                    <EmojiPicker
                       value={editIconId}
-                      onChange={(e) => setEditIconId(e.target.value)}
-                      style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc' }}
-                    >
-                      <option value="">ללא</option>
-                      {ICON_OPTIONS.map((o) => (
-                        <option key={o.id} value={o.id}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setEditIconId}
+                    />
                   )}
                   {editDisplayImageType === 'device' && (
                     <div>

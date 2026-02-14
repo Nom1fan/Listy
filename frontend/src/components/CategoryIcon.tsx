@@ -1,45 +1,5 @@
 import { useState } from 'react';
-
-const ICON_MAP: Record<string, string> = {
-  dairy: '🥛',
-  bread: '🍞',
-  vegetables: '🥬',
-  fruits: '🍎',
-  meat: '🥩',
-  groceries: '🛒',
-  leaf: '🌿',
-  carrot: '🥕',
-  eggplant: '🍆',
-  tomato: '🍅',
-  avocado: '🥑',
-  broccoli: '🥦',
-  cucumber: '🥒',
-  pepper: '🫑',
-  egg: '🥚',
-  cheese: '🧀',
-  honey: '🍯',
-  beans: '🫘',
-  lemon: '🍋',
-  grapes: '🍇',
-  banana: '🍌',
-  mushroom: '🍄',
-  onion: '🧅',
-  corn: '🌽',
-  olive: '🫒',
-  salad: '🥗',
-  strawberry: '🍓',
-  watermelon: '🍉',
-  peach: '🍑',
-  cherry: '🍒',
-  blueberry: '🫐',
-  mango: '🥭',
-  pineapple: '🍍',
-  coconut: '🥥',
-  garlic: '🧄',
-  potato: '🥔',
-  yam: '🍠',
-  peanut: '🥜',
-};
+import { LEGACY_ICON_MAP } from './emojiData';
 
 interface CategoryIconProps {
   iconId: string | null;
@@ -73,7 +33,14 @@ export function CategoryIcon({ iconId, imageUrl, size = 32 }: CategoryIconProps)
       />
     );
   }
-  const emoji = iconId ? ICON_MAP[iconId] ?? '📦' : '📦';
+  // Legacy IDs (e.g. 'dairy') are mapped to emojis; new IDs are the emoji character itself.
+  // Emoji code points are > U+00FF, so any plain ASCII string is treated as unknown → fallback.
+  const resolved = iconId ? LEGACY_ICON_MAP[iconId] : undefined;
+  const emoji = resolved
+    ? resolved
+    : iconId && iconId.codePointAt(0)! > 0xff
+      ? iconId
+      : '📦';
   return (
     <span style={{ fontSize: size * 0.8, lineHeight: 1 }} role="img" aria-hidden>
       {emoji}
