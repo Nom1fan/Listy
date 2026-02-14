@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.Map;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -113,5 +114,49 @@ class CategoryIntegrationTest extends AbstractIntegrationTest {
         // Other user should not see this category
         mvc.perform(get("/api/categories/" + categoryId).header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    void cannot_create_duplicate_category_in_same_workspace() throws Exception {
+        // "מכולת" already exists in the default workspace (created in baseSetUp)
+        mvc.perform(post("/api/categories")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nameHe", "מכולת",
+                                "workspaceId", workspaceId.toString()))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("כבר קיימת")));
+    }
+
+    @Test
+    void cannot_rename_category_to_existing_name_in_same_workspace() throws Exception {
+        // Create a second category
+        var create = mvc.perform(post("/api/categories")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nameHe", "ירקות",
+                                "workspaceId", workspaceId.toString()))))
+                .andExpect(status().isOk());
+        String newCatId = objectMapper.readTree(create.andReturn().getResponse().getContentAsString()).get("id").asText();
+
+        // Try to rename "ירקות" to "מכולת" (already exists)
+        mvc.perform(patch("/api/categories/" + newCatId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("nameHe", "מכולת"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("כבר קיימת")));
+    }
+
+    @Test
+    void can_rename_category_to_its_own_name() throws Exception {
+        mvc.perform(patch("/api/categories/" + categoryId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("nameHe", "מכולת"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nameHe").value("מכולת"));
     }
 }

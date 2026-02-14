@@ -27,4 +27,8 @@ public interface ListItemRepository extends JpaRepository<ListItem, UUID> {
     /** Count of list items per category (via product). Returns [categoryId, count] per row. */
     @Query(value = "SELECT p.category_id, COUNT(li.id) FROM list_items li INNER JOIN products p ON li.product_id = p.id GROUP BY p.category_id", nativeQuery = true)
     List<Object[]> countByCategoryId();
+
+    boolean existsByListIdAndProductId(UUID listId, UUID productId);
+
+    boolean existsByListIdAndCustomNameHe(UUID listId, String customNameHe);
 }

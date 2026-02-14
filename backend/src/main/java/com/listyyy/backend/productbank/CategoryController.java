@@ -72,10 +72,14 @@ public class CategoryController {
         UUID wsId = req.getWorkspaceId();
         if (wsId == null) throw new IllegalArgumentException("חובה לציין מרחב");
         Workspace workspace = workspaceAccessService.getWorkspaceOrThrow(wsId, user);
+        String trimmedName = req.getNameHe().trim();
+        if (categoryRepository.existsByWorkspaceIdAndNameHe(wsId, trimmedName)) {
+            throw new IllegalArgumentException("כבר קיימת קטגוריה בשם זה במרחב");
+        }
         int sortOrder = req.getSortOrder() != null ? req.getSortOrder() : 0;
         Category c = Category.builder()
                 .workspace(workspace)
-                .nameHe(req.getNameHe().trim())
+                .nameHe(trimmedName)
                 .iconId(req.getIconId())
                 .imageUrl(req.getImageUrl())
                 .sortOrder(sortOrder)
@@ -93,7 +97,13 @@ public class CategoryController {
         if (user == null) return ResponseEntity.status(401).build();
         Category c = categoryAccessService.getCategoryOrThrow(id, user);
         if (!categoryAccessService.canEdit(user, id)) throw new AccessDeniedException("אין גישה");
-        if (req.getNameHe() != null && !req.getNameHe().isBlank()) c.setNameHe(req.getNameHe().trim());
+        if (req.getNameHe() != null && !req.getNameHe().isBlank()) {
+            String trimmedName = req.getNameHe().trim();
+            if (!trimmedName.equals(c.getNameHe()) && categoryRepository.existsByWorkspaceIdAndNameHeAndIdNot(c.getWorkspace().getId(), trimmedName, c.getId())) {
+                throw new IllegalArgumentException("כבר קיימת קטגוריה בשם זה במרחב");
+            }
+            c.setNameHe(trimmedName);
+        }
         if (req.getIconId() != null) c.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
         if (req.getImageUrl() != null) c.setImageUrl(req.getImageUrl().isBlank() ? null : req.getImageUrl());
         if (req.getSortOrder() != null) c.setSortOrder(req.getSortOrder());

@@ -22,4 +22,8 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
     /** Categories in a specific workspace. */
     @Query("SELECT c FROM Category c WHERE c.workspace.id = :workspaceId ORDER BY c.sortOrder ASC")
     List<Category> findByWorkspaceId(UUID workspaceId);
+
+    boolean existsByWorkspaceIdAndNameHe(UUID workspaceId, String nameHe);
+
+    boolean existsByWorkspaceIdAndNameHeAndIdNot(UUID workspaceId, String nameHe, UUID id);
 }

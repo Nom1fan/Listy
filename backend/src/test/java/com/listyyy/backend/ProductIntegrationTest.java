@@ -1,11 +1,13 @@
 package com.listyyy.backend;
 
+import com.listyyy.backend.productbank.Category;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
 import java.util.Map;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -60,5 +62,69 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/products/" + productId).header("Authorization", getBearerToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.iconId").value("carrot"));
+    }
+
+    @Test
+    void cannot_create_duplicate_product_in_same_category() throws Exception {
+        // "אורז" already exists in the default category (created in baseSetUp)
+        mvc.perform(post("/api/products")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "categoryId", categoryId.toString(),
+                                "nameHe", "אורז"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("כבר קיים")));
+    }
+
+    @Test
+    void can_create_same_product_name_in_different_category() throws Exception {
+        // Create a second category
+        Category cat2 = categoryRepository.save(Category.builder()
+                .workspace(workspaceRepository.findById(workspaceId).orElseThrow())
+                .nameHe("ירקות")
+                .sortOrder(1)
+                .build());
+
+        // "אורז" in a different category should succeed
+        mvc.perform(post("/api/products")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "categoryId", cat2.getId().toString(),
+                                "nameHe", "אורז"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nameHe").value("אורז"));
+    }
+
+    @Test
+    void cannot_rename_product_to_existing_name_in_same_category() throws Exception {
+        // Create a second product in the same category
+        mvc.perform(post("/api/products")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "categoryId", categoryId.toString(),
+                                "nameHe", "פסטה"))))
+                .andExpect(status().isOk());
+
+        // Try to rename "אורז" to "פסטה"
+        mvc.perform(patch("/api/products/" + productId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("nameHe", "פסטה"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("כבר קיים")));
+    }
+
+    @Test
+    void can_rename_product_to_its_own_name() throws Exception {
+        // Renaming to the same name should succeed (no-op)
+        mvc.perform(patch("/api/products/" + productId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("nameHe", "אורז"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nameHe").value("אורז"));
     }
 }
