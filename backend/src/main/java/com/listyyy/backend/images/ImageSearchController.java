@@ -1,8 +1,6 @@
 package com.listyyy.backend.images;
 
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,8 +15,6 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 public class ImageSearchController {
-
-    private static final Logger log = LoggerFactory.getLogger(ImageSearchController.class);
 
     // ── GIPHY config ──
     @Value("${listyyy.giphy.api-key:}")
@@ -47,21 +43,15 @@ public class ImageSearchController {
             @RequestParam(value = "source", defaultValue = "giphy") String source) {
         String q = query == null ? "" : query.trim();
         if (q.isEmpty()) {
-            return ResponseEntity.ok(new ImageSearchResponse(List.of(), null));
+            return ResponseEntity.ok(new ImageSearchResponse(List.of()));
         }
-        try {
-            List<ImageSearchResult> results = "pixabay".equalsIgnoreCase(source)
-                    ? searchPixabay(q, perPage)
-                    : searchGiphy(q, perPage);
-            return ResponseEntity.ok(new ImageSearchResponse(results, null));
-        } catch (Throwable t) {
-            log.warn("Image search failed (source={}): {}", source, t.getMessage(), t);
-            String msg = t.getMessage() != null && !t.getMessage().isBlank() ? t.getMessage() : "חיפוש נכשל";
-            return ResponseEntity.ok(new ImageSearchResponse(List.of(), msg));
-        }
+        List<ImageSearchResult> results = "pixabay".equalsIgnoreCase(source)
+                ? searchPixabay(q, perPage)
+                : searchGiphy(q, perPage);
+        return ResponseEntity.ok(new ImageSearchResponse(results));
     }
 
-    private List<ImageSearchResult> searchGiphy(String query, int perPage) throws Exception {
+    private List<ImageSearchResult> searchGiphy(String query, int perPage) {
         if (giphyApiKey == null || giphyApiKey.isBlank()) {
             throw new RuntimeException("לא הוגדר מפתח GIPHY. הגדר GIPHY_API_KEY בשרת.");
         }
@@ -71,7 +61,7 @@ public class ImageSearchController {
         return service.search(query, Math.min(30, Math.max(1, perPage)));
     }
 
-    private List<ImageSearchResult> searchPixabay(String query, int perPage) throws Exception {
+    private List<ImageSearchResult> searchPixabay(String query, int perPage) {
         if (pixabayApiKey == null || pixabayApiKey.isBlank()) {
             throw new RuntimeException("לא הוגדר מפתח Pixabay. הגדר PIXABAY_API_KEY בשרת.");
         }
@@ -81,6 +71,6 @@ public class ImageSearchController {
         return service.search(query, Math.min(30, Math.max(3, perPage)));
     }
 
-    public record ImageSearchResponse(List<ImageSearchResult> results, String error) {}
+    public record ImageSearchResponse(List<ImageSearchResult> results) {}
     public record ImageSearchResult(String url, String thumbUrl) {}
 }

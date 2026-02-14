@@ -1,6 +1,8 @@
 package com.listyyy.backend.productbank;
 
 import com.listyyy.backend.auth.User;
+import com.listyyy.backend.exception.AccessDeniedException;
+import com.listyyy.backend.exception.ResourceNotFoundException;
 import com.listyyy.backend.workspace.WorkspaceAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,8 +41,8 @@ public class CategoryAccessService {
 
     public Category getCategoryOrThrow(UUID categoryId, User user) {
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("הקטגוריה לא נמצאה"));
-        if (!canAccess(user, categoryId)) throw new IllegalArgumentException("אין גישה");
+                .orElseThrow(() -> new ResourceNotFoundException("הקטגוריה לא נמצאה"));
+        if (!canAccess(user, categoryId)) throw new AccessDeniedException("אין גישה");
         return category;
     }
 }

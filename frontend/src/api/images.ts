@@ -7,7 +7,6 @@ export interface ImageSearchResult {
 
 export interface ImageSearchResponse {
   results: ImageSearchResult[];
-  error?: string | null;
 }
 
 export type ImageSource = 'giphy' | 'pixabay';
@@ -38,8 +37,5 @@ export async function searchImages(query: string, perPage = 12, source: ImageSou
     throw new Error(msg || `שגיאת שרת (${res.status})`);
   }
   const data: ImageSearchResponse = await res.json();
-  if (data.error) {
-    throw new Error(data.error);
-  }
   return data.results ?? [];
 }

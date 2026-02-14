@@ -467,10 +467,20 @@ export function ListDetail() {
                       background: '#fff',
                       borderRadius: 12,
                       boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                      textDecoration: item.crossedOff ? 'line-through' : 'none',
-                      color: item.crossedOff ? 'var(--color-strike)' : 'inherit',
                     }}
                   >
+                    <input
+                      type="checkbox"
+                      checked={!!item.crossedOff}
+                      onChange={() =>
+                        updateMutation.mutate({
+                          itemId: item.id,
+                          body: { crossedOff: !item.crossedOff },
+                        })
+                      }
+                      style={{ width: 22, height: 22, cursor: 'pointer', accentColor: 'var(--color-primary)', flexShrink: 0 }}
+                      aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
+                    />
                     {(item.itemImageUrl || item.productImageUrl) ? (
                       <img
                         src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
@@ -485,44 +495,30 @@ export function ListDetail() {
                       />
                     )}
                     <div style={{ flex: 1 }}>
-                      <div>{item.displayName}</div>
+                      <div style={{ textDecoration: item.crossedOff ? 'line-through' : 'none', color: item.crossedOff ? 'var(--color-strike)' : 'inherit' }}>{item.displayName}</div>
                       <div style={{ fontSize: 14, color: '#666' }}>
                         {item.quantity} {item.unit}
                         {item.note && ` · ${item.note}`}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input
-                        type="checkbox"
-                        checked={!!item.crossedOff}
-                        onChange={() =>
-                          updateMutation.mutate({
-                            itemId: item.id,
-                            body: { crossedOff: !item.crossedOff },
-                          })
-                        }
-                        style={{ width: 20, height: 20, cursor: 'pointer', accentColor: 'var(--color-primary)' }}
-                        aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
-                      />
-                      <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
-                          aria-label="תפריט פריט"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, padding: '4px 8px', lineHeight: 1, color: '#555', borderRadius: 6 }}
-                        >
-                          &#8942;
-                        </button>
-                        {itemMenuOpenId === item.id && (
-                          <>
-                            <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
-                            <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 120, overflow: 'hidden' }}>
-                              <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
-                              <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
+                        aria-label="תפריט פריט"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, padding: '4px 8px', lineHeight: 1, color: '#555', borderRadius: 6 }}
+                      >
+                        &#8942;
+                      </button>
+                      {itemMenuOpenId === item.id && (
+                        <>
+                          <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
+                          <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 120, overflow: 'hidden' }}>
+                            <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
+                            <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -543,34 +539,10 @@ export function ListDetail() {
                       alignItems: 'center',
                       gap: 6,
                       textAlign: 'center',
-                      textDecoration: item.crossedOff ? 'line-through' : 'none',
-                      color: item.crossedOff ? 'var(--color-strike)' : 'inherit',
                       opacity: item.crossedOff ? 0.6 : 1,
                     }}
                   >
-                    {(item.itemImageUrl || item.productImageUrl) ? (
-                      <img
-                        src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
-                        alt=""
-                        style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }}
-                      />
-                    ) : (
-                      <CategoryIcon
-                        iconId={item.iconId ?? item.categoryIconId ?? null}
-                        imageUrl={null}
-                        size={48}
-                      />
-                    )}
-                    <span style={{ fontWeight: 500, fontSize: 13, wordBreak: 'break-word' }}>{item.displayName}</span>
-                    <span style={{ fontSize: 11, color: '#666' }}>
-                      {item.quantity} {item.unit}
-                    </span>
-                    {item.note && (
-                      <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.note}
-                      </span>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                       <input
                         type="checkbox"
                         checked={!!item.crossedOff}
@@ -580,7 +552,7 @@ export function ListDetail() {
                             body: { crossedOff: !item.crossedOff },
                           })
                         }
-                        style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                        style={{ width: 20, height: 20, cursor: 'pointer', accentColor: 'var(--color-primary)' }}
                         aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
                       />
                       <div style={{ position: 'relative' }}>
@@ -603,6 +575,28 @@ export function ListDetail() {
                         )}
                       </div>
                     </div>
+                    {(item.itemImageUrl || item.productImageUrl) ? (
+                      <img
+                        src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
+                        alt=""
+                        style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }}
+                      />
+                    ) : (
+                      <CategoryIcon
+                        iconId={item.iconId ?? item.categoryIconId ?? null}
+                        imageUrl={null}
+                        size={48}
+                      />
+                    )}
+                    <span style={{ fontWeight: 500, fontSize: 13, wordBreak: 'break-word', textDecoration: item.crossedOff ? 'line-through' : 'none', color: item.crossedOff ? 'var(--color-strike)' : 'inherit' }}>{item.displayName}</span>
+                    <span style={{ fontSize: 11, color: '#666' }}>
+                      {item.quantity} {item.unit}
+                    </span>
+                    {item.note && (
+                      <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.note}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -645,7 +639,7 @@ export function ListDetail() {
                     type="text"
                     value={quickAddName}
                     onChange={(e) => setQuickAddName(e.target.value)}
-                    placeholder="למשל: סוכר, עט, מגבת"
+                    placeholder="שם פריט"
                     required
                     style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
                   />
@@ -731,7 +725,16 @@ export function ListDetail() {
                   <button
                     type="submit"
                     disabled={!quickAddName.trim() || addItemMutation.isPending || quickAddSubmitting}
-                    style={{ flex: 1, padding: 12, background: 'var(--color-primary)', color: '#fff', fontWeight: 600, borderRadius: 8 }}
+                    style={{
+                      flex: 1,
+                      padding: 12,
+                      background: !quickAddName.trim() || addItemMutation.isPending || quickAddSubmitting ? '#ccc' : 'var(--color-primary)',
+                      color: !quickAddName.trim() || addItemMutation.isPending || quickAddSubmitting ? '#666' : '#fff',
+                      fontWeight: 600,
+                      borderRadius: 8,
+                      border: 'none',
+                      cursor: !quickAddName.trim() || addItemMutation.isPending || quickAddSubmitting ? 'not-allowed' : 'pointer',
+                    }}
                   >
                     {addItemMutation.isPending || quickAddSubmitting ? 'מוסיף...' : 'הוסף לרשימה'}
                   </button>

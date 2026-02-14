@@ -14,14 +14,12 @@ class ImageSearchIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void search_returns_empty_results_and_error_message_when_authenticated_and_no_key_configured() throws Exception {
+    void search_returns_500_with_error_message_when_api_key_not_configured() throws Exception {
         mvc.perform(get("/api/images/search")
                         .header("Authorization", getBearerToken())
                         .param("q", "milk"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.results").isArray())
-                .andExpect(jsonPath("$.results").isEmpty())
-                .andExpect(jsonPath("$.error").exists());
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").exists());
     }
 
     @Test

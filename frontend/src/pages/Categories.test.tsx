@@ -70,7 +70,7 @@ describe('Categories', () => {
       </Wrapper>
     )
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('למשל: משקאות')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('שם קטגוריה')).toBeInTheDocument()
     })
     expect(screen.getByRole('button', { name: /הוסף קטגוריה/i })).toBeInTheDocument()
   })

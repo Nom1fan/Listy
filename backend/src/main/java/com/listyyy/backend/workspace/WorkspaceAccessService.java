@@ -1,6 +1,8 @@
 package com.listyyy.backend.workspace;
 
 import com.listyyy.backend.auth.User;
+import com.listyyy.backend.exception.AccessDeniedException;
+import com.listyyy.backend.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -35,8 +37,8 @@ public class WorkspaceAccessService {
 
     public Workspace getWorkspaceOrThrow(UUID workspaceId, User user) {
         Workspace workspace = workspaceRepository.findById(workspaceId)
-                .orElseThrow(() -> new IllegalArgumentException("המרחב לא נמצא"));
-        if (!canAccess(user, workspaceId)) throw new IllegalArgumentException("אין גישה");
+                .orElseThrow(() -> new ResourceNotFoundException("המרחב לא נמצא"));
+        if (!canAccess(user, workspaceId)) throw new AccessDeniedException("אין גישה");
         return workspace;
     }
 

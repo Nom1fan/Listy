@@ -2,6 +2,8 @@ package com.listyyy.backend.workspace;
 
 import com.listyyy.backend.auth.User;
 import com.listyyy.backend.auth.UserRepository;
+import com.listyyy.backend.exception.AccessDeniedException;
+import com.listyyy.backend.exception.ResourceNotFoundException;
 import com.listyyy.backend.sharing.InviteRequest;
 import com.listyyy.backend.sharing.ListMemberDto;
 import lombok.RequiredArgsConstructor;
@@ -73,7 +75,7 @@ public class WorkspaceService {
     public Workspace updateWorkspace(UUID workspaceId, User user, UpdateWorkspaceRequest req) {
         Workspace workspace = workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
         if (!workspaceAccessService.isOwner(user, workspaceId)) {
-            throw new IllegalArgumentException("רק בעל המרחב יכול לערוך");
+            throw new AccessDeniedException("רק בעל המרחב יכול לערוך");
         }
         if (req.getName() != null && !req.getName().isBlank()) workspace.setName(req.getName().trim());
         if (req.getIconId() != null) workspace.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
@@ -84,7 +86,7 @@ public class WorkspaceService {
     public void deleteWorkspace(UUID workspaceId, User user) {
         workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
         if (!workspaceAccessService.isOwner(user, workspaceId)) {
-            throw new IllegalArgumentException("רק בעל המרחב יכול למחוק");
+            throw new AccessDeniedException("רק בעל המרחב יכול למחוק");
         }
         // Check this isn't the user's only workspace
         List<Workspace> userWorkspaces = workspaceRepository.findVisibleToUser(user.getId());
@@ -113,7 +115,7 @@ public class WorkspaceService {
     public ListMemberDto invite(UUID workspaceId, User user, InviteRequest req) {
         workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
         if (!workspaceAccessService.isOwner(user, workspaceId)) {
-            throw new IllegalArgumentException("רק בעל המרחב יכול להזמין");
+            throw new AccessDeniedException("רק בעל המרחב יכול להזמין");
         }
         User invitee = resolveInvitee(req);
         if (invitee.getId().equals(user.getId())) throw new IllegalArgumentException("לא ניתן להזמין את עצמך");
@@ -143,12 +145,12 @@ public class WorkspaceService {
     public void removeMember(UUID workspaceId, UUID memberUserId, User user) {
         workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
         WorkspaceMember target = workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, memberUserId)
-                .orElseThrow(() -> new IllegalArgumentException("החבר לא נמצא"));
+                .orElseThrow(() -> new ResourceNotFoundException("החבר לא נמצא"));
         if ("owner".equals(target.getRole())) {
             throw new IllegalArgumentException("לא ניתן להסיר את בעל המרחב");
         }
         if (!workspaceAccessService.isOwner(user, workspaceId) && !user.getId().equals(memberUserId)) {
-            throw new IllegalArgumentException("רק בעל המרחב יכול להסיר אחרים");
+            throw new AccessDeniedException("רק בעל המרחב יכול להסיר אחרים");
         }
         workspaceMemberRepository.deleteById(new WorkspaceMemberId(workspaceId, memberUserId));
     }
@@ -156,12 +158,12 @@ public class WorkspaceService {
     private User resolveInvitee(InviteRequest req) {
         if (req.getEmail() != null && !req.getEmail().isBlank()) {
             return userRepository.findByEmail(req.getEmail().trim())
-                    .orElseThrow(() -> new IllegalArgumentException("לא נמצא משתמש עם אימייל זה"));
+                    .orElseThrow(() -> new ResourceNotFoundException("לא נמצא משתמש עם אימייל זה"));
         }
         if (req.getPhone() != null && !req.getPhone().isBlank()) {
             String normalized = com.listyyy.backend.auth.PhoneNormalizer.normalize(req.getPhone());
             return userRepository.findByPhone(normalized)
-                    .orElseThrow(() -> new IllegalArgumentException("לא נמצא משתמש עם מספר טלפון זה"));
+                    .orElseThrow(() -> new ResourceNotFoundException("לא נמצא משתמש עם מספר טלפון זה"));
         }
         throw new IllegalArgumentException("יש להזין אימייל או טלפון");
     }

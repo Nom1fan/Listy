@@ -14,6 +14,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -192,6 +194,56 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("email", email, "code", "123456"))))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ---- SMS/Email send failure tests ----
+
+    @Test
+    void phone_request_otp_returns_error_when_sms_fails() throws Exception {
+        doThrow(new IllegalArgumentException("שליחת SMS נכשלה. נסה שוב מאוחר יותר."))
+                .when(smsService).sendOtp(anyString(), anyString());
+
+        mvc.perform(post("/api/auth/phone/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("phone", "+972501234567"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("שליחת SMS נכשלה. נסה שוב מאוחר יותר."));
+    }
+
+    @Test
+    void phone_request_otp_returns_error_when_sms_not_configured() throws Exception {
+        doThrow(new IllegalArgumentException("שליחת SMS לא מוגדרת. נסה להתחבר עם אימייל."))
+                .when(smsService).sendOtp(anyString(), anyString());
+
+        mvc.perform(post("/api/auth/phone/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("phone", "+972501234567"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("שליחת SMS לא מוגדרת. נסה להתחבר עם אימייל."));
+    }
+
+    @Test
+    void email_request_otp_returns_error_when_email_fails() throws Exception {
+        doThrow(new IllegalArgumentException("שליחת אימייל נכשלה. נסה שוב מאוחר יותר."))
+                .when(emailService).sendOtp(anyString(), anyString());
+
+        mvc.perform(post("/api/auth/email/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "fail@example.com"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("שליחת אימייל נכשלה. נסה שוב מאוחר יותר."));
+    }
+
+    @Test
+    void email_request_otp_returns_error_when_email_not_configured() throws Exception {
+        doThrow(new IllegalArgumentException("שליחת אימייל לא מוגדרת. נסה להתחבר עם טלפון."))
+                .when(emailService).sendOtp(anyString(), anyString());
+
+        mvc.perform(post("/api/auth/email/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "noconfig@example.com"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("שליחת אימייל לא מוגדרת. נסה להתחבר עם טלפון."));
     }
 
     @Test

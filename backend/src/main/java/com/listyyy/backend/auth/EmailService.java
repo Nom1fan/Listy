@@ -22,8 +22,8 @@ public class EmailService {
 
     public void sendOtp(String toEmail, String code) {
         if (mailUsername == null || mailUsername.isBlank()) {
-            log.warn("Mail not configured; skipping email to {}", toEmail);
-            return;
+            log.error("Mail not configured; cannot send OTP to {}", toEmail);
+            throw new IllegalArgumentException("שליחת אימייל לא מוגדרת. נסה להתחבר עם טלפון.");
         }
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -34,7 +34,7 @@ public class EmailService {
             mailSender.send(message);
         } catch (Exception e) {
             log.error("Failed to send email to {}", toEmail, e);
-            throw new RuntimeException("שליחת אימייל נכשלה", e);
+            throw new IllegalArgumentException("שליחת אימייל נכשלה. נסה שוב מאוחר יותר.");
         }
     }
 }

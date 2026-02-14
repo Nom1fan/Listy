@@ -15,11 +15,14 @@ import com.listyyy.backend.workspace.Workspace;
 import com.listyyy.backend.workspace.WorkspaceMember;
 import com.listyyy.backend.workspace.WorkspaceMemberRepository;
 import com.listyyy.backend.workspace.WorkspaceRepository;
+import com.listyyy.backend.auth.EmailService;
+import com.listyyy.backend.auth.SmsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
@@ -40,6 +43,10 @@ public abstract class AbstractIntegrationTest {
     protected MockMvc mvc;
     @Autowired
     protected ObjectMapper objectMapper;
+    @MockBean
+    protected SmsService smsService;
+    @MockBean
+    protected EmailService emailService;
     @Autowired
     protected UserRepository userRepository;
     @Autowired

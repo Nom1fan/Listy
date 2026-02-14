@@ -1,6 +1,7 @@
 package com.listyyy.backend.list;
 
 import com.listyyy.backend.auth.User;
+import com.listyyy.backend.exception.ResourceNotFoundException;
 import com.listyyy.backend.productbank.Category;
 import com.listyyy.backend.productbank.CategoryRepository;
 import com.listyyy.backend.productbank.Product;
@@ -35,7 +36,7 @@ public class ListItemService {
         GroceryList list = listAccessService.getListOrThrow(listId, user);
         ListItem item;
         if (req.getProductId() != null) {
-            Product product = productRepository.findById(req.getProductId()).orElseThrow(() -> new IllegalArgumentException("הפריט לא נמצא"));
+            Product product = productRepository.findById(req.getProductId()).orElseThrow(() -> new ResourceNotFoundException("הפריט לא נמצא"));
             // Verify product belongs to the same workspace as the list
             if (product.getCategory() == null || !product.getCategory().getWorkspace().getId().equals(list.getWorkspace().getId())) {
                 throw new IllegalArgumentException("הפריט לא שייך למרחב העבודה של הרשימה");
@@ -59,7 +60,7 @@ public class ListItemService {
             Category category = null;
             if (req.getCategoryId() != null) {
                 category = categoryRepository.findById(req.getCategoryId())
-                        .orElseThrow(() -> new IllegalArgumentException("הקטגוריה לא נמצאה"));
+                        .orElseThrow(() -> new ResourceNotFoundException("הקטגוריה לא נמצאה"));
                 if (!category.getWorkspace().getId().equals(list.getWorkspace().getId())) {
                     throw new IllegalArgumentException("הקטגוריה לא שייכת למרחב העבודה של הרשימה");
                 }
@@ -107,7 +108,7 @@ public class ListItemService {
 
     private ListItem getItemOrThrow(UUID listId, UUID itemId, User user) {
         listAccessService.getListOrThrow(listId, user);
-        ListItem item = listItemRepository.findById(itemId).orElseThrow(() -> new IllegalArgumentException("הפריט לא נמצא"));
+        ListItem item = listItemRepository.findById(itemId).orElseThrow(() -> new ResourceNotFoundException("הפריט לא נמצא"));
         if (!item.getList().getId().equals(listId)) throw new IllegalArgumentException("הפריט לא שייך לרשימה");
         return item;
     }

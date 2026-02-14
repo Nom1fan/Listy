@@ -37,8 +37,8 @@ public class SmsService {
 
     public void sendOtp(String toPhone, String code) {
         if (!configured) {
-            log.warn("Twilio not configured; skipping SMS to {}", toPhone);
-            return;
+            log.error("Twilio not configured; cannot send OTP to {}", toPhone);
+            throw new IllegalArgumentException("שליחת SMS לא מוגדרת. נסה להתחבר עם אימייל.");
         }
         try {
             Message.creator(
@@ -48,7 +48,7 @@ public class SmsService {
             ).create();
         } catch (Exception e) {
             log.error("Failed to send SMS to {}", toPhone, e);
-            throw new RuntimeException("שליחת SMS נכשלה", e);
+            throw new IllegalArgumentException("שליחת SMS נכשלה. נסה שוב מאוחר יותר.");
         }
     }
 }

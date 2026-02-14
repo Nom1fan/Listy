@@ -1,6 +1,8 @@
 package com.listyyy.backend.list;
 
 import com.listyyy.backend.auth.User;
+import com.listyyy.backend.exception.AccessDeniedException;
+import com.listyyy.backend.exception.ResourceNotFoundException;
 import com.listyyy.backend.workspace.WorkspaceAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,8 +36,8 @@ public class ListAccessService {
 
     public GroceryList getListOrThrow(UUID listId, User user) {
         GroceryList list = listRepository.findById(listId)
-                .orElseThrow(() -> new IllegalArgumentException("הרשימה לא נמצאה"));
-        if (!canAccess(user, listId)) throw new IllegalArgumentException("אין גישה");
+                .orElseThrow(() -> new ResourceNotFoundException("הרשימה לא נמצאה"));
+        if (!canAccess(user, listId)) throw new AccessDeniedException("אין גישה");
         return list;
     }
 }
