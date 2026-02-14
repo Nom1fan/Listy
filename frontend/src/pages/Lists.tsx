@@ -37,7 +37,7 @@ export function Lists() {
   });
 
   useEffect(() => {
-    if (workspaces.length > 0 && !activeWorkspaceId) {
+    if (workspaces.length > 0 && (!activeWorkspaceId || !workspaces.some((w) => w.id === activeWorkspaceId))) {
       setActiveWorkspace(workspaces[0].id);
     }
   }, [workspaces, activeWorkspaceId, setActiveWorkspace]);
@@ -274,9 +274,8 @@ export function Lists() {
                 ))}
               </select>
             )}
-
             {/* Kebab menu for workspace */}
-            {activeWorkspace && !editingWorkspace && !showCreateWorkspace && (
+            {!editingWorkspace && !showCreateWorkspace && (
               <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
                 <button
                   type="button"
@@ -315,44 +314,48 @@ export function Lists() {
                         overflow: 'hidden',
                       }}
                     >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setWsMenuOpen(false);
-                          setEditingWorkspace(true);
-                          setEditWorkspaceName(activeWorkspace.name);
-                        }}
-                        style={{
-                          display: 'block',
-                          width: '100%',
-                          padding: '10px 16px',
-                          background: 'none',
-                          border: 'none',
-                          textAlign: 'right',
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          borderBottom: '1px solid #f0f0f0',
-                        }}
-                      >
-                        שנה שם
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setWsMenuOpen(false); navigate(`/workspaces/${activeWorkspaceId}/share`); }}
-                        style={{
-                          display: 'block',
-                          width: '100%',
-                          padding: '10px 16px',
-                          background: 'none',
-                          border: 'none',
-                          textAlign: 'right',
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          borderBottom: activeWorkspace.role === 'owner' && workspaces.length > 1 ? '1px solid #f0f0f0' : 'none',
-                        }}
-                      >
-                        שיתוף
-                      </button>
+                      {activeWorkspace && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setWsMenuOpen(false);
+                              setEditingWorkspace(true);
+                              setEditWorkspaceName(activeWorkspace.name);
+                            }}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: '10px 16px',
+                              background: 'none',
+                              border: 'none',
+                              textAlign: 'right',
+                              fontSize: 14,
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f0f0f0',
+                            }}
+                          >
+                            שנה שם
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setWsMenuOpen(false); navigate(`/workspaces/${activeWorkspaceId}/share`); }}
+                            style={{
+                              display: 'block',
+                              width: '100%',
+                              padding: '10px 16px',
+                              background: 'none',
+                              border: 'none',
+                              textAlign: 'right',
+                              fontSize: 14,
+                              cursor: 'pointer',
+                              borderBottom: '1px solid #f0f0f0',
+                            }}
+                          >
+                            שיתוף
+                          </button>
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={() => { setWsMenuOpen(false); setShowCreateWorkspace(true); }}
@@ -365,12 +368,12 @@ export function Lists() {
                           textAlign: 'right',
                           fontSize: 14,
                           cursor: 'pointer',
-                          borderBottom: activeWorkspace.role === 'owner' && workspaces.length > 1 ? '1px solid #f0f0f0' : 'none',
+                          borderBottom: activeWorkspace?.role === 'owner' && workspaces.length > 1 ? '1px solid #f0f0f0' : 'none',
                         }}
                       >
                         + מרחב עבודה חדש
                       </button>
-                      {activeWorkspace.role === 'owner' && workspaces.length > 1 && (
+                      {activeWorkspace?.role === 'owner' && workspaces.length > 1 && (
                         <button
                           type="button"
                           onClick={() => { setWsMenuOpen(false); setConfirmDeleteWorkspace(true); }}
