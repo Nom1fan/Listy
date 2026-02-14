@@ -53,6 +53,7 @@ export async function addListItem(
   listId: string,
   body: {
     productId?: string;
+    categoryId?: string;
     customNameHe?: string;
     quantity?: number;
     unit?: string;

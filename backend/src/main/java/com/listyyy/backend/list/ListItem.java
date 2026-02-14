@@ -1,5 +1,6 @@
 package com.listyyy.backend.list;
 
+import com.listyyy.backend.productbank.Category;
 import com.listyyy.backend.productbank.Product;
 import jakarta.persistence.*;
 import lombok.*;
@@ -30,6 +31,11 @@ public class ListItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id")
     private Product product;
+
+    /** Direct category for custom items (no product). Null when item has a product. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private Category category;
 
     @Column(name = "custom_name_he")
     private String customNameHe;

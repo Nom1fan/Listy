@@ -45,6 +45,10 @@ export async function verifyEmailOtp(email: string, code: string, displayName: s
   });
 }
 
+export async function devLogin(): Promise<AuthResponse> {
+  return api<AuthResponse>('/api/auth/dev-login', { method: 'POST' });
+}
+
 export async function updateProfile(body: {
   displayName?: string | null;
   profileImageUrl?: string | null;

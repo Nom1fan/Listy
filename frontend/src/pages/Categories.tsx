@@ -403,7 +403,6 @@ export function Categories() {
                 borderRadius: 12,
                 marginBottom: 12,
                 boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                overflow: 'hidden',
               }}
             >
               <div

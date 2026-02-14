@@ -158,6 +158,12 @@ public class ListController {
             if (iconId == null) iconId = item.getProduct().getIconId();
             productImageUrl = item.getProduct().getImageUrl();
         }
+        // Direct category on custom items overrides product-based category
+        if (item.getCategory() != null) {
+            categoryId = item.getCategory().getId();
+            categoryNameHe = item.getCategory().getNameHe();
+            categoryIconId = item.getCategory().getIconId();
+        }
         return ListItemResponse.builder()
                 .id(item.getId())
                 .listId(item.getList().getId())

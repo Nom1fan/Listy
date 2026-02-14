@@ -9,7 +9,7 @@ import java.util.UUID;
 
 public interface ListItemRepository extends JpaRepository<ListItem, UUID> {
 
-    @Query("SELECT i FROM ListItem i LEFT JOIN FETCH i.product p LEFT JOIN FETCH p.category WHERE i.list.id = :listId ORDER BY i.sortOrder, i.createdAt")
+    @Query("SELECT i FROM ListItem i LEFT JOIN FETCH i.product p LEFT JOIN FETCH p.category LEFT JOIN FETCH i.category WHERE i.list.id = :listId ORDER BY i.sortOrder, i.createdAt")
     List<ListItem> findByListIdWithProductAndCategory(UUID listId);
 
     /** Distinct category IDs of products used on this list (for auto-sharing categories when list is shared). */
