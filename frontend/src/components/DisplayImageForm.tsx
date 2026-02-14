@@ -1,53 +1,5 @@
 import { ImageSearchPicker } from './ImageSearchPicker';
-
-const ICON_OPTIONS_RAW = [
-  { id: 'dairy', label: '🥛 חלב' },
-  { id: 'bread', label: '🍞 לחם' },
-  { id: 'vegetables', label: '🥬 ירקות' },
-  { id: 'fruits', label: '🍎 פירות' },
-  { id: 'meat', label: '🥩 בשר' },
-  { id: 'groceries', label: '🛒 מכולת' },
-  { id: 'leaf', label: '🌿 עלים' },
-  { id: 'carrot', label: '🥕 גזר' },
-  { id: 'eggplant', label: '🍆 חציל' },
-  { id: 'tomato', label: '🍅 עגבניה' },
-  { id: 'avocado', label: '🥑 אבוקדו' },
-  { id: 'broccoli', label: '🥦 ברוקולי' },
-  { id: 'cucumber', label: '🥒 מלפפון' },
-  { id: 'pepper', label: '🫑 פלפל' },
-  { id: 'egg', label: '🥚 ביצה' },
-  { id: 'cheese', label: '🧀 גבינה' },
-  { id: 'honey', label: '🍯 דבש' },
-  { id: 'beans', label: '🫘 קטניות' },
-  { id: 'lemon', label: '🍋 לימון' },
-  { id: 'grapes', label: '🍇 ענבים' },
-  { id: 'banana', label: '🍌 בננה' },
-  { id: 'mushroom', label: '🍄 פטריות' },
-  { id: 'onion', label: '🧅 בצל' },
-  { id: 'corn', label: '🌽 תירס' },
-  { id: 'olive', label: '🫒 זיתים' },
-  { id: 'salad', label: '🥗 סלט' },
-  { id: 'strawberry', label: '🍓 תות' },
-  { id: 'watermelon', label: '🍉 אבטיח' },
-  { id: 'peach', label: '🍑 אפרסק' },
-  { id: 'cherry', label: '🍒 דובדבן' },
-  { id: 'blueberry', label: '🫐 אוכמניות' },
-  { id: 'mango', label: '🥭 מנגו' },
-  { id: 'pineapple', label: '🍍 אננס' },
-  { id: 'coconut', label: '🥥 קוקוס' },
-  { id: 'garlic', label: '🧄 שום' },
-  { id: 'potato', label: '🥔 תפוח אדמה' },
-  { id: 'yam', label: '🍠 בטטה' },
-  { id: 'peanut', label: '🥜 בוטנים' },
-];
-
-const hebrewLabel = (label: string) =>
-  label.includes(' ') ? label.slice(label.indexOf(' ') + 1) : label;
-
-/** Pre-built icons list, sorted alphabetically by Hebrew label for easy browsing */
-export const ICON_OPTIONS = [...ICON_OPTIONS_RAW].sort((a, b) =>
-  hebrewLabel(a.label).localeCompare(hebrewLabel(b.label), 'he')
-);
+import { EmojiPicker } from './EmojiPicker';
 
 export type DisplayImageType = 'icon' | 'device' | 'link' | 'web';
 
@@ -98,21 +50,11 @@ export function DisplayImageForm({
         </select>
       </div>
       {displayType === 'icon' && (
-        <div>
-          <label style={{ display: 'block', marginBottom: 4 }}>בחירת אייקון</label>
-          <select
-            value={iconId}
-            onChange={(e) => onIconIdChange(e.target.value)}
-            style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-          >
-            <option value="">ללא</option>
-            {ICON_OPTIONS.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <EmojiPicker
+          label="בחירת אייקון"
+          value={iconId}
+          onChange={onIconIdChange}
+        />
       )}
       {displayType === 'device' && (
         <div>
