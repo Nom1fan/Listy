@@ -16,6 +16,7 @@ import { useListEvents } from '../hooks/useListEvents';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
+import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import type { ListItemResponse, ListEvent } from '../types';
 
 function getImageUrl(url: string | null): string {
@@ -47,6 +48,7 @@ export function ListDetail() {
   const [quickAddImageFile, setQuickAddImageFile] = useState<File | null>(null);
   const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
   const quickAddFileInputRef = useRef<HTMLInputElement>(null);
+  const [viewMode, setViewMode] = useViewMode();
   const [listDetailMenuOpen, setListDetailMenuOpen] = useState(false);
   const [editListOpen, setEditListOpen] = useState(false);
   const [editListName, setEditListName] = useState('');
@@ -417,6 +419,12 @@ export function ListDetail() {
           </>
         )}
 
+        {!isLoading && items.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+            <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+          </div>
+        )}
+
         {isLoading ? (
           <p>טוען...</p>
         ) : (
@@ -436,6 +444,7 @@ export function ListDetail() {
                 <CategoryIcon iconId={getCategoryIconId(cat)} imageUrl={null} size={24} />
                 <span style={{ fontWeight: 600 }}>{cat}</span>
               </div>
+              {viewMode === 'list' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {grouped[cat].map((item) => (
                   <div
@@ -509,6 +518,88 @@ export function ListDetail() {
                   </div>
                 ))}
               </div>
+              ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
+                {grouped[cat].map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      position: 'relative',
+                      padding: 10,
+                      background: '#fff',
+                      borderRadius: 12,
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 6,
+                      textAlign: 'center',
+                      textDecoration: item.crossedOff ? 'line-through' : 'none',
+                      color: item.crossedOff ? 'var(--color-strike)' : 'inherit',
+                      opacity: item.crossedOff ? 0.6 : 1,
+                    }}
+                  >
+                    {(item.itemImageUrl || item.productImageUrl) ? (
+                      <img
+                        src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
+                        alt=""
+                        style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }}
+                      />
+                    ) : (
+                      <CategoryIcon
+                        iconId={item.iconId ?? item.categoryIconId ?? null}
+                        imageUrl={null}
+                        size={48}
+                      />
+                    )}
+                    <span style={{ fontWeight: 500, fontSize: 13, wordBreak: 'break-word' }}>{item.displayName}</span>
+                    <span style={{ fontSize: 11, color: '#666' }}>
+                      {item.quantity} {item.unit}
+                    </span>
+                    {item.note && (
+                      <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.note}
+                      </span>
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <button
+                        type="button"
+                        onClick={(e) => openEditItemImage(item, e)}
+                        style={{ padding: 4, background: 'transparent', color: '#666', fontSize: 14 }}
+                        aria-label="שנה תמונה"
+                        title="שנה תמונה"
+                      >
+                        🖼
+                      </button>
+                      <button
+                        onClick={() =>
+                          updateMutation.mutate({
+                            itemId: item.id,
+                            body: { crossedOff: !item.crossedOff },
+                          })
+                        }
+                        style={{
+                          padding: '4px 8px',
+                          background: item.crossedOff ? '#e0e0e0' : 'var(--color-primary)',
+                          color: item.crossedOff ? '#666' : '#fff',
+                          fontSize: 11,
+                          borderRadius: 6,
+                        }}
+                      >
+                        {item.crossedOff ? 'בטל' : 'סימן'}
+                      </button>
+                      <button
+                        onClick={() => removeMutation.mutate(item.id)}
+                        style={{ padding: 4, background: 'transparent', color: 'var(--color-strike)', fontSize: 14 }}
+                        aria-label="הסר"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              )}
             </section>
           ))
         )}
