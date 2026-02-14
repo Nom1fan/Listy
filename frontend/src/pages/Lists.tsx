@@ -304,7 +304,7 @@ export function Lists() {
                       style={{
                         position: 'absolute',
                         top: '100%',
-                        right: 0,
+                        left: 0,
                         marginTop: 4,
                         background: '#fff',
                         borderRadius: 10,

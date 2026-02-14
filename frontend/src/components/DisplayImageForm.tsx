@@ -41,7 +41,7 @@ export function DisplayImageForm({
             // iconId lets the user switch back to icon without losing their selection.
             if (v === 'device') setTimeout(() => fileInputRef.current?.click(), 0);
           }}
-          style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
+          style={{ padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
         >
           <option value="icon">אייקון</option>
           <option value="device">בחר מהמכשיר...</option>
