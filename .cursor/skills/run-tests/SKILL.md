@@ -5,11 +5,11 @@ description: Run backend (Java/Spring Boot) tests in this project. Use when runn
 
 # Running Tests
 
-This project uses the Maven wrapper (`./mvnw`) located in the `demo/` directory. There is no global `mvn` on PATH.
+This project uses the Maven wrapper (`./mvnw`) located in the `backend/` directory. There is no global `mvn` on PATH.
 
 ## Commands
 
-Always run from the `demo/` working directory.
+Always run from the `backend/` working directory.
 
 **Run all tests:**
 ```bash
@@ -35,5 +35,5 @@ Always run from the `demo/` working directory.
 
 - Always use `./mvnw`, never `mvn`.
 - Always pass `-Dsurefire.useFile=false` so test output goes to stdout.
-- Working directory must be `demo/` (where `mvnw` lives).
+- Working directory must be `backend/` (where `mvnw` lives).
 - Pipe through `| tail -30` for quick pass/fail summary when output is long.

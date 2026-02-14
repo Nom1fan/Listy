@@ -62,7 +62,7 @@ new_version="$major.$((minor + 1)).0"
 echo "$new_version" > "$VERSION_FILE"
 echo "=== 0. Bump version: $current -> $new_version ==="
 # Update pom.xml (project version, not parent)
-sed -i.bak "s|<version>${current}-SNAPSHOT</version>|<version>${new_version}-SNAPSHOT</version>|" "$REPO_ROOT/demo/pom.xml" && rm -f "$REPO_ROOT/demo/pom.xml.bak"
+sed -i.bak "s|<version>${current}-SNAPSHOT</version>|<version>${new_version}-SNAPSHOT</version>|" "$REPO_ROOT/backend/pom.xml" && rm -f "$REPO_ROOT/backend/pom.xml.bak"
 # Update package.json
 node -e "
 const p = require(\"$REPO_ROOT/frontend/package.json\");
@@ -112,7 +112,7 @@ echo ""
 # ── 5. Git commit, tag, push ────────────────────────────────
 echo "=== 5. Git commit and tag ==="
 cd "$REPO_ROOT"
-git add VERSION demo/pom.xml frontend/package.json
+git add VERSION backend/pom.xml frontend/package.json
 if [ -f db/listyyy-db.sql ]; then git add db/listyyy-db.sql; fi
 git commit -m "Release $new_version"
 git tag "v$new_version"

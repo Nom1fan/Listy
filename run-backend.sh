@@ -13,4 +13,4 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
   done < "$SCRIPT_DIR/.env"
 fi
 
-cd "$SCRIPT_DIR/demo" && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
+cd "$SCRIPT_DIR/backend" && ./mvnw spring-boot:run -Dspring-boot.run.profiles=local
