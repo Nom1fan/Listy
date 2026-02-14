@@ -284,7 +284,7 @@ export function Categories() {
               type="text"
               value={nameHe}
               onChange={(e) => setNameHe(e.target.value)}
-              placeholder="למשל: משקאות"
+              placeholder="שם קטגוריה"
               style={{ padding: 10, borderRadius: 8, border: '1px solid #ccc', minWidth: 140 }}
             />
           </div>
@@ -355,7 +355,7 @@ export function Categories() {
           {displayImageType === 'web' && (
             <div style={{ minWidth: 200 }}>
               <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>חיפוש תמונה באינטרנט</label>
-              <ImageSearchPicker onSelect={(url) => setImageUrl(url)} placeholder="למשל: ספורט, אוכל, ספרים" />
+              <ImageSearchPicker onSelect={(url) => setImageUrl(url)} placeholder="חיפוש תמונה..." />
               {imageUrl && (
                 <p style={{ marginTop: 8, fontSize: 12, color: '#2e7d32' }}>נבחרה תמונה ✓</p>
               )}
@@ -495,7 +495,7 @@ export function Categories() {
                       <label style={{ fontSize: 12, marginBottom: 2, display: 'block' }}>חיפוש תמונה באינטרנט</label>
                       <ImageSearchPicker
                         onSelect={(url) => setEditImageUrl(url)}
-                        placeholder="למשל: ספורט, אוכל"
+                        placeholder="חיפוש תמונה..."
                       />
                       {editImageUrl && <p style={{ marginTop: 6, fontSize: 12, color: '#2e7d32' }}>נבחרה תמונה ✓</p>}
                     </div>
@@ -733,7 +733,15 @@ export function Categories() {
                         <button
                           type="submit"
                           disabled={createProductMutation.isPending || !newProductName.trim()}
-                          style={{ padding: '8px 12px', background: 'var(--color-primary)', color: '#fff', borderRadius: 8, fontSize: 14 }}
+                          style={{
+                            padding: '8px 12px',
+                            background: createProductMutation.isPending || !newProductName.trim() ? '#ccc' : 'var(--color-primary)',
+                            color: createProductMutation.isPending || !newProductName.trim() ? '#666' : '#fff',
+                            borderRadius: 8,
+                            fontSize: 14,
+                            border: 'none',
+                            cursor: createProductMutation.isPending || !newProductName.trim() ? 'not-allowed' : 'pointer',
+                          }}
                         >
                           {createProductMutation.isPending ? 'מוסיף...' : 'הוסף פריט'}
                         </button>
@@ -944,7 +952,16 @@ export function Categories() {
                 <button
                   type="submit"
                   disabled={updateProductMutation.isPending || !editProductName.trim()}
-                  style={{ flex: 1, padding: 12, background: 'var(--color-primary)', color: '#fff', fontWeight: 600, borderRadius: 8, border: 'none', cursor: 'pointer' }}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    background: updateProductMutation.isPending || !editProductName.trim() ? '#ccc' : 'var(--color-primary)',
+                    color: updateProductMutation.isPending || !editProductName.trim() ? '#666' : '#fff',
+                    fontWeight: 600,
+                    borderRadius: 8,
+                    border: 'none',
+                    cursor: updateProductMutation.isPending || !editProductName.trim() ? 'not-allowed' : 'pointer',
+                  }}
                 >
                   {updateProductMutation.isPending ? 'שומר...' : 'שמור'}
                 </button>

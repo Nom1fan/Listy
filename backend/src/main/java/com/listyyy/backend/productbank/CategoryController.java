@@ -1,6 +1,7 @@
 package com.listyyy.backend.productbank;
 
 import com.listyyy.backend.auth.User;
+import com.listyyy.backend.exception.AccessDeniedException;
 import com.listyyy.backend.list.ListItemRepository;
 import com.listyyy.backend.workspace.Workspace;
 import com.listyyy.backend.workspace.WorkspaceAccessService;
@@ -91,7 +92,7 @@ public class CategoryController {
     ) {
         if (user == null) return ResponseEntity.status(401).build();
         Category c = categoryAccessService.getCategoryOrThrow(id, user);
-        if (!categoryAccessService.canEdit(user, id)) throw new IllegalArgumentException("אין גישה");
+        if (!categoryAccessService.canEdit(user, id)) throw new AccessDeniedException("אין גישה");
         if (req.getNameHe() != null && !req.getNameHe().isBlank()) c.setNameHe(req.getNameHe().trim());
         if (req.getIconId() != null) c.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
         if (req.getImageUrl() != null) c.setImageUrl(req.getImageUrl().isBlank() ? null : req.getImageUrl());
@@ -109,7 +110,7 @@ public class CategoryController {
         if (user == null) return ResponseEntity.status(401).build();
         Category c = categoryAccessService.getCategoryOrThrow(id, user);
         if (!categoryAccessService.isWorkspaceOwner(user, id)) {
-            throw new IllegalArgumentException("רק בעל המרחב יכול למחוק קטגוריה");
+            throw new AccessDeniedException("רק בעל המרחב יכול למחוק קטגוריה");
         }
         categoryRepository.delete(c);
         return ResponseEntity.noContent().build();

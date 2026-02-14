@@ -42,7 +42,7 @@ class ImageSearchPixabayService {
         this.httpClient = InsecureSslHelper.buildHttpClient(insecureSsl);
     }
 
-    List<ImageSearchController.ImageSearchResult> search(String query, int perPage) throws Exception {
+    List<ImageSearchController.ImageSearchResult> search(String query, int perPage) {
         String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8);
         int num = Math.min(200, Math.max(3, perPage));
         String url = baseUrl + "/api/?key=" + apiKey
@@ -55,13 +55,23 @@ class ImageSearchPixabayService {
                 .header("Accept", "application/json")
                 .GET()
                 .build();
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response;
+        try {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new RuntimeException("חיפוש Pixabay נכשל: " + e.getMessage(), e);
+        }
         if (response.statusCode() != 200) {
             String body = response.body();
             String msg = body != null && body.length() < 200 ? body : "שגיאת Pixabay API: " + response.statusCode();
             throw new RuntimeException(msg);
         }
-        JsonNode root = objectMapper.readTree(response.body());
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(response.body());
+        } catch (Exception e) {
+            throw new RuntimeException("שגיאה בפענוח תשובת Pixabay", e);
+        }
         JsonNode hits = root.get("hits");
         if (hits == null || !hits.isArray()) {
             return List.of();

@@ -47,7 +47,7 @@ class ImageSearchGiphyService {
         this.httpClient = InsecureSslHelper.buildHttpClient(insecureSsl);
     }
 
-    List<ImageSearchController.ImageSearchResult> search(String query, int perPage) throws Exception {
+    List<ImageSearchController.ImageSearchResult> search(String query, int perPage) {
         String encoded = URLEncoder.encode(query, StandardCharsets.UTF_8);
         String url = baseUrl + "/v1/stickers/search?api_key=" + apiKey
                 + "&q=" + encoded
@@ -58,13 +58,23 @@ class ImageSearchGiphyService {
                 .header("Accept", "application/json")
                 .GET()
                 .build();
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        HttpResponse<String> response;
+        try {
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new RuntimeException("חיפוש GIPHY נכשל: " + e.getMessage(), e);
+        }
         if (response.statusCode() != 200) {
             String body = response.body();
             String msg = body != null && body.length() < 200 ? body : "שגיאת GIPHY API: " + response.statusCode();
             throw new RuntimeException(msg);
         }
-        JsonNode root = objectMapper.readTree(response.body());
+        JsonNode root;
+        try {
+            root = objectMapper.readTree(response.body());
+        } catch (Exception e) {
+            throw new RuntimeException("שגיאה בפענוח תשובת GIPHY", e);
+        }
         JsonNode data = root.get("data");
         if (data == null || !data.isArray()) {
             return List.of();

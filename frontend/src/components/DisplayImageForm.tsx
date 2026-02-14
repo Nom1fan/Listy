@@ -85,7 +85,7 @@ export function DisplayImageForm({
           <label style={{ display: 'block', marginBottom: 4 }}>חיפוש תמונה באינטרנט</label>
           <ImageSearchPicker
             onSelect={(url) => onImageUrlChange(url)}
-            placeholder="למשל: חלב, לחם, ירקות"
+            placeholder="חיפוש תמונה..."
           />
           {imageUrl && <p style={{ marginTop: 8, fontSize: 12, color: '#2e7d32' }}>נבחרה תמונה ✓</p>}
         </div>

@@ -2,6 +2,8 @@ package com.listyyy.backend.upload;
 
 import com.listyyy.backend.auth.User;
 import com.listyyy.backend.auth.UserRepository;
+import com.listyyy.backend.exception.AccessDeniedException;
+import com.listyyy.backend.exception.ResourceNotFoundException;
 import com.listyyy.backend.list.GroceryListRepository;
 import com.listyyy.backend.list.ListAccessService;
 import com.listyyy.backend.list.ListItem;
@@ -43,7 +45,7 @@ public class UploadController {
     ) throws IOException {
         if (user == null) return ResponseEntity.status(401).build();
         Category cat = categoryAccessService.getCategoryOrThrow(id, user);
-        if (!categoryAccessService.canEdit(user, id)) throw new IllegalArgumentException("אין גישה");
+        if (!categoryAccessService.canEdit(user, id)) throw new AccessDeniedException("אין גישה");
         String url = uploadService.saveCategoryImage(file);
         cat.setImageUrl(url);
         categoryRepository.save(cat);
@@ -57,9 +59,9 @@ public class UploadController {
             @AuthenticationPrincipal User user
     ) throws IOException {
         if (user == null) return ResponseEntity.status(401).build();
-        Product product = productRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("הפריט לא נמצא"));
+        Product product = productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("הפריט לא נמצא"));
         categoryAccessService.getCategoryOrThrow(product.getCategory().getId(), user);
-        if (!categoryAccessService.canEdit(user, product.getCategory().getId())) throw new IllegalArgumentException("אין גישה");
+        if (!categoryAccessService.canEdit(user, product.getCategory().getId())) throw new AccessDeniedException("אין גישה");
         String url = uploadService.saveProductImage(file);
         product.setImageUrl(url);
         productRepository.save(product);
@@ -75,7 +77,7 @@ public class UploadController {
         if (user == null) return ResponseEntity.status(401).build();
         listAccessService.getListOrThrow(listId, user);
         if (!listAccessService.canEdit(user, listId)) return ResponseEntity.status(403).build();
-        var list = groceryListRepository.findById(listId).orElseThrow(() -> new IllegalArgumentException("הרשימה לא נמצאה"));
+        var list = groceryListRepository.findById(listId).orElseThrow(() -> new ResourceNotFoundException("הרשימה לא נמצאה"));
         String url = uploadService.saveListImage(file);
         list.setImageUrl(url);
         groceryListRepository.save(list);
@@ -91,8 +93,8 @@ public class UploadController {
     ) throws IOException {
         if (user == null) return ResponseEntity.status(401).build();
         listAccessService.getListOrThrow(listId, user);
-        ListItem item = listItemRepository.findById(itemId).orElseThrow(() -> new IllegalArgumentException("הפריט לא נמצא"));
-        if (!item.getList().getId().equals(listId)) throw new IllegalArgumentException("הפריט לא שייך לרשימה");
+        ListItem item = listItemRepository.findById(itemId).orElseThrow(() -> new ResourceNotFoundException("הפריט לא נמצא"));
+        if (!item.getList().getId().equals(listId)) throw new ResourceNotFoundException("הפריט לא שייך לרשימה");
         String url = uploadService.saveListItemImage(file);
         item.setItemImageUrl(url);
         listItemRepository.save(item);
