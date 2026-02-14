@@ -57,7 +57,7 @@ describe('searchImages', () => {
       status: 401,
       text: () => Promise.resolve(JSON.stringify({ message: 'Unauthorized' })),
     })
-    await expect(searchImages('test')).rejects.toThrow('Unauthorized')
+    await expect(searchImages('test')).rejects.toThrow('יש להתחבר מחדש כדי לחפש תמונות')
   })
 
   it('returns empty array when results missing in response', async () => {

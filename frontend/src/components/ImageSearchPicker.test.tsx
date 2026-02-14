@@ -30,7 +30,7 @@ describe('ImageSearchPicker', () => {
     await user.type(screen.getByPlaceholderText('Search images'), 'milk')
     await user.click(screen.getByRole('button', { name: 'חפש' }))
     await waitFor(() => {
-      expect(imagesApi.searchImages).toHaveBeenCalledWith('milk', 12)
+      expect(imagesApi.searchImages).toHaveBeenCalledWith('milk', 12, 'giphy')
     })
     await waitFor(() => {
       expect(container.querySelector('img[src="https://a.com/1-thumb.jpg"]')).toBeInTheDocument()
@@ -44,7 +44,7 @@ describe('ImageSearchPicker', () => {
     const input = screen.getByPlaceholderText('חיפוש תמונות...')
     await user.type(input, 'bread{Enter}')
     await waitFor(() => {
-      expect(imagesApi.searchImages).toHaveBeenCalledWith('bread', 12)
+      expect(imagesApi.searchImages).toHaveBeenCalledWith('bread', 12, 'giphy')
     })
   })
 
