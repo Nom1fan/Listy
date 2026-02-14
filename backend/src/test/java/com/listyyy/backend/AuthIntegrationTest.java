@@ -1,5 +1,6 @@
 package com.listyyy.backend;
 
+import com.listyyy.backend.auth.EmailOtp;
 import com.listyyy.backend.auth.PhoneOtp;
 import com.listyyy.backend.auth.PhoneOtpRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -108,6 +109,88 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
         mvc.perform(post("/api/auth/phone/verify")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("phone", phone, "code", "000000"))))
+                .andExpect(status().isBadRequest());
+    }
+
+    // ---- Email OTP tests ----
+
+    @Test
+    void email_request_otp_returns_204() throws Exception {
+        mvc.perform(post("/api/auth/email/request")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "otp@example.com"))))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void email_verify_succeeds_with_valid_otp_and_displayName() throws Exception {
+        String email = "newuser@example.com";
+        String code = "123456";
+        emailOtpRepository.save(EmailOtp.builder()
+                .email(email)
+                .code(code)
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build());
+
+        mvc.perform(post("/api/auth/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", email, "code", code, "displayName", "New Email User"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").exists())
+                .andExpect(jsonPath("$.displayName").value("New Email User"));
+    }
+
+    @Test
+    void email_verify_succeeds_without_displayName_for_existing_user() throws Exception {
+        String email = "existing@example.com";
+        userRepository.save(com.listyyy.backend.auth.User.builder()
+                .email(email)
+                .displayName("Existing Email User")
+                .locale("he")
+                .build());
+
+        String code = "654321";
+        emailOtpRepository.save(EmailOtp.builder()
+                .email(email)
+                .code(code)
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build());
+
+        mvc.perform(post("/api/auth/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", email, "code", code))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").exists())
+                .andExpect(jsonPath("$.displayName").value("Existing Email User"));
+    }
+
+    @Test
+    void email_verify_fails_with_invalid_code() throws Exception {
+        String email = "bad@example.com";
+        emailOtpRepository.save(EmailOtp.builder()
+                .email(email)
+                .code("123456")
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build());
+
+        mvc.perform(post("/api/auth/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", email, "code", "000000"))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void email_verify_fails_with_expired_code() throws Exception {
+        String email = "expired@example.com";
+        emailOtpRepository.save(EmailOtp.builder()
+                .email(email)
+                .code("123456")
+                .expiresAt(Instant.now().minusSeconds(60))
+                .build());
+
+        mvc.perform(post("/api/auth/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", email, "code", "123456"))))
                 .andExpect(status().isBadRequest());
     }
 

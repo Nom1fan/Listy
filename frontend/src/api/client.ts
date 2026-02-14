@@ -68,7 +68,12 @@ function handleAuthFailure(): never {
 // ---- core fetch with auto-refresh ----
 
 async function fetchWithAuth(url: string, options: RequestInit): Promise<Response> {
-  const res = await fetch(url, options);
+  let res: Response;
+  try {
+    res = await fetch(url, options);
+  } catch {
+    throw new Error('אין חיבור לשרת. נסה שוב מאוחר יותר.');
+  }
   if (res.status === 401 && getToken()) {
     // Access token expired — try silent refresh
     const refreshed = await tryRefreshToken();
@@ -96,7 +101,12 @@ export async function api<T>(
   if (token) {
     (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
   }
-  const res = await fetchWithAuth(API_BASE + path, { ...options, headers, credentials: 'include' });
+  let res: Response;
+  try {
+    res = await fetchWithAuth(API_BASE + path, { ...options, headers, credentials: 'include' });
+  } catch {
+    throw new Error('אין חיבור לשרת. נסה שוב מאוחר יותר.');
+  }
   if (!res.ok) {
     const text = await res.text();
     let msg = text;
@@ -121,7 +131,12 @@ export async function uploadFile<T = { url: string }>(path: string, file: File):
   }
   const form = new FormData();
   form.append('file', file);
-  const res = await fetchWithAuth(API_BASE + path, { method: 'POST', headers, body: form, credentials: 'include' });
+  let res: Response;
+  try {
+    res = await fetchWithAuth(API_BASE + path, { method: 'POST', headers, body: form, credentials: 'include' });
+  } catch (e) {
+    throw e instanceof Error && e.message.includes('חיבור') ? e : new Error('אין חיבור לשרת. נסה שוב מאוחר יותר.');
+  }
   if (!res.ok) {
     const text = await res.text();
     let msg = text;
