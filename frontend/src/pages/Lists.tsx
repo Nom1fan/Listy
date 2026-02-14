@@ -10,9 +10,12 @@ import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
 import { getUserDisplayLabel } from '../utils/user';
+import { WorkspaceTabs, type TabKey } from '../components/WorkspaceTabs';
+import { Categories } from './Categories';
 import type { ListResponse } from '../types';
 
 export function Lists() {
+  const [activeTab, setActiveTab] = useState<TabKey>('lists');
   const [name, setName] = useState('');
   const [showNew, setShowNew] = useState(false);
   const [createDisplayImageType, setCreateDisplayImageType] = useState<DisplayImageType>('icon');
@@ -218,23 +221,7 @@ export function Lists() {
       <AppBar
         title={getUserDisplayLabel(user) || 'הרשימות שלי'}
         right={
-          <span style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <Link to="/categories" style={{ background: 'transparent', color: 'inherit', fontSize: 14 }}>
-              קטגוריות
-            </Link>
-            <button onClick={logout} style={{ background: 'transparent', color: 'inherit', fontSize: 14 }}>
-              יציאה
-            </button>
-          </span>
-        }
-      />
-      <main style={{ padding: 16, direction: 'rtl' }}>
-        {/* Workspace selector + management */}
-        <div style={{ marginBottom: 20, background: '#f8f9fa', borderRadius: 12, padding: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label htmlFor="workspace-select" style={{ fontSize: 14, color: '#666', whiteSpace: 'nowrap' }}>
-              מרחב עבודה
-            </label>
             {workspaces.length > 0 && (
               <select
                 id="workspace-select"
@@ -244,25 +231,27 @@ export function Lists() {
                   if (id) setActiveWorkspace(id);
                 }}
                 style={{
-                  flex: 1,
-                  padding: '8px 10px',
+                  padding: '6px 10px',
                   borderRadius: 8,
-                  border: '1px solid #ddd',
+                  border: '1px solid rgba(255,255,255,0.3)',
                   fontSize: 15,
-                  background: '#fff',
+                  fontWeight: 600,
+                  background: 'rgba(255,255,255,0.15)',
+                  color: 'inherit',
                   cursor: 'pointer',
+                  maxWidth: 180,
                 }}
               >
                 {workspaces.map((w) => (
-                  <option key={w.id} value={w.id}>
+                  <option key={w.id} value={w.id} style={{ color: '#1a1a1a' }}>
                     {w.name}{w.memberCount > 1 ? ` 👥 (${w.memberCount})` : ''}
                   </option>
                 ))}
               </select>
             )}
 
-          {/* Kebab menu for workspace */}
-          {activeWorkspace && !editingWorkspace && !showCreateWorkspace && (
+            {/* Kebab menu for workspace */}
+            {activeWorkspace && !editingWorkspace && !showCreateWorkspace && (
               <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
                 <button
                   type="button"
@@ -275,7 +264,7 @@ export function Lists() {
                     fontSize: 20,
                     padding: '4px 8px',
                     lineHeight: 1,
-                    color: '#555',
+                    color: 'inherit',
                     borderRadius: 6,
                   }}
                 >
@@ -339,6 +328,23 @@ export function Lists() {
                       >
                         שיתוף
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => { setWsMenuOpen(false); setShowCreateWorkspace(true); }}
+                        style={{
+                          display: 'block',
+                          width: '100%',
+                          padding: '10px 16px',
+                          background: 'none',
+                          border: 'none',
+                          textAlign: 'right',
+                          fontSize: 14,
+                          cursor: 'pointer',
+                          borderBottom: activeWorkspace.role === 'owner' && workspaces.length > 1 ? '1px solid #f0f0f0' : 'none',
+                        }}
+                      >
+                        + מרחב עבודה חדש
+                      </button>
                       {activeWorkspace.role === 'owner' && workspaces.length > 1 && (
                         <button
                           type="button"
@@ -362,32 +368,18 @@ export function Lists() {
                   </>
                 )}
               </div>
-          )}
-          </div>
+            )}
 
-          {/* + New workspace button */}
-          {activeWorkspace && !editingWorkspace && !showCreateWorkspace && (
-            <button
-              type="button"
-              onClick={() => setShowCreateWorkspace(true)}
-              style={{
-                marginTop: 10,
-                padding: '8px 14px',
-                background: 'var(--color-primary)',
-                color: '#fff',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 13,
-                borderRadius: 8,
-                fontWeight: 500,
-              }}
-            >
-              + מרחב עבודה חדש
+            <button onClick={logout} style={{ background: 'transparent', color: 'inherit', fontSize: 14 }}>
+              יציאה
             </button>
-          )}
-
-          {/* Inline rename */}
-          {editingWorkspace && activeWorkspace && (
+          </div>
+        }
+      />
+      <main style={{ padding: 0, direction: 'rtl' }}>
+        {/* Workspace management forms (inline rename / create) */}
+        {editingWorkspace && activeWorkspace && (
+          <div style={{ padding: '12px 16px', background: '#f8f9fa' }}>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -395,7 +387,7 @@ export function Lists() {
                   updateWorkspaceMutation.mutate({ id: activeWorkspaceId, name: editWorkspaceName.trim() });
                 }
               }}
-              style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}
+              style={{ display: 'flex', gap: 8, alignItems: 'center' }}
             >
               <input
                 type="text"
@@ -441,10 +433,11 @@ export function Lists() {
                 ביטול
               </button>
             </form>
-          )}
+          </div>
+        )}
 
-          {/* Create new workspace form */}
-          {showCreateWorkspace && (
+        {showCreateWorkspace && (
+          <div style={{ padding: '12px 16px', background: '#f8f9fa' }}>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -452,7 +445,7 @@ export function Lists() {
                   createWorkspaceMutation.mutate({ name: newWorkspaceName.trim() });
                 }
               }}
-              style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}
+              style={{ display: 'flex', gap: 8, alignItems: 'center' }}
             >
               <input
                 type="text"
@@ -499,19 +492,18 @@ export function Lists() {
                 ביטול
               </button>
             </form>
-          )}
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div style={{ padding: '0 16px', background: '#f8f9fa' }}>
+          <WorkspaceTabs activeTab={activeTab} onChange={setActiveTab} />
         </div>
 
-        <h1
-          style={{
-            margin: '0 0 20px 0',
-            fontSize: '1.75rem',
-            fontWeight: 700,
-            color: 'var(--color-text, #1a1a1a)',
-          }}
-        >
-          רשימות
-        </h1>
+        {/* Tab content */}
+        <div style={{ padding: 16 }}>
+        {activeTab === 'lists' ? (
+          <>
         {isLoading ? (
           <p>טוען...</p>
         ) : (
@@ -803,6 +795,11 @@ export function Lists() {
             +
           </button>
         )}
+          </>
+        ) : (
+          <Categories />
+        )}
+        </div>
 
         {/* Delete confirmation dialog */}
         {confirmDeleteList && (

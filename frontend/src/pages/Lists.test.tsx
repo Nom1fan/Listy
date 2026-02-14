@@ -70,7 +70,7 @@ describe('Lists', () => {
     expect(screen.getByRole('link', { name: /List One/i })).toHaveAttribute('href', '/lists/1')
   })
 
-  it('has link to categories', async () => {
+  it('has tab for categories', async () => {
     const fn = globalThis.fetch as ReturnType<typeof vi.fn>
     fn.mockImplementation((url: string) => {
       if (url.includes('/api/workspaces')) {
@@ -86,6 +86,6 @@ describe('Lists', () => {
     await waitFor(() => {
       expect(screen.getByText('קטגוריות')).toBeInTheDocument()
     })
-    expect(screen.getByRole('link', { name: 'קטגוריות' })).toHaveAttribute('href', '/categories')
+    expect(screen.getByRole('button', { name: 'קטגוריות' })).toBeInTheDocument()
   })
 })
