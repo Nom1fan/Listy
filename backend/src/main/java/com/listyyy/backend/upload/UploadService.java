@@ -48,6 +48,10 @@ public class UploadService {
         return saveFile(file, "list");
     }
 
+    public String saveProfileImage(MultipartFile file) throws IOException {
+        return saveFile(file, "profile");
+    }
+
     private String saveFile(MultipartFile file, String subdir) throws IOException {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("לא נבחר קובץ");
         String ext = getExtension(file.getOriginalFilename());

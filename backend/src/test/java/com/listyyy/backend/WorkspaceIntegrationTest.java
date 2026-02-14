@@ -175,6 +175,47 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void workspace_members_include_profile_image_url() throws Exception {
+        // Set profile image on test user
+        testUser.setProfileImageUrl("https://example.com/photo.jpg");
+        userRepository.save(testUser);
+
+        // Create other user with profile image
+        User other = userRepository.save(User.builder()
+                .email("other@example.com")
+                .passwordHash(passwordEncoder.encode("pass123"))
+                .displayName("Other User")
+                .profileImageUrl("https://example.com/other.jpg")
+                .locale("he")
+                .build());
+
+        // Invite other
+        mvc.perform(post("/api/workspaces/" + workspaceId + "/members")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "other@example.com"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profileImageUrl").value("https://example.com/other.jpg"));
+
+        // List members — both should have profileImageUrl
+        mvc.perform(get("/api/workspaces/" + workspaceId + "/members")
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[?(@.displayName=='Test User')].profileImageUrl").value("https://example.com/photo.jpg"))
+                .andExpect(jsonPath("$[?(@.displayName=='Other User')].profileImageUrl").value("https://example.com/other.jpg"));
+    }
+
+    @Test
+    void workspace_members_without_profile_image() throws Exception {
+        // List members — profileImageUrl should be null
+        mvc.perform(get("/api/workspaces/" + workspaceId + "/members")
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].profileImageUrl").doesNotExist());
+    }
+
+    @Test
     void workspaces_require_auth() throws Exception {
         mvc.perform(get("/api/workspaces")).andExpect(status().is4xxClientError());
         mvc.perform(post("/api/workspaces")

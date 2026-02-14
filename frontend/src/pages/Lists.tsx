@@ -219,7 +219,32 @@ export function Lists() {
   return (
     <>
       <AppBar
-        title={getUserDisplayLabel(user) || 'הרשימות שלי'}
+        title={
+          <Link to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
+            {user?.profileImageUrl ? (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <img
+                  src={user.profileImageUrl}
+                  alt=""
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '2px solid rgba(255,255,255,0.5)',
+                  }}
+                />
+                <span style={{ fontSize: 11, fontWeight: 500, opacity: 0.85 }}>
+                  {getUserDisplayLabel(user)}
+                </span>
+              </div>
+            ) : (
+              <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>
+                {getUserDisplayLabel(user) || 'הרשימות שלי'}
+              </h1>
+            )}
+          </Link>
+        }
         right={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {workspaces.length > 0 && (

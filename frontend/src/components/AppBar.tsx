@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useSideMenuStore } from '../store/sideMenuStore';
 
 interface AppBarProps {
-  title: string;
+  title: React.ReactNode;
   /** Rendered to the right of the title (e.g. list icon) */
   titleRight?: React.ReactNode;
   backTo?: string;
@@ -42,7 +42,11 @@ export function AppBar({ title, titleRight, backTo, right, showMenuButton = true
             →
           </Link>
         )}
-        <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{title}</h1>
+        {typeof title === 'string' ? (
+          <h1 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600 }}>{title}</h1>
+        ) : (
+          title
+        )}
         {titleRight}
       </div>
       {right && <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>{right}</div>}

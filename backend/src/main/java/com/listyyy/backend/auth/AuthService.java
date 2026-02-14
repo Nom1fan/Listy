@@ -170,14 +170,22 @@ public class AuthService {
     }
 
     @Transactional
-    public AuthResponse updateDisplayName(User user, String displayName) {
-        if (displayName == null || displayName.isBlank()) {
-            throw new IllegalArgumentException("יש להזין שם תצוגה");
+    public AuthResponse updateProfile(User user, UpdateProfileRequest req) {
+        String displayName = req.getDisplayName();
+        if (displayName != null) {
+            if (displayName.isBlank()) {
+                throw new IllegalArgumentException("יש להזין שם תצוגה");
+            }
+            if (displayName.length() > 255) {
+                throw new IllegalArgumentException("שם התצוגה ארוך מדי");
+            }
+            user.setDisplayName(displayName.trim());
         }
-        if (displayName.length() > 255) {
-            throw new IllegalArgumentException("שם התצוגה ארוך מדי");
+        // Allow setting or clearing profile image URL
+        if (req.getProfileImageUrl() != null) {
+            String url = req.getProfileImageUrl().trim();
+            user.setProfileImageUrl(url.isEmpty() ? null : url);
         }
-        user.setDisplayName(displayName.trim());
         user = userRepository.save(user);
         String token = jwtService.generateToken(user);
         return toAuthResponse(user, token);
@@ -243,6 +251,7 @@ public class AuthService {
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .displayName(user.getDisplayName())
+                .profileImageUrl(user.getProfileImageUrl())
                 .locale(user.getLocale())
                 .build();
     }

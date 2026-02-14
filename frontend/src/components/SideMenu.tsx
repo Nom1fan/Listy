@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSideMenuStore } from '../store/sideMenuStore';
+import { useAuthStore } from '../store/authStore';
 
 const APP_VERSION = __APP_VERSION__;
 const SUPPORT_EMAIL = 'listyyysupp@gmail.com';
@@ -8,6 +9,7 @@ const SUPPORT_EMAIL = 'listyyysupp@gmail.com';
 export function SideMenu() {
   const isOpen = useSideMenuStore((s) => s.isOpen);
   const close = useSideMenuStore((s) => s.close);
+  const user = useAuthStore((s) => s.user);
 
   const [aboutOpen, setAboutOpen] = useState(false);
   const [shareToast, setShareToast] = useState(false);
@@ -107,7 +109,20 @@ export function SideMenu() {
             onClick={close}
             style={menuItemStyle}
           >
-            <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>👤</span>
+            {user?.profileImageUrl ? (
+              <img
+                src={user.profileImageUrl}
+                alt=""
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                }}
+              />
+            ) : (
+              <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>👤</span>
+            )}
             הפרופיל שלי
           </Link>
 

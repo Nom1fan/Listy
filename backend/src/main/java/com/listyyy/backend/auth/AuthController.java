@@ -97,7 +97,7 @@ public class AuthController {
             @Valid @RequestBody UpdateProfileRequest req
     ) {
         if (user == null) return ResponseEntity.status(401).build();
-        return ResponseEntity.ok(authService.updateDisplayName(user, req.getDisplayName()));
+        return ResponseEntity.ok(authService.updateProfile(user, req));
     }
 
     // ---- cookie helpers ----

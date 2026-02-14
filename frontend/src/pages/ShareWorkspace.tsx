@@ -105,11 +105,43 @@ export function ShareWorkspace() {
                       boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                     }}
                   >
-                    <div>
-                      <span style={{ fontWeight: 500 }}>{memberLabel(m, currentUserId)}</span>
-                      <span style={{ marginRight: 8, fontSize: 13, color: '#666' }}>
-                        {m.role === 'owner' ? 'בעל/ת המרחב' : 'עורך/ת'}
-                      </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {m.profileImageUrl ? (
+                        <img
+                          src={m.profileImageUrl}
+                          alt=""
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: '50%',
+                            objectFit: 'cover',
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: '50%',
+                            background: '#e0e0e0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 18,
+                            color: '#9e9e9e',
+                            flexShrink: 0,
+                          }}
+                        >
+                          👤
+                        </div>
+                      )}
+                      <div>
+                        <span style={{ fontWeight: 500 }}>{memberLabel(m, currentUserId)}</span>
+                        <span style={{ marginRight: 8, fontSize: 13, color: '#666' }}>
+                          {m.role === 'owner' ? 'בעל/ת המרחב' : 'עורך/ת'}
+                        </span>
+                      </div>
                     </div>
                     {m.role !== 'owner' && (
                       <button

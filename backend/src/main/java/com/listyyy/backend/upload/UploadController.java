@@ -1,6 +1,7 @@
 package com.listyyy.backend.upload;
 
 import com.listyyy.backend.auth.User;
+import com.listyyy.backend.auth.UserRepository;
 import com.listyyy.backend.list.GroceryListRepository;
 import com.listyyy.backend.list.ListAccessService;
 import com.listyyy.backend.list.ListItem;
@@ -26,6 +27,7 @@ import java.util.UUID;
 public class UploadController {
 
     private final UploadService uploadService;
+    private final UserRepository userRepository;
     private final CategoryRepository categoryRepository;
     private final CategoryAccessService categoryAccessService;
     private final ProductRepository productRepository;
@@ -94,6 +96,18 @@ public class UploadController {
         String url = uploadService.saveListItemImage(file);
         item.setItemImageUrl(url);
         listItemRepository.save(item);
+        return ResponseEntity.ok(Map.of("url", url));
+    }
+
+    @PostMapping("/upload/profile")
+    public ResponseEntity<Map<String, String>> uploadProfileImage(
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal User user
+    ) throws IOException {
+        if (user == null) return ResponseEntity.status(401).build();
+        String url = uploadService.saveProfileImage(file);
+        user.setProfileImageUrl(url);
+        userRepository.save(user);
         return ResponseEntity.ok(Map.of("url", url));
     }
 }
