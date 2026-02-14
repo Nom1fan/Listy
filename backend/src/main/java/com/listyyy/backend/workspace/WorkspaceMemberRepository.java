@@ -14,6 +14,14 @@ public interface WorkspaceMemberRepository extends JpaRepository<WorkspaceMember
 
     List<WorkspaceMember> findByWorkspaceId(UUID workspaceId);
 
+    /** Fetch members with their User eagerly loaded to avoid N+1 queries. */
+    @Query("SELECT m FROM WorkspaceMember m JOIN FETCH m.user WHERE m.workspaceId = :workspaceId")
+    List<WorkspaceMember> findByWorkspaceIdWithUser(UUID workspaceId);
+
+    /** Fetch all memberships for a user with roles eagerly loaded (avoids N+1 on listWorkspaces). */
+    @Query("SELECT m FROM WorkspaceMember m WHERE m.userId = :userId")
+    List<WorkspaceMember> findByUserIdWithRole(UUID userId);
+
     Optional<WorkspaceMember> findByWorkspaceIdAndUserId(UUID workspaceId, UUID userId);
 
     boolean existsByWorkspaceIdAndUserId(UUID workspaceId, UUID userId);

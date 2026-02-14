@@ -22,7 +22,7 @@ public class EmailService {
 
     public void sendOtp(String toEmail, String code) {
         if (mailUsername == null || mailUsername.isBlank()) {
-            log.warn("Mail not configured; skipping email. OTP for {} would be: {}", toEmail, code);
+            log.warn("Mail not configured; skipping email to {}", toEmail);
             return;
         }
         try {

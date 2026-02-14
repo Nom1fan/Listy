@@ -37,7 +37,7 @@ public class SmsService {
 
     public void sendOtp(String toPhone, String code) {
         if (!configured) {
-            log.warn("Twilio not configured; skipping SMS. OTP for {} would be: {}", toPhone, code);
+            log.warn("Twilio not configured; skipping SMS to {}", toPhone);
             return;
         }
         try {
