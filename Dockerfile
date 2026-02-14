@@ -10,19 +10,19 @@ RUN npm run build
 # Build backend (with frontend static baked in)
 FROM --platform=linux/amd64 maven:3.9-eclipse-temurin-17-alpine AS backend
 WORKDIR /app
-COPY demo/pom.xml ./demo/
-COPY demo/src ./demo/src
+COPY backend/pom.xml ./backend/
+COPY backend/src ./backend/src
 
 # Copy frontend build into Spring static resources (contents of dist → static)
-COPY --from=frontend /app/frontend/dist/ ./demo/src/main/resources/static/
+COPY --from=frontend /app/frontend/dist/ ./backend/src/main/resources/static/
 
-RUN cd demo && mvn -B package -DskipTests -q
+RUN cd backend && mvn -B package -DskipTests -q
 
 # Runtime
 FROM --platform=linux/amd64 eclipse-temurin:17-jre-alpine
 WORKDIR /app
 RUN adduser -D -u 1000 app && mkdir -p /app/logs /app/uploads && chown -R app:app /app/logs /app/uploads
-COPY --from=backend /app/demo/target/*.jar app.jar
+COPY --from=backend /app/backend/target/*.jar app.jar
 USER app
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

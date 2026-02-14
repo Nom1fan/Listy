@@ -5,9 +5,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 OUT="$REPO_ROOT/listyyy-windows"
-# JAR name follows Maven: demo-<version>.jar (version from pom.xml; match SNAPSHOT to skip parent version)
-POM_VERSION=$(sed -n 's/.*<version>\([^<]*\-SNAPSHOT\)<\/version>.*/\1/p' "$REPO_ROOT/demo/pom.xml" | head -1)
-JAR_NAME="demo-${POM_VERSION}.jar"
+# JAR name follows Maven: backend-<version>.jar (version from pom.xml; match SNAPSHOT to skip parent version)
+POM_VERSION=$(sed -n 's/.*<version>\([^<]*\-SNAPSHOT\)<\/version>.*/\1/p' "$REPO_ROOT/backend/pom.xml" | head -1)
+JAR_NAME="backend-${POM_VERSION}.jar"
 
 echo "Building frontend ..."
 cd "$REPO_ROOT/frontend"
@@ -15,16 +15,16 @@ npm ci --quiet
 npm run build
 
 echo "Building backend (with frontend static) ..."
-mkdir -p "$REPO_ROOT/demo/src/main/resources/static"
-rm -rf "$REPO_ROOT/demo/src/main/resources/static"
-cp -r "$REPO_ROOT/frontend/dist" "$REPO_ROOT/demo/src/main/resources/static"
-cd "$REPO_ROOT/demo"
+mkdir -p "$REPO_ROOT/backend/src/main/resources/static"
+rm -rf "$REPO_ROOT/backend/src/main/resources/static"
+cp -r "$REPO_ROOT/frontend/dist" "$REPO_ROOT/backend/src/main/resources/static"
+cd "$REPO_ROOT/backend"
 ./mvnw -B package -DskipTests -q
 
 echo "Creating Windows package in $OUT ..."
 rm -rf "$OUT"
 mkdir -p "$OUT/db"
-cp "$REPO_ROOT/demo/target/$JAR_NAME" "$OUT/app.jar"
+cp "$REPO_ROOT/backend/target/$JAR_NAME" "$OUT/app.jar"
 cp "$REPO_ROOT/scripts/windows/Dockerfile" "$OUT/"
 cp "$REPO_ROOT/scripts/windows/docker-compose.yml" "$OUT/"
 cp "$REPO_ROOT/scripts/windows/run.bat" "$OUT/"
