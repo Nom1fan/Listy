@@ -19,6 +19,7 @@ describe('authStore', () => {
       email: 'a@b.com',
       phone: null,
       displayName: 'User',
+      profileImageUrl: null,
       locale: 'he',
     })
     expect(useAuthStore.getState().isAuthenticated()).toBe(true)
@@ -34,6 +35,7 @@ describe('authStore', () => {
       email: null,
       phone: null,
       displayName: null,
+      profileImageUrl: null,
       locale: 'he',
     })
     useAuthStore.getState().logout()

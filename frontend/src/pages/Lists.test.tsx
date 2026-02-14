@@ -33,6 +33,7 @@ describe('Lists', () => {
       email: 'test@test.com',
       phone: null,
       displayName: 'Test User',
+      profileImageUrl: null,
       locale: 'he',
     })
     // Pre-set active workspace so we don't need to wait for auto-select
