@@ -50,7 +50,7 @@ export function ListDetail() {
   const [quickAddCategoryId, setQuickAddCategoryId] = useState('');
   const quickAddFileInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useViewMode();
-  const [itemMenuOpenId, setItemMenuOpenId] = useState<number | null>(null);
+  const [itemMenuOpenId, setItemMenuOpenId] = useState<string | null>(null);
   const [listDetailMenuOpen, setListDetailMenuOpen] = useState(false);
   const [editListOpen, setEditListOpen] = useState(false);
   const [editListName, setEditListName] = useState('');
