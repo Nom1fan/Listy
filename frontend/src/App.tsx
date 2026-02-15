@@ -10,6 +10,7 @@ import { ListDetail } from './pages/ListDetail';
 import { ProductBank } from './pages/ProductBank';
 import { ShareWorkspace } from './pages/ShareWorkspace';
 import { Profile } from './pages/Profile';
+import { Privacy } from './pages/Privacy';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
@@ -68,6 +69,7 @@ export default function App() {
             </PrivateRoute>
           }
         />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="/" element={<Navigate to="/lists" replace />} />
         <Route path="*" element={<Navigate to="/lists" replace />} />
       </Routes>
