@@ -296,7 +296,23 @@ export function Lists() {
         }
         right={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {workspaces.length > 0 && (
+            {workspaces.length === 1 && (
+              <span
+                style={{
+                  padding: '6px 10px',
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: 'inherit',
+                  maxWidth: 180,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {workspaces[0].name}{workspaces[0].memberCount > 1 ? ` 👥 (${workspaces[0].memberCount})` : ''}
+              </span>
+            )}
+            {workspaces.length > 1 && (
               <select
                 id="workspace-select"
                 value={activeWorkspaceId ?? ''}
