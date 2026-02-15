@@ -14,6 +14,7 @@ export function ImageSearchPicker({ onSelect, placeholder = 'חיפוש תמונ
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
+  const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
 
   async function runSearch(overrideSource?: ImageSource) {
     const q = query.trim();
@@ -39,6 +40,7 @@ export function ImageSearchPicker({ onSelect, placeholder = 'חיפוש תמונ
     setResults([]);
     setError(null);
     setSearched(false);
+    setSelectedUrl(null);
     // Auto-search if there's a query
     if (query.trim()) {
       runSearch(newSource);
@@ -131,28 +133,62 @@ export function ImageSearchPicker({ onSelect, placeholder = 'חיפוש תמונ
             overflowY: 'auto',
           }}
         >
-          {results.map((r, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => onSelect(r.url)}
-              style={{
-                padding: 0,
-                border: '2px solid #ddd',
-                borderRadius: 8,
-                overflow: 'hidden',
-                background: '#f5f5f5',
-                cursor: 'pointer',
-                aspectRatio: '1',
-              }}
-            >
-              <img
-                src={r.thumbUrl}
-                alt=""
-                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              />
-            </button>
-          ))}
+          {results.map((r, i) => {
+            const isSelected = selectedUrl === r.url;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => { setSelectedUrl(r.url); onSelect(r.url); }}
+                style={{
+                  padding: 0,
+                  position: 'relative',
+                  border: isSelected ? '2.5px solid #2e7d32' : '2px solid #ddd',
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                  background: '#f5f5f5',
+                  cursor: 'pointer',
+                  aspectRatio: '1',
+                  boxShadow: isSelected ? '0 0 0 2px rgba(46,125,50,0.25)' : 'none',
+                  transition: 'border 0.15s, box-shadow 0.15s',
+                }}
+              >
+                <img
+                  src={r.thumbUrl}
+                  alt=""
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block',
+                    opacity: isSelected ? 0.85 : 1,
+                    transition: 'opacity 0.15s',
+                  }}
+                />
+                {isSelected && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 4,
+                      right: 4,
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: '#2e7d32',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                    }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>
