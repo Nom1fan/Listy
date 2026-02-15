@@ -16,4 +16,8 @@ public interface GroceryListRepository extends JpaRepository<GroceryList, UUID> 
            "WHERE wm.userId = :userId " +
            "ORDER BY l.sortOrder ASC")
     List<GroceryList> findVisibleToUser(UUID userId);
+
+    boolean existsByWorkspaceIdAndName(UUID workspaceId, String name);
+
+    boolean existsByWorkspaceIdAndNameAndIdNot(UUID workspaceId, String name, UUID id);
 }

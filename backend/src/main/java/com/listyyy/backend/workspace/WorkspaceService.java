@@ -47,8 +47,12 @@ public class WorkspaceService {
 
     @Transactional
     public Workspace createWorkspace(User user, String name, String iconId) {
+        String trimmedName = name.trim();
+        if (workspaceRepository.existsVisibleToUserWithName(user.getId(), trimmedName)) {
+            throw new IllegalArgumentException("כבר קיים מרחב עבודה בשם זה");
+        }
         Workspace workspace = Workspace.builder()
-                .name(name.trim())
+                .name(trimmedName)
                 .iconId(iconId)
                 .build();
         workspace = workspaceRepository.save(workspace);
@@ -77,7 +81,14 @@ public class WorkspaceService {
         if (!workspaceAccessService.isOwner(user, workspaceId)) {
             throw new AccessDeniedException("רק בעל המרחב יכול לערוך");
         }
-        if (req.getName() != null && !req.getName().isBlank()) workspace.setName(req.getName().trim());
+        if (req.getName() != null && !req.getName().isBlank()) {
+            String trimmedName = req.getName().trim();
+            if (!trimmedName.equals(workspace.getName()) &&
+                    workspaceRepository.existsVisibleToUserWithNameAndIdNot(user.getId(), trimmedName, workspaceId)) {
+                throw new IllegalArgumentException("כבר קיים מרחב עבודה בשם זה");
+            }
+            workspace.setName(trimmedName);
+        }
         if (req.getIconId() != null) workspace.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
         return workspaceRepository.save(workspace);
     }
