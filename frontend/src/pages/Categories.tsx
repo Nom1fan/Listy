@@ -12,10 +12,6 @@ import type { CategoryDto, ProductDto } from '../types';
 
 type DisplayImageType = 'icon' | 'device' | 'link' | 'web';
 
-function isProductImageErrorToast(msg: string): boolean {
-  return /(401|403|404|500)\b|^HTTP\s|\bשגיאה\b|Forbidden|Unauthorized/i.test(msg);
-}
-
 export function Categories() {
   const queryClient = useQueryClient();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
@@ -50,7 +46,7 @@ export function Categories() {
   const [editProductImageUrl, setEditProductImageUrl] = useState('');
   const editProductFileInputRef = useRef<HTMLInputElement>(null);
   const [newProductNote, setNewProductNote] = useState('');
-  const [productImageToast, setProductImageToast] = useState<string | null>(null);
+  const [productImageToast, setProductImageToast] = useState<{ message: string; isError: boolean } | null>(null);
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<CategoryDto | null>(null);
   const [categoryMenuOpenId, setCategoryMenuOpenId] = useState<string | null>(null);
   const [productMenuOpenId, setProductMenuOpenId] = useState<string | null>(null);
@@ -141,6 +137,10 @@ export function Categories() {
         }
       }
     },
+    onError: (err: Error) => {
+      setProductImageToast({ message: err.message || 'שגיאה בהוספת פריט', isError: true });
+      setTimeout(() => setProductImageToast(null), 5000);
+    },
   });
 
   const deleteProductMutation = useMutation({
@@ -154,8 +154,12 @@ export function Categories() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setEditProduct(null);
-      setProductImageToast('הפריט עודכן');
+      setProductImageToast({ message: 'הפריט עודכן', isError: false });
       setTimeout(() => setProductImageToast(null), 3000);
+    },
+    onError: (err: Error) => {
+      setProductImageToast({ message: err.message || 'שגיאה בעדכון הפריט', isError: true });
+      setTimeout(() => setProductImageToast(null), 5000);
     },
   });
 
@@ -163,7 +167,6 @@ export function Categories() {
     e.preventDefault();
     setCreateError(null);
     if (!nameHe.trim()) return;
-    if (displayImageType === 'icon' && !iconId) return;
     if (displayImageType === 'device' && !pendingCategoryFile) return;
     if (displayImageType === 'link' && !imageUrl.trim()) return;
     pendingCreateFileRef.current = displayImageType === 'device' ? pendingCategoryFile : null;
@@ -247,22 +250,24 @@ export function Categories() {
     <>
       {productImageToast && (
         <div
+          onClick={() => setProductImageToast(null)}
           style={{
             position: 'fixed',
             bottom: 24,
             left: 16,
             right: 16,
             padding: 14,
-            background: isProductImageErrorToast(productImageToast) ? 'linear-gradient(135deg, #c62828 0%, #b71c1c 100%)' : 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)',
+            background: productImageToast.isError ? 'linear-gradient(135deg, #c62828 0%, #b71c1c 100%)' : 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)',
             color: '#fff',
             borderRadius: 12,
             textAlign: 'center',
             zIndex: 1002,
             boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
             fontWeight: 500,
+            cursor: 'pointer',
           }}
         >
-          {isProductImageErrorToast(productImageToast) ? '✕ ' : '✓ '}{productImageToast}
+          {productImageToast.isError ? '✕ ' : '✓ '}{productImageToast.message}
         </div>
       )}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
@@ -363,12 +368,12 @@ export function Categories() {
           )}
           {(() => {
             const hasName = !!nameHe.trim();
-            const hasIconOrImage =
-              (displayImageType === 'icon' && !!iconId) ||
+            const imageReady =
+              displayImageType === 'icon' ||
               (displayImageType === 'device' && !!pendingCategoryFile) ||
               (displayImageType === 'link' && !!imageUrl.trim()) ||
               (displayImageType === 'web' && !!imageUrl.trim());
-            const canSubmit = !!activeWorkspaceId && hasName && hasIconOrImage && !createMutation.isPending;
+            const canSubmit = !!activeWorkspaceId && hasName && imageReady && !createMutation.isPending;
             return (
               <button
                 type="submit"
@@ -601,6 +606,11 @@ export function Categories() {
               {editing?.id !== c.id && (
                 <div style={{ padding: '0 12px 12px 12px', borderTop: '1px solid #eee', marginTop: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, marginTop: 8 }}>פריטים בקטגוריה</div>
+                  {!(productsByCategory[c.id]?.length) && addProductCategoryId !== c.id && (
+                    <p style={{ fontSize: 14, color: '#999', margin: '8px 0 12px', textAlign: 'center' }}>
+                      הקטגוריה ריקה — הוסיפו פריטים לקטגוריה
+                    </p>
+                  )}
                   {viewMode === 'list' ? (
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px 0' }}>
                     {(productsByCategory[c.id] || []).map((p) => (
@@ -988,11 +998,11 @@ export function Categories() {
                   await uploadFile(`/api/upload/product/${editProduct.id}`, file);
                   queryClient.invalidateQueries({ queryKey: ['products'] });
                   setEditProduct(null);
-                  setProductImageToast(`תמונת "${productName}" עודכנה`);
+                  setProductImageToast({ message: `תמונת "${productName}" עודכנה`, isError: false });
                   setTimeout(() => setProductImageToast(null), 3000);
                 } catch (err) {
                   console.error(err);
-                  setProductImageToast(err instanceof Error ? err.message : 'שגיאה בהעלאת התמונה');
+                  setProductImageToast({ message: err instanceof Error ? err.message : 'שגיאה בהעלאת התמונה', isError: true });
                   setTimeout(() => setProductImageToast(null), 5000);
                 }
               }}
