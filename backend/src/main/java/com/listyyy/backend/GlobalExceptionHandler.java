@@ -26,6 +26,8 @@ public class GlobalExceptionHandler {
             message = "כבר קיימת קטגוריה בשם זה במרחב";
         } else if (msg != null && msg.contains("uq_product_name_per_category")) {
             message = "כבר קיים פריט בשם זה בקטגוריה";
+        } else if (msg != null && msg.contains("uq_list_name_per_workspace")) {
+            message = "כבר קיימת רשימה בשם זה במרחב";
         } else {
             message = "שגיאה בשמירת הנתונים";
         }

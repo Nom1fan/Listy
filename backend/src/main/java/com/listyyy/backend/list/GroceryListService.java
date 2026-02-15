@@ -36,8 +36,12 @@ public class GroceryListService {
     @Transactional
     public GroceryList create(User user, UUID workspaceId, String name, String iconId, String imageUrl) {
         Workspace workspace = workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
+        String listName = name != null && !name.isBlank() ? name : "רשימה חדשה";
+        if (listRepository.existsByWorkspaceIdAndName(workspaceId, listName)) {
+            throw new IllegalArgumentException("כבר קיימת רשימה בשם זה במרחב");
+        }
         GroceryList list = GroceryList.builder()
-                .name(name != null && !name.isBlank() ? name : "רשימה חדשה")
+                .name(listName)
                 .workspace(workspace)
                 .iconId(iconId)
                 .imageUrl(imageUrl)
@@ -58,7 +62,12 @@ public class GroceryListService {
     public GroceryList update(UUID listId, User user, String name, String iconId, String imageUrl) {
         GroceryList list = get(listId, user);
         if (!listAccessService.canEdit(user, listId)) throw new AccessDeniedException("אין הרשאה לערוך");
-        if (name != null && !name.isBlank()) list.setName(name);
+        if (name != null && !name.isBlank()) {
+            if (!name.equals(list.getName()) && listRepository.existsByWorkspaceIdAndNameAndIdNot(list.getWorkspace().getId(), name, list.getId())) {
+                throw new IllegalArgumentException("כבר קיימת רשימה בשם זה במרחב");
+            }
+            list.setName(name);
+        }
         if (iconId != null) list.setIconId(iconId.isBlank() ? null : iconId);
         if (imageUrl != null) list.setImageUrl(imageUrl.isBlank() ? null : imageUrl);
         return listRepository.save(list);
