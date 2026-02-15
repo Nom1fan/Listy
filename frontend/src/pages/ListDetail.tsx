@@ -588,6 +588,74 @@ export function ListDetail() {
                   </div>
                 ))}
               </div>
+              ) : viewMode === 'compact' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {grouped[cat].map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 10px',
+                      background: '#fff',
+                      borderRadius: 6,
+                      borderBottom: '1px solid #f0f0f0',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!item.crossedOff}
+                      onChange={() =>
+                        updateMutation.mutate({
+                          itemId: item.id,
+                          body: { crossedOff: !item.crossedOff },
+                        })
+                      }
+                      style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--color-primary)', flexShrink: 0 }}
+                      aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
+                    />
+                    <span style={{
+                      flex: 1,
+                      fontSize: 14,
+                      textDecoration: item.crossedOff ? 'line-through' : 'none',
+                      color: item.crossedOff ? 'var(--color-strike)' : 'inherit',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}>
+                      {item.displayName}
+                    </span>
+                    <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
+                      {item.quantity} {item.unit}
+                    </span>
+                    {item.note && (
+                      <span style={{ fontSize: 11, color: '#aaa', flexShrink: 1, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {item.note}
+                      </span>
+                    )}
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
+                        aria-label="תפריט פריט"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 4px', lineHeight: 1, color: '#999', borderRadius: 4 }}
+                      >
+                        &#8942;
+                      </button>
+                      {itemMenuOpenId === item.id && (
+                        <>
+                          <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
+                          <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 120, overflow: 'hidden' }}>
+                            <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
+                            <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
               ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
                 {grouped[cat].map((item) => (
