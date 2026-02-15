@@ -204,7 +204,11 @@ export function ListDetail() {
       setQuickAddSubmitting(true);
       try {
         const created = await addListItem(listId, body);
-        await uploadFile(`/api/upload/lists/${listId}/items/${created.id}`, quickAddImageFile);
+        const { url } = await uploadFile(`/api/upload/lists/${listId}/items/${created.id}`, quickAddImageFile);
+        // Also set the image on the auto-created product so it shows in Categories
+        if (created.productId && url) {
+          await updateProduct(created.productId, { imageUrl: url });
+        }
         queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
         queryClient.invalidateQueries({ queryKey: ['products'] });
         closeQuickAddModal();
@@ -238,6 +242,13 @@ export function ListDetail() {
   function getCategoryIconId(cat: string): string | null {
     const first = grouped[cat]?.[0];
     return first ? first.categoryIconId ?? null : null;
+  }
+
+  function getCategoryImageUrl(cat: string): string | null {
+    const first = grouped[cat]?.[0];
+    if (!first?.categoryId) return null;
+    const category = workspaceCategories.find((c) => c.id === first.categoryId);
+    return category?.imageUrl ?? null;
   }
 
   function openEditItemImage(item: ListItemResponse, e: React.MouseEvent) {
@@ -505,7 +516,7 @@ export function ListDetail() {
                   gap: 8,
                 }}
               >
-                <CategoryIcon iconId={getCategoryIconId(cat)} imageUrl={null} size={24} />
+                <CategoryIcon iconId={getCategoryIconId(cat)} imageUrl={getCategoryImageUrl(cat)} size={24} />
                 <span style={{ fontWeight: 600 }}>{cat}</span>
               </div>
               {viewMode === 'list' ? (
