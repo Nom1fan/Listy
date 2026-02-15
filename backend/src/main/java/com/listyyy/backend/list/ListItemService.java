@@ -137,6 +137,20 @@ public class ListItemService {
         listEventPublisher.publishItemRemoved(listId, itemId, displayName, quantityUnit, user);
     }
 
+    @Transactional
+    public void reorderItems(UUID listId, User user, List<UUID> itemIds) {
+        listAccessService.getListOrThrow(listId, user);
+        for (int i = 0; i < itemIds.size(); i++) {
+            ListItem item = listItemRepository.findById(itemIds.get(i))
+                    .orElseThrow(() -> new ResourceNotFoundException("הפריט לא נמצא"));
+            if (!item.getList().getId().equals(listId)) {
+                throw new IllegalArgumentException("הפריט לא שייך לרשימה");
+            }
+            item.setSortOrder(i);
+            listItemRepository.save(item);
+        }
+    }
+
     private ListItem getItemOrThrow(UUID listId, UUID itemId, User user) {
         listAccessService.getListOrThrow(listId, user);
         ListItem item = listItemRepository.findById(itemId).orElseThrow(() -> new ResourceNotFoundException("הפריט לא נמצא"));

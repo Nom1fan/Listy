@@ -2,6 +2,22 @@ import { useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   getList,
   getListItems,
   addListItem,
@@ -9,6 +25,7 @@ import {
   removeListItem,
   updateList,
   deleteList,
+  reorderListItems,
 } from '../api/lists';
 import { getCategories, getProducts, updateProduct } from '../api/products';
 import { uploadFile } from '../api/client';
@@ -18,6 +35,25 @@ import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import type { ListItemResponse, ListEvent } from '../types';
+
+function SortableItem({ id, children }: {
+  id: string;
+  children: (props: { handleProps: React.HTMLAttributes<HTMLElement> }) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+      }}
+    >
+      {children({ handleProps: { ...attributes, ...listeners } })}
+    </div>
+  );
+}
 
 function getImageUrl(url: string | null): string {
   if (!url) return '';
@@ -101,6 +137,48 @@ export function ListDetail() {
     if (event.type === 'REMOVED') showNotification(`${who} הסיר: ${what}`);
     if (event.type === 'UPDATED') showNotification(`${who} עדכן: ${what}`);
   }, [listId, queryClient]));
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
+
+  const reorderMutation = useMutation({
+    mutationFn: (itemIds: string[]) => reorderListItems(listId!, itemIds),
+    onError: () => queryClient.invalidateQueries({ queryKey: ['listItems', listId] }),
+  });
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    // Find which category the dragged item is in
+    let targetCat = '';
+    for (const cat of categories) {
+      if (grouped[cat].some((i) => i.id === active.id)) {
+        targetCat = cat;
+        break;
+      }
+    }
+
+    const catItems = grouped[targetCat];
+    const oldIndex = catItems.findIndex((i) => i.id === active.id);
+    const newIndex = catItems.findIndex((i) => i.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reorderedCatItems = arrayMove(catItems, oldIndex, newIndex);
+
+    // Build full item order across all categories
+    const newItems = categories.flatMap((cat) =>
+      cat === targetCat ? reorderedCatItems : grouped[cat]
+    );
+
+    // Optimistic update
+    queryClient.setQueryData(['listItems', listId], newItems);
+
+    // Persist to server
+    reorderMutation.mutate(newItems.map((i) => i.id));
+  }
 
   const updateMutation = useMutation({
     mutationFn: ({
@@ -503,7 +581,8 @@ export function ListDetail() {
         {isLoading ? (
           <p>טוען...</p>
         ) : (
-          categories.map((cat) => (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          {categories.map((cat) => (
             <section key={cat} style={{ marginBottom: 24 }}>
               <div
                 style={{
@@ -519,163 +598,24 @@ export function ListDetail() {
                 <CategoryIcon iconId={getCategoryIconId(cat)} imageUrl={getCategoryImageUrl(cat)} size={24} />
                 <span style={{ fontWeight: 600 }}>{cat}</span>
               </div>
+              <SortableContext items={grouped[cat].map((i) => i.id)} strategy={verticalListSortingStrategy}>
               {viewMode === 'list' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {grouped[cat].map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: 12,
-                      background: '#fff',
-                      borderRadius: 12,
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={!!item.crossedOff}
-                      onChange={() =>
-                        updateMutation.mutate({
-                          itemId: item.id,
-                          body: { crossedOff: !item.crossedOff },
-                        })
-                      }
-                      style={{ width: 22, height: 22, cursor: 'pointer', accentColor: 'var(--color-primary)', flexShrink: 0 }}
-                      aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
-                    />
-                    {(item.itemImageUrl || item.productImageUrl) ? (
-                      <img
-                        src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
-                        alt=""
-                        style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }}
-                      />
-                    ) : (
-                      <CategoryIcon
-                        iconId={item.iconId ?? item.categoryIconId ?? null}
-                        imageUrl={null}
-                        size={48}
-                      />
-                    )}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ textDecoration: item.crossedOff ? 'line-through' : 'none', color: item.crossedOff ? 'var(--color-strike)' : 'inherit' }}>{item.displayName}</div>
-                      <div style={{ fontSize: 14, color: '#666' }}>
-                        {item.quantity} {item.unit}
-                        {item.note && ` · ${item.note}`}
-                      </div>
-                    </div>
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <button
-                        type="button"
-                        onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
-                        aria-label="תפריט פריט"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, padding: '4px 8px', lineHeight: 1, color: '#555', borderRadius: 6 }}
-                      >
-                        &#8942;
-                      </button>
-                      {itemMenuOpenId === item.id && (
-                        <>
-                          <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
-                          <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 120, overflow: 'hidden' }}>
-                            <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
-                            <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              ) : viewMode === 'compact' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {grouped[cat].map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '6px 10px',
-                      background: '#fff',
-                      borderRadius: 6,
-                      borderBottom: '1px solid #f0f0f0',
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={!!item.crossedOff}
-                      onChange={() =>
-                        updateMutation.mutate({
-                          itemId: item.id,
-                          body: { crossedOff: !item.crossedOff },
-                        })
-                      }
-                      style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--color-primary)', flexShrink: 0 }}
-                      aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
-                    />
-                    <span style={{
-                      flex: 1,
-                      fontSize: 14,
-                      textDecoration: item.crossedOff ? 'line-through' : 'none',
-                      color: item.crossedOff ? 'var(--color-strike)' : 'inherit',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}>
-                      {item.displayName}
-                    </span>
-                    <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
-                      {item.quantity} {item.unit}
-                    </span>
-                    {item.note && (
-                      <span style={{ fontSize: 11, color: '#aaa', flexShrink: 1, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.note}
-                      </span>
-                    )}
-                    <div style={{ position: 'relative', flexShrink: 0 }}>
-                      <button
-                        type="button"
-                        onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
-                        aria-label="תפריט פריט"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 4px', lineHeight: 1, color: '#999', borderRadius: 4 }}
-                      >
-                        &#8942;
-                      </button>
-                      {itemMenuOpenId === item.id && (
-                        <>
-                          <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
-                          <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 120, overflow: 'hidden' }}>
-                            <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
-                            <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
-                {grouped[cat].map((item) => (
-                  <div
-                    key={item.id}
-                    style={{
-                      position: 'relative',
-                      padding: 10,
-                      background: '#fff',
-                      borderRadius: 12,
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 6,
-                      textAlign: 'center',
-                      opacity: item.crossedOff ? 0.6 : 1,
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <SortableItem key={item.id} id={item.id}>
+                    {({ handleProps }) => (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: 12,
+                        background: '#fff',
+                        borderRadius: 12,
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                      }}
+                    >
+                      <span {...handleProps} style={{ cursor: 'grab', touchAction: 'none', color: '#bbb', fontSize: 18, flexShrink: 0, lineHeight: 1, padding: '0 2px' }} aria-label="גרור לשינוי סדר">⠿</span>
                       <input
                         type="checkbox"
                         checked={!!item.crossedOff}
@@ -685,22 +625,42 @@ export function ListDetail() {
                             body: { crossedOff: !item.crossedOff },
                           })
                         }
-                        style={{ width: 20, height: 20, cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                        style={{ width: 22, height: 22, cursor: 'pointer', accentColor: 'var(--color-primary)', flexShrink: 0 }}
                         aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
                       />
-                      <div style={{ position: 'relative' }}>
+                      {(item.itemImageUrl || item.productImageUrl) ? (
+                        <img
+                          src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
+                          alt=""
+                          style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }}
+                        />
+                      ) : (
+                        <CategoryIcon
+                          iconId={item.iconId ?? item.categoryIconId ?? null}
+                          imageUrl={null}
+                          size={48}
+                        />
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ textDecoration: item.crossedOff ? 'line-through' : 'none', color: item.crossedOff ? 'var(--color-strike)' : 'inherit' }}>{item.displayName}</div>
+                        <div style={{ fontSize: 14, color: '#666' }}>
+                          {item.quantity} {item.unit}
+                          {item.note && ` · ${item.note}`}
+                        </div>
+                      </div>
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
                         <button
                           type="button"
                           onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
                           aria-label="תפריט פריט"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '2px 6px', lineHeight: 1, color: '#555', borderRadius: 6 }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, padding: '4px 8px', lineHeight: 1, color: '#555', borderRadius: 6 }}
                         >
                           &#8942;
                         </button>
                         {itemMenuOpenId === item.id && (
                           <>
                             <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
-                            <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 110, overflow: 'hidden' }}>
+                            <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 120, overflow: 'hidden' }}>
                               <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
                               <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
                             </div>
@@ -708,34 +668,168 @@ export function ListDetail() {
                         )}
                       </div>
                     </div>
-                    {(item.itemImageUrl || item.productImageUrl) ? (
-                      <img
-                        src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
-                        alt=""
-                        style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }}
-                      />
-                    ) : (
-                      <CategoryIcon
-                        iconId={item.iconId ?? item.categoryIconId ?? null}
-                        imageUrl={null}
-                        size={48}
-                      />
                     )}
-                    <span style={{ fontWeight: 500, fontSize: 13, wordBreak: 'break-word', textDecoration: item.crossedOff ? 'line-through' : 'none', color: item.crossedOff ? 'var(--color-strike)' : 'inherit' }}>{item.displayName}</span>
-                    <span style={{ fontSize: 11, color: '#666' }}>
-                      {item.quantity} {item.unit}
-                    </span>
-                    {item.note && (
-                      <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.note}
+                  </SortableItem>
+                ))}
+              </div>
+              ) : viewMode === 'compact' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {grouped[cat].map((item) => (
+                  <SortableItem key={item.id} id={item.id}>
+                    {({ handleProps }) => (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 10px',
+                        background: '#fff',
+                        borderRadius: 6,
+                        borderBottom: '1px solid #f0f0f0',
+                      }}
+                    >
+                      <span {...handleProps} style={{ cursor: 'grab', touchAction: 'none', color: '#ccc', fontSize: 14, flexShrink: 0, lineHeight: 1, padding: '0 1px' }} aria-label="גרור לשינוי סדר">⠿</span>
+                      <input
+                        type="checkbox"
+                        checked={!!item.crossedOff}
+                        onChange={() =>
+                          updateMutation.mutate({
+                            itemId: item.id,
+                            body: { crossedOff: !item.crossedOff },
+                          })
+                        }
+                        style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--color-primary)', flexShrink: 0 }}
+                        aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
+                      />
+                      <span style={{
+                        flex: 1,
+                        fontSize: 14,
+                        textDecoration: item.crossedOff ? 'line-through' : 'none',
+                        color: item.crossedOff ? 'var(--color-strike)' : 'inherit',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}>
+                        {item.displayName}
                       </span>
+                      <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
+                        {item.quantity} {item.unit}
+                      </span>
+                      {item.note && (
+                        <span style={{ fontSize: 11, color: '#aaa', flexShrink: 1, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.note}
+                        </span>
+                      )}
+                      <div style={{ position: 'relative', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
+                          aria-label="תפריט פריט"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 4px', lineHeight: 1, color: '#999', borderRadius: 4 }}
+                        >
+                          &#8942;
+                        </button>
+                        {itemMenuOpenId === item.id && (
+                          <>
+                            <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
+                            <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 120, overflow: 'hidden' }}>
+                              <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
+                              <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
                     )}
-                  </div>
+                  </SortableItem>
+                ))}
+              </div>
+              ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
+                {grouped[cat].map((item) => (
+                  <SortableItem key={item.id} id={item.id}>
+                    {({ handleProps }) => (
+                    <div
+                      style={{
+                        position: 'relative',
+                        padding: 10,
+                        background: '#fff',
+                        borderRadius: 12,
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 6,
+                        textAlign: 'center',
+                        opacity: item.crossedOff ? 0.6 : 1,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <input
+                          type="checkbox"
+                          checked={!!item.crossedOff}
+                          onChange={() =>
+                            updateMutation.mutate({
+                              itemId: item.id,
+                              body: { crossedOff: !item.crossedOff },
+                            })
+                          }
+                          style={{ width: 20, height: 20, cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                          aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
+                        />
+                        <span {...handleProps} style={{ cursor: 'grab', touchAction: 'none', color: '#bbb', fontSize: 16, lineHeight: 1 }} aria-label="גרור לשינוי סדר">⠿</span>
+                        <div style={{ position: 'relative' }}>
+                          <button
+                            type="button"
+                            onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
+                            aria-label="תפריט פריט"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '2px 6px', lineHeight: 1, color: '#555', borderRadius: 6 }}
+                          >
+                            &#8942;
+                          </button>
+                          {itemMenuOpenId === item.id && (
+                            <>
+                              <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
+                              <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 110, overflow: 'hidden' }}>
+                                <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
+                                <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {(item.itemImageUrl || item.productImageUrl) ? (
+                        <img
+                          src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
+                          alt=""
+                          style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }}
+                        />
+                      ) : (
+                        <CategoryIcon
+                          iconId={item.iconId ?? item.categoryIconId ?? null}
+                          imageUrl={null}
+                          size={48}
+                        />
+                      )}
+                      <span style={{ fontWeight: 500, fontSize: 13, wordBreak: 'break-word', textDecoration: item.crossedOff ? 'line-through' : 'none', color: item.crossedOff ? 'var(--color-strike)' : 'inherit' }}>{item.displayName}</span>
+                      <span style={{ fontSize: 11, color: '#666' }}>
+                        {item.quantity} {item.unit}
+                      </span>
+                      {item.note && (
+                        <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.note}
+                        </span>
+                      )}
+                    </div>
+                    )}
+                  </SortableItem>
                 ))}
               </div>
               )}
+              </SortableContext>
             </section>
-          ))
+          ))}
+          </DndContext>
         )}
 
         {quickAddOpen && (
