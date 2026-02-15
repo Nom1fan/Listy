@@ -10,7 +10,7 @@ import {
   updateList,
   deleteList,
 } from '../api/lists';
-import { getCategories, updateProduct } from '../api/products';
+import { getCategories, getProducts, updateProduct } from '../api/products';
 import { uploadFile } from '../api/client';
 import { useListEvents } from '../hooks/useListEvents';
 import { AppBar } from '../components/AppBar';
@@ -78,6 +78,14 @@ export function ListDetail() {
     queryFn: () => getCategories(list!.workspaceId),
     enabled: !!list?.workspaceId,
   });
+
+  const { data: allProducts = [] } = useQuery({
+    queryKey: ['products'],
+    queryFn: () => getProducts(),
+    enabled: !!list?.workspaceId,
+  });
+
+  const hasProductsInCategories = allProducts.length > 0;
 
   function showNotification(msg: string, isError = false) {
     setNotification(msg);
@@ -442,10 +450,10 @@ export function ListDetail() {
                 }}
               >
                 <span>➕</span>
-                <span>הוסף פריט חופשי</span>
+                <span>הוסף פריט</span>
               </button>
             </div>
-            {workspaceCategories.length > 0 && (
+            {workspaceCategories.length > 0 && hasProductsInCategories && (
               <div style={{ marginBottom: 20 }}>
                 <Link
                   to={`/lists/${listId}/bank`}
@@ -466,6 +474,11 @@ export function ListDetail() {
                   <span>הוסף מקטגוריות</span>
                 </Link>
               </div>
+            )}
+            {items.length === 0 && (
+              <p style={{ fontSize: 14, color: '#999', margin: '8px 0 12px', textAlign: 'center' }}>
+                הרשימה ריקה — הוסיפו פריטים לרשימה
+              </p>
             )}
           </>
         )}
@@ -675,7 +688,7 @@ export function ListDetail() {
               <h3 style={{ margin: '0 0 16px' }}>הוסף פריט לרשימה</h3>
               <form onSubmit={handleQuickAddSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
-                  <label style={{ display: 'block', marginBottom: 4 }}>שם הפריט</label>
+                  <label style={{ display: 'block', marginBottom: 4, fontWeight: 600 }}>שם הפריט <span style={{ color: '#c00' }}>*</span></label>
                   <input
                     type="text"
                     value={quickAddName}
