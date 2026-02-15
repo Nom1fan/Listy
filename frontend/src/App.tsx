@@ -11,6 +11,7 @@ import { ProductBank } from './pages/ProductBank';
 import { ShareWorkspace } from './pages/ShareWorkspace';
 import { Profile } from './pages/Profile';
 import { Privacy } from './pages/Privacy';
+import { DeleteAccount } from './pages/DeleteAccount';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
@@ -70,6 +71,7 @@ export default function App() {
           }
         />
         <Route path="/privacy" element={<Privacy />} />
+        <Route path="/delete-account" element={<DeleteAccount />} />
         <Route path="/" element={<Navigate to="/lists" replace />} />
         <Route path="*" element={<Navigate to="/lists" replace />} />
       </Routes>
