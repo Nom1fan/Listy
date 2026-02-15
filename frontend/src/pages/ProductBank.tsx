@@ -11,10 +11,6 @@ import { DisplayImageForm, type DisplayImageType } from '../components/DisplayIm
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import type { ProductDto } from '../types';
 
-function isErrorToast(msg: string): boolean {
-  return /(401|403|404|500)\b|^HTTP\s|\bשגיאה\b|Forbidden|Unauthorized/i.test(msg);
-}
-
 export function ProductBank() {
   const { listId } = useParams<{ listId: string }>();
   const [viewMode, setViewMode] = useViewMode();
@@ -28,7 +24,7 @@ export function ProductBank() {
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [note, setNote] = useState('');
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; isError: boolean } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -71,11 +67,16 @@ export function ProductBank() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       const productName = addModal?.nameHe ?? '';
-      setToast(productName ? `${productName} נוסף לרשימה` : 'נוסף לרשימה');
+      setToast({ message: productName ? `${productName} נוסף לרשימה` : 'נוסף לרשימה', isError: false });
       setTimeout(() => setToast(null), 3000);
       setAddModal(null);
       setQuantity('1');
       setNote('');
+    },
+    onError: (err: Error) => {
+      setToast({ message: err.message || 'שגיאה בהוספת הפריט', isError: true });
+      setTimeout(() => setToast(null), 5000);
+      setAddModal(null);
     },
   });
 
@@ -107,11 +108,11 @@ export function ProductBank() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setEditImageProduct(null);
       setImageUrlInput('');
-      setToast(`תמונת "${editImageProduct.nameHe}" עודכנה`);
+      setToast({ message: `תמונת "${editImageProduct.nameHe}" עודכנה`, isError: false });
       setTimeout(() => setToast(null), 3000);
     } catch (err) {
       console.error(err);
-      setToast(err instanceof Error ? err.message : 'שגיאה בהעלאת התמונה');
+      setToast({ message: err instanceof Error ? err.message : 'שגיאה בהעלאת התמונה', isError: true });
       setTimeout(() => setToast(null), 5000);
     }
   }
@@ -146,22 +147,24 @@ export function ProductBank() {
       <AppBar title="הוסף מקטגוריות" backTo={`/lists/${listId}`} right={<ViewModeToggle viewMode={viewMode} onChange={setViewMode} />} />
       {toast && (
         <div
+          onClick={() => setToast(null)}
           style={{
             position: 'fixed',
             bottom: 24,
             left: 16,
             right: 16,
             padding: 14,
-            background: isErrorToast(toast) ? 'linear-gradient(135deg, #c62828 0%, #b71c1c 100%)' : 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)',
+            background: toast.isError ? 'linear-gradient(135deg, #c62828 0%, #b71c1c 100%)' : 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)',
             color: '#fff',
             borderRadius: 12,
             textAlign: 'center',
             zIndex: 1002,
             boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
             fontWeight: 500,
+            cursor: 'pointer',
           }}
         >
-          {isErrorToast(toast) ? '✕ ' : '✓ '}{toast}
+          {toast.isError ? '✕ ' : '✓ '}{toast.message}
         </div>
       )}
       <main style={{ padding: 16 }}>

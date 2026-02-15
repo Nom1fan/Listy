@@ -14,15 +14,11 @@ import { WorkspaceTabs, type TabKey } from '../components/WorkspaceTabs';
 import { Categories } from './Categories';
 import type { ListResponse } from '../types';
 
-function isErrorToast(msg: string): boolean {
-  return /(401|403|404|500)\b|^HTTP\s|\bשגיאה\b|Forbidden|Unauthorized/i.test(msg);
-}
-
 export function Lists() {
   const [activeTab, setActiveTab] = useState<TabKey>('lists');
   const [name, setName] = useState('');
   const [showNew, setShowNew] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; isError: boolean } | null>(null);
   const [createDisplayImageType, setCreateDisplayImageType] = useState<DisplayImageType>('icon');
   const [createIconId, setCreateIconId] = useState('');
   const [createImageUrl, setCreateImageUrl] = useState('');
@@ -64,9 +60,9 @@ export function Lists() {
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
 
-  function showToast(msg: string, duration = 4000) {
-    setToast(msg);
-    setTimeout(() => setToast(null), duration);
+  function showToast(msg: string, isError = false) {
+    setToast({ message: msg, isError });
+    setTimeout(() => setToast(null), isError ? 5000 : 4000);
   }
 
   const createWorkspaceMutation = useMutation({
@@ -78,7 +74,7 @@ export function Lists() {
       setNewWorkspaceName('');
     },
     onError: (err: Error) => {
-      showToast(err.message || 'שגיאה ביצירת מרחב עבודה');
+      showToast(err.message || 'שגיאה ביצירת מרחב עבודה', true);
     },
   });
 
@@ -90,7 +86,7 @@ export function Lists() {
       setEditWorkspaceName('');
     },
     onError: (err: Error) => {
-      showToast(err.message || 'שגיאה בעדכון מרחב עבודה');
+      showToast(err.message || 'שגיאה בעדכון מרחב עבודה', true);
     },
   });
 
@@ -103,7 +99,7 @@ export function Lists() {
       clearActiveWorkspace();
     },
     onError: (err: Error) => {
-      showToast(err.message || 'שגיאה במחיקת מרחב עבודה');
+      showToast(err.message || 'שגיאה במחיקת מרחב עבודה', true);
     },
   });
 
@@ -155,7 +151,7 @@ export function Lists() {
       setCreateImageUrl('');
     },
     onError: (err: Error) => {
-      showToast(err.message || 'שגיאה ביצירת הרשימה');
+      showToast(err.message || 'שגיאה ביצירת הרשימה', true);
     },
   });
 
@@ -163,7 +159,7 @@ export function Lists() {
     mutationFn: (listId: string) => deleteList(listId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] }),
     onError: (err: Error) => {
-      showToast(err.message || 'שגיאה במחיקת הרשימה');
+      showToast(err.message || 'שגיאה במחיקת הרשימה', true);
     },
   });
 
@@ -185,7 +181,7 @@ export function Lists() {
       setEditList(null);
     },
     onError: (err: Error) => {
-      showToast(err.message || 'שגיאה בעדכון הרשימה');
+      showToast(err.message || 'שגיאה בעדכון הרשימה', true);
     },
   });
 
@@ -193,7 +189,7 @@ export function Lists() {
     mutationFn: (listIds: string[]) => reorderLists(listIds),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] }),
     onError: (err: Error) => {
-      showToast(err.message || 'שגיאה בשינוי הסדר');
+      showToast(err.message || 'שגיאה בשינוי הסדר', true);
     },
   });
 
@@ -251,22 +247,24 @@ export function Lists() {
     <>
       {toast && (
         <div
+          onClick={() => setToast(null)}
           style={{
             position: 'fixed',
             bottom: 24,
             left: 16,
             right: 16,
             padding: 14,
-            background: isErrorToast(toast) ? 'linear-gradient(135deg, #c62828 0%, #b71c1c 100%)' : 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)',
+            background: toast.isError ? 'linear-gradient(135deg, #c62828 0%, #b71c1c 100%)' : 'linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%)',
             color: '#fff',
             borderRadius: 12,
             textAlign: 'center',
             zIndex: 2000,
             fontSize: 15,
             fontWeight: 500,
+            cursor: 'pointer',
           }}
         >
-          {isErrorToast(toast) ? '✕ ' : '✓ '}{toast}
+          {toast.isError ? '✕ ' : '✓ '}{toast.message}
         </div>
       )}
       <AppBar

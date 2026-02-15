@@ -31,6 +31,7 @@ export function ListDetail() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [notification, setNotification] = useState<string | null>(null);
+  const [notificationIsError, setNotificationIsError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [editImageItem, setEditImageItem] = useState<ListItemResponse | null>(null);
   const [itemDisplayImageType, setItemDisplayImageType] = useState<DisplayImageType>('icon');
@@ -78,14 +79,19 @@ export function ListDetail() {
     enabled: !!list?.workspaceId,
   });
 
+  function showNotification(msg: string, isError = false) {
+    setNotification(msg);
+    setNotificationIsError(isError);
+    setTimeout(() => setNotification(null), isError ? 5000 : 4000);
+  }
+
   useListEvents(listId ?? null, useCallback((event: ListEvent) => {
     queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
     const who = event.userDisplayName || 'מישהו';
     const what = event.itemDisplayName + ' ' + event.quantityUnit;
-    if (event.type === 'ADDED') setNotification(`${who} הוסיף: ${what}`);
-    if (event.type === 'REMOVED') setNotification(`${who} הסיר: ${what}`);
-    if (event.type === 'UPDATED') setNotification(`${who} עדכן: ${what}`);
-    setTimeout(() => setNotification(null), 4000);
+    if (event.type === 'ADDED') showNotification(`${who} הוסיף: ${what}`);
+    if (event.type === 'REMOVED') showNotification(`${who} הסיר: ${what}`);
+    if (event.type === 'UPDATED') showNotification(`${who} עדכן: ${what}`);
   }, [listId, queryClient]));
 
   const updateMutation = useMutation({
@@ -117,7 +123,11 @@ export function ListDetail() {
     mutationFn: (body: Parameters<typeof addListItem>[1]) => addListItem(listId!, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       closeQuickAddModal();
+    },
+    onError: (err: Error) => {
+      showNotification(err.message || 'שגיאה בהוספת הפריט', true);
     },
   });
 
@@ -188,9 +198,10 @@ export function ListDetail() {
         const created = await addListItem(listId, body);
         await uploadFile(`/api/upload/lists/${listId}/items/${created.id}`, quickAddImageFile);
         queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
+        queryClient.invalidateQueries({ queryKey: ['products'] });
         closeQuickAddModal();
       } catch (err) {
-        console.error(err);
+        showNotification(err instanceof Error ? err.message : 'שגיאה בהוספת הפריט', true);
       } finally {
         setQuickAddSubmitting(false);
       }
@@ -366,20 +377,48 @@ export function ListDetail() {
       <main style={{ padding: 16 }}>
         {notification && (
           <div
+            onClick={() => setNotification(null)}
             style={{
               position: 'fixed',
               bottom: 24,
               left: 16,
               right: 16,
-              padding: 12,
-              background: '#333',
+              padding: '14px 40px 14px 14px',
+              background: notificationIsError
+                ? 'linear-gradient(135deg, #c62828 0%, #b71c1c 100%)'
+                : '#333',
               color: '#fff',
-              borderRadius: 8,
+              borderRadius: 12,
               textAlign: 'center',
-              zIndex: 1000,
+              zIndex: 1100,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              fontWeight: 500,
+              cursor: 'pointer',
             }}
           >
             {notification}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setNotification(null); }}
+              aria-label="סגור"
+              style={{
+                position: 'absolute',
+                top: 0,
+                right: 0,
+                bottom: 0,
+                width: 40,
+                background: 'none',
+                border: 'none',
+                color: '#fff',
+                fontSize: 18,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ✕
+            </button>
           </div>
         )}
 
@@ -406,26 +445,28 @@ export function ListDetail() {
                 <span>הוסף פריט חופשי</span>
               </button>
             </div>
-            <div style={{ marginBottom: 20 }}>
-              <Link
-                to={`/lists/${listId}/bank`}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: 16,
-                  background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
-                  borderRadius: 12,
-                  color: '#1b5e20',
-                  textDecoration: 'none',
-                  fontWeight: 600,
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                }}
-              >
-                <span style={{ fontSize: 28 }}>🛒</span>
-                <span>הוסף מקטגוריות</span>
-              </Link>
-            </div>
+            {workspaceCategories.length > 0 && (
+              <div style={{ marginBottom: 20 }}>
+                <Link
+                  to={`/lists/${listId}/bank`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: 16,
+                    background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
+                    borderRadius: 12,
+                    color: '#1b5e20',
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                  }}
+                >
+                  <span style={{ fontSize: 28 }}>🛒</span>
+                  <span>הוסף מקטגוריות</span>
+                </Link>
+              </div>
+            )}
           </>
         )}
 
