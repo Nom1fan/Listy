@@ -90,3 +90,10 @@ export async function updateListItem(
 export async function removeListItem(listId: string, itemId: string): Promise<void> {
   return api<void>(`/api/lists/${listId}/items/${itemId}`, { method: 'DELETE' });
 }
+
+export async function reorderListItems(listId: string, itemIds: string[]): Promise<void> {
+  return api<void>(`/api/lists/${listId}/items/reorder`, {
+    method: 'PUT',
+    body: JSON.stringify({ itemIds }),
+  });
+}

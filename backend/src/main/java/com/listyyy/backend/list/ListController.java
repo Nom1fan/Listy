@@ -120,6 +120,17 @@ public class ListController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{listId}/items/reorder")
+    public ResponseEntity<Void> reorderItems(
+            @PathVariable UUID listId,
+            @AuthenticationPrincipal User user,
+            @RequestBody ReorderListItemsRequest req
+    ) {
+        if (user == null) return ResponseEntity.status(401).build();
+        listItemService.reorderItems(listId, user, req.getItemIds());
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/reorder")
     public ResponseEntity<Void> reorder(
             @AuthenticationPrincipal User user,
