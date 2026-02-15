@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 
-export type ViewMode = 'list' | 'grid';
+export type ViewMode = 'list' | 'grid' | 'compact';
 
 const STORAGE_KEY = 'listyyy-view-mode';
 
@@ -8,7 +8,7 @@ export function useViewMode(): [ViewMode, (mode: ViewMode) => void] {
   const [viewMode, setViewModeState] = useState<ViewMode>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === 'list' || stored === 'grid') return stored;
+      if (stored === 'list' || stored === 'grid' || stored === 'compact') return stored;
     } catch { /* ignore */ }
     return 'list';
   });
@@ -26,52 +26,52 @@ interface ViewModeToggleProps {
   onChange: (mode: ViewMode) => void;
 }
 
+function ToggleButton({ active, onClick, title, ariaLabel, children, borderLeft }: {
+  active: boolean;
+  onClick: () => void;
+  title: string;
+  ariaLabel: string;
+  children: React.ReactNode;
+  borderLeft?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      style={{
+        padding: '6px 10px',
+        background: active ? 'var(--color-primary)' : '#fff',
+        color: active ? '#fff' : '#666',
+        border: 'none',
+        borderLeft: borderLeft ? '1px solid #ccc' : 'none',
+        borderRadius: 0,
+        cursor: 'pointer',
+        fontSize: 16,
+        lineHeight: 1,
+        display: 'flex',
+        alignItems: 'center',
+      }}
+      aria-label={ariaLabel}
+      aria-pressed={active}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function ViewModeToggle({ viewMode, onChange }: ViewModeToggleProps) {
   return (
     <div style={{ display: 'inline-flex', borderRadius: 8, overflow: 'hidden', border: '1px solid #ccc' }}>
-      <button
-        type="button"
-        onClick={() => onChange('list')}
-        title="תצוגת רשימה"
-        style={{
-          padding: '6px 10px',
-          background: viewMode === 'list' ? 'var(--color-primary)' : '#fff',
-          color: viewMode === 'list' ? '#fff' : '#666',
-          border: 'none',
-          borderRadius: 0,
-          cursor: 'pointer',
-          fontSize: 16,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'center',
-        }}
-        aria-label="תצוגת רשימה"
-        aria-pressed={viewMode === 'list'}
-      >
+      <ToggleButton active={viewMode === 'list'} onClick={() => onChange('list')} title="תצוגת רשימה" ariaLabel="תצוגת רשימה">
         ☰
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange('grid')}
-        title="תצוגת כרטיסיות"
-        style={{
-          padding: '6px 10px',
-          background: viewMode === 'grid' ? 'var(--color-primary)' : '#fff',
-          color: viewMode === 'grid' ? '#fff' : '#666',
-          border: 'none',
-          borderLeft: '1px solid #ccc',
-          borderRadius: 0,
-          cursor: 'pointer',
-          fontSize: 16,
-          lineHeight: 1,
-          display: 'flex',
-          alignItems: 'center',
-        }}
-        aria-label="תצוגת כרטיסיות"
-        aria-pressed={viewMode === 'grid'}
-      >
+      </ToggleButton>
+      <ToggleButton active={viewMode === 'compact'} onClick={() => onChange('compact')} title="תצוגה מצומצמת" ariaLabel="תצוגה מצומצמת" borderLeft>
+        ≡
+      </ToggleButton>
+      <ToggleButton active={viewMode === 'grid'} onClick={() => onChange('grid')} title="תצוגת כרטיסיות" ariaLabel="תצוגת כרטיסיות" borderLeft>
         ▦
-      </button>
+      </ToggleButton>
     </div>
   );
 }
