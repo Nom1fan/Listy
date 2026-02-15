@@ -31,4 +31,12 @@ public interface ListItemRepository extends JpaRepository<ListItem, UUID> {
     boolean existsByListIdAndProductId(UUID listId, UUID productId);
 
     boolean existsByListIdAndCustomNameHe(UUID listId, String customNameHe);
+
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM ListItem i WHERE i.product.id = :productId")
+    void deleteByProductId(UUID productId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM ListItem i WHERE i.product.id IN (SELECT p.id FROM Product p WHERE p.category.id = :categoryId)")
+    void deleteByProductCategoryId(UUID categoryId);
 }

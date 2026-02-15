@@ -25,6 +25,7 @@ public class CategoryController {
 
     private final CategoryRepository categoryRepository;
     private final CategoryAccessService categoryAccessService;
+    private final ProductRepository productRepository;
     private final ListItemRepository listItemRepository;
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceAccessService workspaceAccessService;
@@ -122,6 +123,12 @@ public class CategoryController {
         if (!categoryAccessService.isWorkspaceOwner(user, id)) {
             throw new AccessDeniedException("רק בעל המרחב יכול למחוק קטגוריה");
         }
+        // Explicitly remove list items and products before deleting the category,
+        // to avoid the ON DELETE SET NULL cascade violating the
+        // name_from_product_or_custom check constraint on list_items.
+        listItemRepository.deleteByProductCategoryId(id);
+        productRepository.findByCategoryIdOrderByNameHe(id)
+                .forEach(p -> productRepository.delete(p));
         categoryRepository.delete(c);
         return ResponseEntity.noContent().build();
     }
@@ -136,6 +143,10 @@ public class CategoryController {
 
     private static UUID toUuid(Object o) {
         if (o instanceof UUID) return (UUID) o;
+        if (o instanceof byte[]) {
+            java.nio.ByteBuffer bb = java.nio.ByteBuffer.wrap((byte[]) o);
+            return new UUID(bb.getLong(), bb.getLong());
+        }
         return UUID.fromString(o.toString());
     }
 

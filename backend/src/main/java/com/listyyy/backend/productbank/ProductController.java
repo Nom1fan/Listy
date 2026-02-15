@@ -97,6 +97,7 @@ public class ProductController {
     }
 
     @DeleteMapping("/{id}")
+    @Transactional
     public ResponseEntity<Void> delete(
             @PathVariable UUID id,
             @AuthenticationPrincipal User user
@@ -105,6 +106,9 @@ public class ProductController {
         Product p = productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("הפריט לא נמצא"));
         categoryAccessService.getCategoryOrThrow(p.getCategory().getId(), user);
         if (!categoryAccessService.canEdit(user, p.getCategory().getId())) throw new AccessDeniedException("אין גישה");
+        // Remove any list items referencing this product before deleting,
+        // to avoid violating the name_from_product_or_custom check constraint.
+        listItemRepository.deleteByProductId(id);
         productRepository.delete(p);
         return ResponseEntity.noContent().build();
     }
@@ -150,6 +154,10 @@ public class ProductController {
 
     private static UUID toUuid(Object o) {
         if (o instanceof UUID) return (UUID) o;
+        if (o instanceof byte[]) {
+            java.nio.ByteBuffer bb = java.nio.ByteBuffer.wrap((byte[]) o);
+            return new UUID(bb.getLong(), bb.getLong());
+        }
         return UUID.fromString(o.toString());
     }
 
