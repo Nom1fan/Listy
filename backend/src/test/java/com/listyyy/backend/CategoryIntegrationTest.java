@@ -2,6 +2,7 @@ package com.listyyy.backend;
 
 import com.listyyy.backend.auth.User;
 import com.listyyy.backend.auth.UserRepository;
+import com.listyyy.backend.list.GroceryList;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -158,5 +160,42 @@ class CategoryIntegrationTest extends AbstractIntegrationTest {
                         .content(objectMapper.writeValueAsString(Map.of("nameHe", "מכולת"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nameHe").value("מכולת"));
+    }
+
+    @Test
+    void delete_category_with_products_referenced_by_list_items() throws Exception {
+        // The default category already has a product ("אורז")
+        // Create a list and add the product to it
+        GroceryList list = listRepository.save(GroceryList.builder()
+                .workspace(workspaceRepository.findById(workspaceId).orElseThrow())
+                .name("רשימת בדיקה")
+                .build());
+
+        mvc.perform(post("/api/lists/" + list.getId() + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("productId", productId.toString()))))
+                .andExpect(status().isOk());
+
+        // Delete the category — should cascade without constraint violation
+        mvc.perform(delete("/api/categories/" + categoryId)
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isNoContent());
+
+        // Verify the category is gone
+        mvc.perform(get("/api/categories/" + categoryId)
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isNotFound());
+
+        // Verify the product is gone
+        mvc.perform(get("/api/products/" + productId)
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isNotFound());
+
+        // Verify the list item was also removed
+        mvc.perform(get("/api/lists/" + list.getId() + "/items")
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
     }
 }

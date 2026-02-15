@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -284,6 +285,95 @@ class ListIntegrationTest extends AbstractIntegrationTest {
                                 "customNameHe", "פריט מותאם",
                                 "quantity", 1))))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void cannot_create_duplicate_list_name_in_same_workspace() throws Exception {
+        createList("רשימת קניות");
+
+        // Second list with the same name should fail
+        mvc.perform(post("/api/lists")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "רשימת קניות",
+                                "workspaceId", workspaceId.toString()))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("כבר קיימת")));
+    }
+
+    @Test
+    void cannot_rename_list_to_existing_name_in_same_workspace() throws Exception {
+        createList("רשימה א");
+        String listBId = createList("רשימה ב");
+
+        // Rename "רשימה ב" to "רשימה א" should fail
+        mvc.perform(put("/api/lists/" + listBId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("name", "רשימה א"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("כבר קיימת")));
+    }
+
+    @Test
+    void can_rename_list_to_its_own_name() throws Exception {
+        String listId = createList("שם קיים");
+
+        mvc.perform(put("/api/lists/" + listId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("name", "שם קיים"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("שם קיים"));
+    }
+
+    @Test
+    void add_custom_item_with_category_creates_product() throws Exception {
+        String listId = createList("רשימה עם מוצר חדש");
+        String catId = categoryId.toString();
+
+        // Add a custom item with a categoryId — should auto-create a product
+        var node = objectMapper.createObjectNode();
+        node.put("customNameHe", "שוקולד");
+        node.put("categoryId", catId);
+        node.put("unit", "יחידה");
+
+        mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(node.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("שוקולד"));
+
+        // Verify the product now appears in the product bank
+        mvc.perform(get("/api/products")
+                        .header("Authorization", getBearerToken())
+                        .param("categoryId", catId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.nameHe == 'שוקולד')]").exists());
+    }
+
+    @Test
+    void delete_list_also_removes_items() throws Exception {
+        String listId = createList("רשימה למחיקה");
+
+        // Add an item to the list
+        mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("productId", productId.toString()))))
+                .andExpect(status().isOk());
+
+        // Delete the list
+        mvc.perform(delete("/api/lists/" + listId)
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isNoContent());
+
+        // Verify list is gone
+        mvc.perform(get("/api/lists/" + listId)
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isNotFound());
     }
 
     private String createList(String name) throws Exception {
