@@ -163,6 +163,56 @@ class CategoryIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void reorder_categories() throws Exception {
+        // Create two more categories so we have 3 total (מכולת already exists from setup)
+        var create1 = mvc.perform(post("/api/categories")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nameHe", "ירקות",
+                                "sortOrder", 1,
+                                "workspaceId", workspaceId.toString()))))
+                .andExpect(status().isOk());
+        String id1 = objectMapper.readTree(create1.andReturn().getResponse().getContentAsString()).get("id").asText();
+
+        var create2 = mvc.perform(post("/api/categories")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "nameHe", "פירות",
+                                "sortOrder", 2,
+                                "workspaceId", workspaceId.toString()))))
+                .andExpect(status().isOk());
+        String id2 = objectMapper.readTree(create2.andReturn().getResponse().getContentAsString()).get("id").asText();
+
+        // Reorder: פירות, מכולת, ירקות
+        mvc.perform(put("/api/categories/reorder")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "categoryIds", java.util.List.of(id2, categoryId.toString(), id1)))))
+                .andExpect(status().isNoContent());
+
+        // Verify new order
+        mvc.perform(get("/api/categories")
+                        .param("workspaceId", workspaceId.toString())
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].nameHe").value("פירות"))
+                .andExpect(jsonPath("$[1].nameHe").value("מכולת"))
+                .andExpect(jsonPath("$[2].nameHe").value("ירקות"));
+    }
+
+    @Test
+    void reorder_categories_requires_auth() throws Exception {
+        mvc.perform(put("/api/categories/reorder")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "categoryIds", java.util.List.of(categoryId.toString())))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void delete_category_with_products_referenced_by_list_items() throws Exception {
         // The default category already has a product ("אורז")
         // Create a list and add the product to it

@@ -33,6 +33,13 @@ export async function deleteCategory(id: string): Promise<void> {
   return api<void>(`/api/categories/${id}`, { method: 'DELETE' });
 }
 
+export async function reorderCategories(categoryIds: string[]): Promise<void> {
+  return api<void>('/api/categories/reorder', {
+    method: 'PUT',
+    body: JSON.stringify({ categoryIds }),
+  });
+}
+
 export async function getProducts(categoryId?: string, search?: string): Promise<ProductDto[]> {
   const params = new URLSearchParams();
   if (categoryId) params.set('categoryId', categoryId);

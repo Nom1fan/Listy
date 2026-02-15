@@ -46,10 +46,7 @@ public class CategoryController {
         Map<UUID, Long> addCountByCategory = getCategoryAddCounts();
         List<CategoryDto> body = categories.stream()
                 .map(c -> toDto(c, addCountByCategory.getOrDefault(c.getId(), 0L)))
-                .sorted((a, b) -> {
-                    int cmp = Long.compare(b.getAddCount(), a.getAddCount());
-                    return cmp != 0 ? cmp : Integer.compare(a.getSortOrder(), b.getSortOrder());
-                })
+                .sorted((a, b) -> Integer.compare(a.getSortOrder(), b.getSortOrder()))
                 .toList();
         return ResponseEntity.ok(body);
     }
@@ -110,6 +107,21 @@ public class CategoryController {
         if (req.getSortOrder() != null) c.setSortOrder(req.getSortOrder());
         c = categoryRepository.save(c);
         return ResponseEntity.ok(toDto(c, getCategoryAddCounts().getOrDefault(c.getId(), 0L)));
+    }
+
+    @PutMapping("/reorder")
+    @Transactional
+    public ResponseEntity<Void> reorder(
+            @AuthenticationPrincipal User user,
+            @RequestBody ReorderCategoriesRequest req
+    ) {
+        if (user == null) return ResponseEntity.status(401).build();
+        for (int i = 0; i < req.getCategoryIds().size(); i++) {
+            Category c = categoryAccessService.getCategoryOrThrow(req.getCategoryIds().get(i), user);
+            c.setSortOrder(i);
+            categoryRepository.save(c);
+        }
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")

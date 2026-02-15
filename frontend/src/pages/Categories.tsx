@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCategories, getProducts, createCategory, createProduct, updateCategory, updateProduct, deleteCategory, deleteProduct } from '../api/products';
+import { getCategories, getProducts, createCategory, createProduct, updateCategory, updateProduct, deleteCategory, deleteProduct, reorderCategories } from '../api/products';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { uploadFile } from '../api/client';
 import { CategoryIcon } from '../components/CategoryIcon';
@@ -50,6 +50,12 @@ export function Categories() {
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<CategoryDto | null>(null);
   const [categoryMenuOpenId, setCategoryMenuOpenId] = useState<string | null>(null);
   const [productMenuOpenId, setProductMenuOpenId] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+
+  // Drag reorder
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+  const [orderedCategories, setOrderedCategories] = useState<CategoryDto[] | null>(null);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', activeWorkspaceId],
@@ -75,12 +81,7 @@ export function Categories() {
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      setNameHe('');
-      setDisplayImageType('icon');
-      setIconId('');
-      setImageUrl('');
-      setPendingCategoryFile(null);
-      setCreateError(null);
+      closeCreateModal();
       const file = pendingCreateFileRef.current;
       pendingCreateFileRef.current = null;
       if (file && data?.id) {
@@ -162,6 +163,55 @@ export function Categories() {
       setTimeout(() => setProductImageToast(null), 5000);
     },
   });
+
+  const reorderMutation = useMutation({
+    mutationFn: (categoryIds: string[]) => reorderCategories(categoryIds),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['categories'] }),
+    onError: (err: Error) => {
+      setProductImageToast({ message: err.message || 'שגיאה בשינוי הסדר', isError: true });
+      setTimeout(() => setProductImageToast(null), 5000);
+    },
+  });
+
+  const displayCategories = orderedCategories ?? categories;
+
+  const handleDragStart = useCallback((index: number) => {
+    setDragIndex(index);
+    setOrderedCategories([...categories]);
+  }, [categories]);
+
+  const handleDragOver = useCallback((index: number) => {
+    if (dragIndex === null || dragIndex === index) return;
+    setOverIndex(index);
+    setOrderedCategories((prev) => {
+      if (!prev) return prev;
+      const updated = [...prev];
+      const [moved] = updated.splice(dragIndex, 1);
+      updated.splice(index, 0, moved);
+      setDragIndex(index);
+      return updated;
+    });
+  }, [dragIndex]);
+
+  const handleDragEnd = useCallback(() => {
+    if (orderedCategories) {
+      const ids = orderedCategories.map((c) => c.id);
+      reorderMutation.mutate(ids);
+    }
+    setDragIndex(null);
+    setOverIndex(null);
+    setOrderedCategories(null);
+  }, [orderedCategories, reorderMutation]);
+
+  function closeCreateModal() {
+    setShowCreateModal(false);
+    setNameHe('');
+    setDisplayImageType('icon');
+    setIconId('');
+    setImageUrl('');
+    setPendingCategoryFile(null);
+    setCreateError(null);
+  }
 
   function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -270,144 +320,57 @@ export function Categories() {
           {productImageToast.isError ? '✕ ' : '✓ '}{productImageToast.message}
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          disabled={!activeWorkspaceId}
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: '50%',
+            background: activeWorkspaceId ? 'var(--color-primary)' : '#ccc',
+            color: '#fff',
+            fontSize: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+            cursor: activeWorkspaceId ? 'pointer' : 'not-allowed',
+            border: 'none',
+          }}
+          aria-label="הוסף קטגוריה"
+        >
+          +
+        </button>
         <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
       </div>
-        <form
-          onSubmit={handleCreate}
-          style={{
-            display: 'flex',
-            gap: 12,
-            marginBottom: 24,
-            flexWrap: 'wrap',
-            alignItems: 'flex-end',
-          }}
-        >
-          <div>
-            <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>שם קטגוריה</label>
-            <input
-              type="text"
-              value={nameHe}
-              onChange={(e) => setNameHe(e.target.value)}
-              placeholder="שם קטגוריה"
-              style={{ padding: 10, borderRadius: 8, border: '1px solid #ccc', minWidth: 140 }}
-            />
-          </div>
-          <div>
-            <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 600 }}>תמונת תצוגה</label>
-            <select
-              value={displayImageType}
-              onChange={(e) => {
-                const v = e.target.value as DisplayImageType;
-                setDisplayImageType(v);
-                if (v === 'icon') { setImageUrl(''); setPendingCategoryFile(null); }
-                if (v === 'device') {
-                  setImageUrl('');
-                  setTimeout(() => createCategoryFileInputRef.current?.click(), 0);
-                }
-                if (v === 'link' || v === 'web') { setPendingCategoryFile(null); }
-              }}
-              style={{ padding: 10, borderRadius: 8, border: '1px solid #ccc', minWidth: 160 }}
-            >
-              <option value="icon">אייקון</option>
-              <option value="device">בחר מהמכשיר...</option>
-              <option value="link">קישור לתמונה</option>
-              <option value="web">חיפוש באינטרנט</option>
-            </select>
-          </div>
-          {displayImageType === 'icon' && (
-            <EmojiPicker
-              label="בחירת אייקון"
-              value={iconId}
-              onChange={setIconId}
-            />
-          )}
-          {displayImageType === 'device' && (
-            <div>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>בחר קובץ</label>
-              <input
-                ref={createCategoryFileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) setPendingCategoryFile(file);
-                  e.target.value = '';
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => createCategoryFileInputRef.current?.click()}
-                style={{ padding: 10, borderRadius: 8, border: '1px solid #ccc', background: '#fff' }}
-              >
-                {pendingCategoryFile ? pendingCategoryFile.name : 'בחר מהמכשיר...'}
-              </button>
-            </div>
-          )}
-          {displayImageType === 'link' && (
-            <div>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קישור לתמונה</label>
-              <input
-                type="url"
-                value={imageUrl}
-                onChange={(e) => setImageUrl(e.target.value)}
-                placeholder="https://..."
-                style={{ padding: 10, borderRadius: 8, border: '1px solid #ccc', minWidth: 180 }}
-              />
-            </div>
-          )}
-          {displayImageType === 'web' && (
-            <div style={{ minWidth: 200 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>חיפוש תמונה באינטרנט</label>
-              <ImageSearchPicker onSelect={(url) => setImageUrl(url)} placeholder="חיפוש תמונה..." />
-              {imageUrl && (
-                <p style={{ marginTop: 8, fontSize: 12, color: '#2e7d32' }}>נבחרה תמונה ✓</p>
-              )}
-            </div>
-          )}
-          {(() => {
-            const hasName = !!nameHe.trim();
-            const imageReady =
-              displayImageType === 'icon' ||
-              (displayImageType === 'device' && !!pendingCategoryFile) ||
-              (displayImageType === 'link' && !!imageUrl.trim()) ||
-              (displayImageType === 'web' && !!imageUrl.trim());
-            const canSubmit = !!activeWorkspaceId && hasName && imageReady && !createMutation.isPending;
-            return (
-              <button
-                type="submit"
-                disabled={!canSubmit}
-                style={{
-                  padding: '10px 16px',
-                  fontWeight: 600,
-                  borderRadius: 8,
-                  background: canSubmit ? 'var(--color-primary)' : '#ccc',
-                  color: canSubmit ? '#fff' : '#666',
-                  cursor: canSubmit ? 'pointer' : 'not-allowed',
-                  border: 'none',
-                }}
-              >
-                {createMutation.isPending ? 'מוסיף...' : 'הוסף קטגוריה'}
-              </button>
-            );
-          })()}
-        </form>
-        {createError && (
-          <p style={{ color: '#c00', marginBottom: 16, fontSize: 14 }} role="alert">
-            {createError}
+
+        {displayCategories.length === 0 && (
+          <p style={{ fontSize: 14, color: '#999', margin: '8px 0 12px', textAlign: 'center' }}>
+            עדיין אין קטגוריות — לחצו על + כדי ליצור קטגוריה ראשונה
           </p>
         )}
-
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-          {categories.map((c) => (
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {displayCategories.map((c, index) => (
             <li
               key={c.id}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move';
+                handleDragStart(index);
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                handleDragOver(index);
+              }}
+              onDragEnd={handleDragEnd}
               style={{
-                background: '#fff',
+                background: overIndex === index ? '#e3f2fd' : '#fff',
                 borderRadius: 12,
-                marginBottom: 12,
                 boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                opacity: dragIndex === index ? 0.5 : 1,
+                transition: 'opacity 0.15s, background 0.15s',
+                cursor: 'grab',
               }}
             >
               <div
@@ -418,6 +381,19 @@ export function Categories() {
                   padding: 12,
                 }}
               >
+                <span
+                  style={{
+                    color: '#bbb',
+                    fontSize: 18,
+                    cursor: 'grab',
+                    userSelect: 'none',
+                    touchAction: 'none',
+                    flexShrink: 0,
+                  }}
+                  title="גרור לשינוי סדר"
+                >
+                  ⠿
+                </span>
                 <CategoryIcon iconId={c.iconId} imageUrl={c.imageUrl} size={32} />
                 {editing?.id === c.id ? (
                 <form
@@ -719,27 +695,36 @@ export function Categories() {
                       style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 360 }}
                     >
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                        <input
-                          type="text"
-                          value={newProductName}
-                          onChange={(e) => setNewProductName(e.target.value)}
-                          placeholder="שם פריט"
-                          style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', minWidth: 120 }}
-                        />
-                        <input
-                          type="text"
-                          value={newProductUnit}
-                          onChange={(e) => setNewProductUnit(e.target.value)}
-                          placeholder="יחידה"
-                          style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', width: 80 }}
-                        />
-                        <input
-                          type="text"
-                          value={newProductNote}
-                          onChange={(e) => setNewProductNote(e.target.value)}
-                          placeholder="הערה קבועה (אופציונלי)"
-                          style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', minWidth: 160 }}
-                        />
+                        <div>
+                          <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600 }}>שם פריט <span style={{ color: '#c00' }}>*</span></label>
+                          <input
+                            type="text"
+                            value={newProductName}
+                            onChange={(e) => setNewProductName(e.target.value)}
+                            placeholder="שם פריט"
+                            style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', minWidth: 120 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>יחידה</label>
+                          <input
+                            type="text"
+                            value={newProductUnit}
+                            onChange={(e) => setNewProductUnit(e.target.value)}
+                            placeholder="יחידה"
+                            style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', width: 80 }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>הערה קבועה</label>
+                          <input
+                            type="text"
+                            value={newProductNote}
+                            onChange={(e) => setNewProductNote(e.target.value)}
+                            placeholder="אופציונלי"
+                            style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', minWidth: 160 }}
+                          />
+                        </div>
                         <button
                           type="submit"
                           disabled={createProductMutation.isPending || !newProductName.trim()}
@@ -1007,6 +992,164 @@ export function Categories() {
                 }
               }}
             />
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1001,
+            padding: 24,
+          }}
+          onClick={closeCreateModal}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: 400,
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+          >
+            <h3 style={{ margin: '0 0 16px' }}>הוסף קטגוריה</h3>
+            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 600 }}>שם קטגוריה <span style={{ color: '#c00' }}>*</span></label>
+                <input
+                  type="text"
+                  value={nameHe}
+                  onChange={(e) => setNameHe(e.target.value)}
+                  placeholder="שם קטגוריה"
+                  autoFocus
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>תמונת תצוגה</label>
+                <select
+                  value={displayImageType}
+                  onChange={(e) => {
+                    const v = e.target.value as DisplayImageType;
+                    setDisplayImageType(v);
+                    if (v === 'icon') { setImageUrl(''); setPendingCategoryFile(null); }
+                    if (v === 'device') {
+                      setImageUrl('');
+                      setTimeout(() => createCategoryFileInputRef.current?.click(), 0);
+                    }
+                    if (v === 'link' || v === 'web') { setPendingCategoryFile(null); }
+                  }}
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                >
+                  <option value="icon">אייקון</option>
+                  <option value="device">בחר מהמכשיר...</option>
+                  <option value="link">קישור לתמונה</option>
+                  <option value="web">חיפוש באינטרנט</option>
+                </select>
+              </div>
+              {displayImageType === 'icon' && (
+                <EmojiPicker
+                  label="בחירת אייקון"
+                  value={iconId}
+                  onChange={setIconId}
+                />
+              )}
+              {displayImageType === 'device' && (
+                <div>
+                  <input
+                    ref={createCategoryFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) setPendingCategoryFile(file);
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => createCategoryFileInputRef.current?.click()}
+                    style={{ padding: 10, borderRadius: 8, border: '1px solid #ccc', background: '#fff' }}
+                  >
+                    {pendingCategoryFile ? pendingCategoryFile.name : 'בחר מהמכשיר...'}
+                  </button>
+                </div>
+              )}
+              {displayImageType === 'link' && (
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קישור לתמונה</label>
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://..."
+                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                  />
+                </div>
+              )}
+              {displayImageType === 'web' && (
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>חיפוש תמונה באינטרנט</label>
+                  <ImageSearchPicker onSelect={(url) => setImageUrl(url)} placeholder="חיפוש תמונה..." />
+                  {imageUrl && (
+                    <p style={{ marginTop: 8, fontSize: 12, color: '#2e7d32' }}>נבחרה תמונה ✓</p>
+                  )}
+                </div>
+              )}
+              {createError && (
+                <p style={{ color: '#c00', fontSize: 14, margin: 0 }} role="alert">
+                  {createError}
+                </p>
+              )}
+              <div style={{ display: 'flex', gap: 8 }}>
+                {(() => {
+                  const hasName = !!nameHe.trim();
+                  const imageReady =
+                    displayImageType === 'icon' ||
+                    (displayImageType === 'device' && !!pendingCategoryFile) ||
+                    (displayImageType === 'link' && !!imageUrl.trim()) ||
+                    (displayImageType === 'web' && !!imageUrl.trim());
+                  const canSubmit = !!activeWorkspaceId && hasName && imageReady && !createMutation.isPending;
+                  return (
+                    <button
+                      type="submit"
+                      disabled={!canSubmit}
+                      style={{
+                        flex: 1,
+                        padding: 12,
+                        fontWeight: 600,
+                        borderRadius: 8,
+                        background: canSubmit ? 'var(--color-primary)' : '#ccc',
+                        color: canSubmit ? '#fff' : '#666',
+                        cursor: canSubmit ? 'pointer' : 'not-allowed',
+                        border: 'none',
+                        fontSize: 15,
+                      }}
+                    >
+                      {createMutation.isPending ? 'מוסיף...' : 'הוסף קטגוריה'}
+                    </button>
+                  );
+                })()}
+                <button
+                  type="button"
+                  onClick={closeCreateModal}
+                  style={{ padding: 12, background: '#eee', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 15 }}
+                >
+                  ביטול
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

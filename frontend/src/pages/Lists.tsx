@@ -524,20 +524,24 @@ export function Lists() {
               }}
               style={{ display: 'flex', gap: 8, alignItems: 'center' }}
             >
-              <input
-                type="text"
-                value={newWorkspaceName}
-                onChange={(e) => setNewWorkspaceName(e.target.value)}
-                placeholder="שם מרחב עבודה חדש"
-                autoFocus
-                style={{
-                  flex: 1,
-                  padding: '8px 10px',
-                  borderRadius: 8,
-                  border: '1px solid #ccc',
-                  fontSize: 14,
-                }}
-              />
+              <div style={{ flex: 1 }}>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600 }}>שם מרחב עבודה <span style={{ color: '#c00' }}>*</span></label>
+                <input
+                  type="text"
+                  value={newWorkspaceName}
+                  onChange={(e) => setNewWorkspaceName(e.target.value)}
+                  placeholder="שם מרחב עבודה חדש"
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    border: '1px solid #ccc',
+                    fontSize: 14,
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
               <button
                 type="submit"
                 disabled={!newWorkspaceName.trim() || createWorkspaceMutation.isPending}
@@ -581,8 +585,37 @@ export function Lists() {
         <div style={{ padding: 16 }}>
         {activeTab === 'lists' ? (
           <>
+        {!showNew && (
+          <div style={{ marginBottom: 16 }}>
+            <button
+              onClick={() => setShowNew(true)}
+              disabled={!activeWorkspaceId}
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                background: activeWorkspaceId ? 'var(--color-primary)' : '#ccc',
+                color: '#fff',
+                fontSize: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                cursor: activeWorkspaceId ? 'pointer' : 'not-allowed',
+                border: 'none',
+              }}
+              aria-label="הוסף רשימה"
+            >
+              +
+            </button>
+          </div>
+        )}
         {isLoading ? (
           <p>טוען...</p>
+        ) : displayLists.length === 0 ? (
+          <p style={{ fontSize: 14, color: '#999', margin: '8px 0 12px', textAlign: 'center' }}>
+            עדיין אין רשימות — לחצו על + כדי ליצור רשימה ראשונה
+          </p>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {displayLists.map((list, index) => (
@@ -783,10 +816,10 @@ export function Lists() {
           </ul>
         )}
 
-        {showNew ? (
-          <div style={{ marginTop: 24, padding: 16, background: '#fff', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        {showNew && (
+          <div style={{ marginBottom: 16, padding: 16, background: '#fff', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
             <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', marginBottom: 4 }}>שם הרשימה</label>
+              <label style={{ display: 'block', marginBottom: 4, fontWeight: 600 }}>שם הרשימה <span style={{ color: '#c00' }}>*</span></label>
               <input
                 type="text"
                 value={name}
@@ -820,18 +853,24 @@ export function Lists() {
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button
                 onClick={() => {
-                  if (!activeWorkspaceId) return;
+                  if (!activeWorkspaceId || !name.trim()) return;
                   const iconId = createDisplayImageType === 'icon' ? createIconId || '' : '';
                   const imageUrl = createDisplayImageType === 'link' || createDisplayImageType === 'web' ? createImageUrl || '' : '';
                   createMutation.mutate({
-                    name: name || 'רשימה חדשה',
+                    name: name.trim(),
                     workspaceId: activeWorkspaceId,
                     iconId: iconId || undefined,
                     imageUrl: imageUrl || undefined,
                   });
                 }}
-                disabled={createMutation.isPending || !activeWorkspaceId}
-                style={{ padding: '10px 16px', background: 'var(--color-primary)', color: '#fff', fontWeight: 600 }}
+                disabled={createMutation.isPending || !activeWorkspaceId || !name.trim()}
+                style={{
+                  padding: '10px 16px',
+                  background: createMutation.isPending || !activeWorkspaceId || !name.trim() ? '#ccc' : 'var(--color-primary)',
+                  color: createMutation.isPending || !activeWorkspaceId || !name.trim() ? '#666' : '#fff',
+                  fontWeight: 600,
+                  cursor: createMutation.isPending || !activeWorkspaceId || !name.trim() ? 'not-allowed' : 'pointer',
+                }}
               >
                 {createMutation.isPending ? 'יוצר...' : 'צור רשימה'}
               </button>
@@ -849,28 +888,6 @@ export function Lists() {
               </button>
             </div>
           </div>
-        ) : (
-          <button
-            onClick={() => setShowNew(true)}
-            disabled={!activeWorkspaceId}
-            style={{
-              marginTop: 24,
-              width: 56,
-              height: 56,
-              borderRadius: '50%',
-              background: activeWorkspaceId ? 'var(--color-primary)' : '#ccc',
-              color: '#fff',
-              fontSize: 24,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-              cursor: activeWorkspaceId ? 'pointer' : 'not-allowed',
-            }}
-            aria-label="הוסף רשימה"
-          >
-            +
-          </button>
         )}
           </>
         ) : (
