@@ -1,5 +1,6 @@
 package com.listyyy.backend;
 
+import com.listyyy.backend.list.GroceryList;
 import com.listyyy.backend.productbank.Category;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import org.springframework.http.MediaType;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -126,5 +128,80 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
                         .content(objectMapper.writeValueAsString(Map.of("nameHe", "אורז"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nameHe").value("אורז"));
+    }
+
+    @Test
+    void create_product_requires_auth() throws Exception {
+        mvc.perform(post("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "categoryId", categoryId.toString(),
+                                "nameHe", "חלב"))))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void create_product() throws Exception {
+        mvc.perform(post("/api/products")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "categoryId", categoryId.toString(),
+                                "nameHe", "חלב",
+                                "defaultUnit", "ליטר"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nameHe").value("חלב"))
+                .andExpect(jsonPath("$.defaultUnit").value("ליטר"))
+                .andExpect(jsonPath("$.categoryId").value(categoryId.toString()));
+    }
+
+    @Test
+    void delete_product_requires_auth() throws Exception {
+        mvc.perform(delete("/api/products/" + productId))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void delete_product() throws Exception {
+        mvc.perform(delete("/api/products/" + productId)
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isNoContent());
+
+        // Verify product is gone
+        mvc.perform(get("/api/products/" + productId)
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void delete_product_also_removes_referencing_list_items() throws Exception {
+        // Create a list and add the product to it
+        GroceryList list = listRepository.save(GroceryList.builder()
+                .workspace(workspaceRepository.findById(workspaceId).orElseThrow())
+                .name("רשימת בדיקה")
+                .build());
+
+        mvc.perform(post("/api/lists/" + list.getId() + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("productId", productId.toString()))))
+                .andExpect(status().isOk());
+
+        // Verify item is on the list
+        mvc.perform(get("/api/lists/" + list.getId() + "/items")
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)));
+
+        // Delete the product
+        mvc.perform(delete("/api/products/" + productId)
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isNoContent());
+
+        // Verify the list item was also removed
+        mvc.perform(get("/api/lists/" + list.getId() + "/items")
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(0)));
     }
 }
