@@ -61,29 +61,52 @@ public class ListItemService {
             if (req.getCustomNameHe() == null || req.getCustomNameHe().isBlank()) {
                 throw new IllegalArgumentException("יש להזין שם מותאם אישית או לבחור פריט");
             }
-            // Prevent adding a custom item with the same name twice to a list
-            if (listItemRepository.existsByListIdAndCustomNameHe(listId, req.getCustomNameHe())) {
-                throw new IllegalArgumentException("פריט בשם זה כבר קיים ברשימה");
-            }
-            Category category = null;
             if (req.getCategoryId() != null) {
-                category = categoryRepository.findById(req.getCategoryId())
+                final Category category = categoryRepository.findById(req.getCategoryId())
                         .orElseThrow(() -> new ResourceNotFoundException("הקטגוריה לא נמצאה"));
                 if (!category.getWorkspace().getId().equals(list.getWorkspace().getId())) {
                     throw new IllegalArgumentException("הקטגוריה לא שייכת למרחב העבודה של הרשימה");
                 }
+                // Auto-create (or reuse) a product in the product bank so it appears in the Categories page
+                Product product = productRepository.findByCategoryIdAndNameHe(category.getId(), req.getCustomNameHe())
+                        .orElseGet(() -> productRepository.save(Product.builder()
+                                .category(category)
+                                .nameHe(req.getCustomNameHe())
+                                .defaultUnit(req.getUnit() != null ? req.getUnit() : "יחידה")
+                                .iconId(req.getIconId())
+                                .imageUrl(req.getItemImageUrl())
+                                .note(req.getNote())
+                                .build()));
+                // Prevent adding the same product twice to a list
+                if (listItemRepository.existsByListIdAndProductId(listId, product.getId())) {
+                    throw new IllegalArgumentException("הפריט כבר קיים ברשימה");
+                }
+                item = ListItem.builder()
+                        .list(list)
+                        .product(product)
+                        .quantity(req.getQuantity() != null ? req.getQuantity() : BigDecimal.ONE)
+                        .unit(req.getUnit() != null ? req.getUnit() : product.getDefaultUnit())
+                        .note(req.getNote() != null ? req.getNote() : product.getNote())
+                        .sortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0)
+                        .itemImageUrl(req.getItemImageUrl())
+                        .iconId(req.getIconId())
+                        .build();
+            } else {
+                // No category — pure custom item
+                if (listItemRepository.existsByListIdAndCustomNameHe(listId, req.getCustomNameHe())) {
+                    throw new IllegalArgumentException("פריט בשם זה כבר קיים ברשימה");
+                }
+                item = ListItem.builder()
+                        .list(list)
+                        .customNameHe(req.getCustomNameHe())
+                        .quantity(req.getQuantity() != null ? req.getQuantity() : BigDecimal.ONE)
+                        .unit(req.getUnit() != null ? req.getUnit() : "יחידה")
+                        .note(req.getNote())
+                        .sortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0)
+                        .itemImageUrl(req.getItemImageUrl())
+                        .iconId(req.getIconId())
+                        .build();
             }
-            item = ListItem.builder()
-                    .list(list)
-                    .customNameHe(req.getCustomNameHe())
-                    .category(category)
-                    .quantity(req.getQuantity() != null ? req.getQuantity() : BigDecimal.ONE)
-                    .unit(req.getUnit() != null ? req.getUnit() : "יחידה")
-                    .note(req.getNote())
-                    .sortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0)
-                    .itemImageUrl(req.getItemImageUrl())
-                    .iconId(req.getIconId())
-                    .build();
         }
         item = listItemRepository.save(item);
         listEventPublisher.publishItemAdded(listId, item, user);
