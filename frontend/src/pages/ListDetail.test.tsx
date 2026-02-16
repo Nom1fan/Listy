@@ -319,12 +319,12 @@ describe('ListDetail', () => {
       fireEvent.submit(nameInput.closest('form')!)
 
       await waitFor(() => {
-        const postCall = fetchMock.mock.calls.find(
-          ([url, opts]: [string, RequestInit | undefined]) =>
+        const postCall = (fetchMock.mock.calls as [string, RequestInit | undefined][]).find(
+          ([url, opts]) =>
             url.includes('/api/lists/list1/items') && opts?.method === 'POST'
         )
         expect(postCall).toBeDefined()
-        const body = JSON.parse(postCall![1].body as string)
+        const body = JSON.parse(postCall![1]!.body as string)
         expect(body.customNameHe).toBe('פריט חדש')
         expect(body.quantity).toBeUndefined()
         expect(body.unit).toBeUndefined()
@@ -362,12 +362,12 @@ describe('ListDetail', () => {
       fireEvent.submit(nameInput.closest('form')!)
 
       await waitFor(() => {
-        const postCall = fetchMock.mock.calls.find(
-          ([url, opts]: [string, RequestInit | undefined]) =>
+        const postCall = (fetchMock.mock.calls as [string, RequestInit | undefined][]).find(
+          ([url, opts]) =>
             url.includes('/api/lists/list1/items') && opts?.method === 'POST'
         )
         expect(postCall).toBeDefined()
-        const body = JSON.parse(postCall![1].body as string)
+        const body = JSON.parse(postCall![1]!.body as string)
         expect(body.customNameHe).toBe('עגבניות')
         expect(body.quantity).toBe(3)
         expect(body.unit).toBe('ק"ג')
