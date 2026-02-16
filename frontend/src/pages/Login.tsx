@@ -1,8 +1,51 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { requestEmailOtp, verifyEmailOtp } from '../api/auth';
-import { AppBar } from '../components/AppBar';
+import { OtpInput } from '../components/OtpInput';
+
+const cardStyle: React.CSSProperties = {
+  background: '#fff',
+  borderRadius: 16,
+  padding: '32px 24px',
+  boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
+  width: '100%',
+  maxWidth: 380,
+};
+
+const fieldStyle: React.CSSProperties = {
+  padding: '12px 14px',
+  borderRadius: 10,
+  border: '1.5px solid #ddd',
+  fontSize: 16,
+  width: '100%',
+  boxSizing: 'border-box',
+  outline: 'none',
+  transition: 'border-color 0.15s',
+};
+
+const btnStyle: React.CSSProperties = {
+  padding: '14px 24px',
+  width: '100%',
+  background: 'var(--color-primary)',
+  color: '#fff',
+  fontWeight: 700,
+  fontSize: 16,
+  borderRadius: 10,
+  border: 'none',
+  cursor: 'pointer',
+  transition: 'opacity 0.15s',
+};
+
+/** Mask email: john.doe@gmail.com → j•••••e@gmail.com */
+function maskEmail(email: string): string {
+  const at = email.indexOf('@');
+  if (at < 0) return email;
+  const local = email.slice(0, at);
+  const domain = email.slice(at);
+  if (local.length <= 2) return local[0] + '•••' + domain;
+  return local[0] + '•'.repeat(local.length - 2) + local[local.length - 1] + domain;
+}
 
 export function Login() {
   const [email, setEmail] = useState('');
@@ -17,7 +60,6 @@ export function Login() {
 
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  // Countdown timer for resend
   useEffect(() => {
     if (countdown <= 0) return;
     const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
@@ -53,120 +95,186 @@ export function Login() {
     }
   }
 
+  const doVerify = useCallback(
+    async (otpCode: string) => {
+      setError('');
+      setLoading(true);
+      try {
+        const res = await verifyEmailOtp(email, otpCode, displayName);
+        setAuth(res);
+        navigate('/lists', { replace: true });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'שגיאה');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [email, displayName, setAuth, navigate],
+  );
+
+  const handleOtpComplete = useCallback(
+    (otpCode: string) => {
+      setTimeout(() => doVerify(otpCode), 350);
+    },
+    [doVerify],
+  );
+
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const res = await verifyEmailOtp(email, code, displayName);
-      setAuth(res);
-      navigate('/lists', { replace: true });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה');
-    } finally {
-      setLoading(false);
-    }
+    doVerify(code);
   }
 
   return (
-    <>
-      <AppBar title="התחברות עם אימייל" backTo="/login" />
-      <main style={{ padding: 24, maxWidth: 400, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <img src="/logo.png?v=3" alt="Listyyy" style={{ height: 80, objectFit: 'contain' }} />
-        </div>
+    <main
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px 16px',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+        <img src="/logo.png?v=3" alt="Listyyy" style={{ height: 72, objectFit: 'contain' }} />
+      </div>
+
+      <div style={cardStyle}>
         {step === 'email' ? (
-          <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', width: 'fit-content', margin: '0 auto', gap: 16 }}>
+          <>
+            <h2 style={{ margin: '0 0 4px', textAlign: 'center', fontSize: 22, fontWeight: 700 }}>
+              התחברות עם אימייל
+            </h2>
+            <p style={{ margin: '0 0 24px', textAlign: 'center', color: '#666', fontSize: 15 }}>
+              הזינו שם וכתובת אימייל
+            </p>
+            <form
+              onSubmit={handleRequestOtp}
+              style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+            >
               <div>
-                <label style={{ display: 'block', marginBottom: 4 }}>שם</label>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, fontSize: 14 }}>
+                  שם
+                </label>
                 <input
                   type="text"
+                  autoComplete="name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   required
-                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box', minWidth: 280 }}
+                  placeholder="השם שלך"
+                  style={fieldStyle}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'var(--color-primary)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#ddd';
+                  }}
                 />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: 4 }}>אימייל</label>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, fontSize: 14 }}>
+                  אימייל
+                </label>
                 <input
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   dir="ltr"
-                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box', minWidth: 280 }}
+                  placeholder="your@email.com"
+                  style={fieldStyle}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'var(--color-primary)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#ddd';
+                  }}
                 />
               </div>
-              {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
+              {error && (
+                <p style={{ color: 'var(--color-strike)', margin: 0, fontSize: 14, textAlign: 'center' }}>
+                  {error}
+                </p>
+              )}
               <button
                 type="submit"
                 disabled={loading || !isEmailValid || !displayName.trim()}
                 style={{
-                  padding: 12,
-                  width: '100%',
-                  background: 'var(--color-primary)',
-                  color: '#fff',
-                  fontWeight: 600,
+                  ...btnStyle,
                   opacity: loading || !isEmailValid || !displayName.trim() ? 0.5 : 1,
+                  cursor:
+                    loading || !isEmailValid || !displayName.trim() ? 'not-allowed' : 'pointer',
                 }}
               >
                 {loading ? 'שולח...' : 'שלח קוד'}
               </button>
-            </div>
-          </form>
+            </form>
+          </>
         ) : (
-          <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', width: 'fit-content', margin: '0 auto', gap: 16 }}>
-              <p style={{ margin: 0, textAlign: 'center' }}>
-                הקוד נשלח ל־<span dir="ltr" style={{ fontWeight: 600, unicodeBidi: 'embed' }}>{email}</span>
+          <form
+            onSubmit={handleVerify}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ margin: '0 0 4px', fontSize: 17, color: '#444' }}>
+                שלחנו קוד חד פעמי לכתובת
               </p>
-              <div>
-                <label style={{ display: 'block', marginBottom: 4 }}>קוד</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="123456"
-                  required
-                  autoFocus
-                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box', minWidth: 280 }}
-                />
-              </div>
-              {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
-              <button
-                type="submit"
-                disabled={loading || code.length < 4}
-                style={{
-                  padding: 12,
-                  width: '100%',
-                  background: 'var(--color-primary)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  opacity: loading || code.length < 4 ? 0.5 : 1,
-                }}
+              <p
+                dir="ltr"
+                style={{ margin: 0, fontSize: 16, fontWeight: 700, unicodeBidi: 'embed' }}
               >
-                {loading ? 'בודק...' : 'אימות'}
-              </button>
+                {maskEmail(email)}
+              </p>
+            </div>
+
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: '#333' }}>
+              מה הקוד שקיבלת?
+            </p>
+
+            <OtpInput
+              value={code}
+              onChange={setCode}
+              onComplete={handleOtpComplete}
+              disabled={loading}
+            />
+
+            {error && (
+              <p style={{ color: 'var(--color-strike)', margin: 0, fontSize: 14 }}>{error}</p>
+            )}
+            {loading && <p style={{ margin: 0, color: '#999', fontSize: 14 }}>מאמת...</p>}
+
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 4 }}>
               <button
                 type="button"
-                onClick={() => { setStep('email'); setCode(''); setError(''); setCountdown(0); }}
-                style={{ background: 'transparent', color: '#666' }}
+                onClick={() => {
+                  setStep('email');
+                  setCode('');
+                  setError('');
+                  setCountdown(0);
+                }}
+                style={{ background: 'transparent', color: '#666', fontSize: 14, padding: '8px 4px' }}
               >
                 החלף אימייל
               </button>
+              <span style={{ color: '#ddd' }}>|</span>
               {countdown > 0 ? (
-                <p style={{ margin: 0, textAlign: 'center', color: '#999', fontSize: 14 }}>
+                <span style={{ color: '#999', fontSize: 14 }}>
                   שליחה חוזרת בעוד {countdown} שניות
-                </p>
+                </span>
               ) : (
                 <button
                   type="button"
                   onClick={handleResend}
                   disabled={loading}
-                  style={{ background: 'transparent', color: 'var(--color-primary)', fontSize: 14, fontWeight: 500 }}
+                  style={{
+                    background: 'transparent',
+                    color: 'var(--color-primary)',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    padding: '8px 4px',
+                  }}
                 >
                   שלח קוד שוב
                 </button>
@@ -174,10 +282,13 @@ export function Login() {
             </div>
           </form>
         )}
-        <p style={{ marginTop: 16, textAlign: 'center' }}>
-          <Link to="/login">התחברות עם טלפון</Link>
-        </p>
-      </main>
-    </>
+      </div>
+
+      <p style={{ marginTop: 20, textAlign: 'center', fontSize: 14 }}>
+        <Link to="/login" style={{ color: 'var(--color-primary)', fontWeight: 500 }}>
+          התחברות עם טלפון
+        </Link>
+      </p>
+    </main>
   );
 }

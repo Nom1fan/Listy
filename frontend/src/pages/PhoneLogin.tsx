@@ -2,23 +2,76 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { requestPhoneOtp, verifyPhoneOtp, devLogin } from '../api/auth';
-import { AppBar } from '../components/AppBar';
+import { OtpInput } from '../components/OtpInput';
 import { COUNTRY_OPTIONS } from '../data/countries';
 
-const inputStyle: React.CSSProperties = {
-  padding: 8,
-  borderRadius: 8,
-  border: '1px solid #ccc',
+const cardStyle: React.CSSProperties = {
+  background: '#fff',
+  borderRadius: 16,
+  padding: '32px 24px',
+  boxShadow: '0 2px 16px rgba(0,0,0,0.06)',
+  width: '100%',
+  maxWidth: 380,
+};
+
+const fieldStyle: React.CSSProperties = {
+  padding: '12px 14px',
+  borderRadius: 10,
+  border: '1.5px solid #ddd',
+  fontSize: 16,
+  width: '100%',
+  boxSizing: 'border-box',
+  outline: 'none',
+  transition: 'border-color 0.15s',
+};
+
+const segmentInputStyle: React.CSSProperties = {
+  padding: '10px 6px',
+  borderRadius: 10,
+  border: '1.5px solid #ddd',
   fontSize: 16,
   textAlign: 'center',
-  width: 48,
   boxSizing: 'border-box',
+  outline: 'none',
+  transition: 'border-color 0.15s',
 };
+
+const btnStyle: React.CSSProperties = {
+  padding: '14px 24px',
+  width: '100%',
+  background: 'var(--color-primary)',
+  color: '#fff',
+  fontWeight: 700,
+  fontSize: 16,
+  borderRadius: 10,
+  border: 'none',
+  cursor: 'pointer',
+  transition: 'opacity 0.15s',
+};
+
+/** Mask middle digits: 054-1234567 → 05X-XXX4567 */
+function maskPhone(segments: string[]): string {
+  const full = segments.join('');
+  if (full.length <= 5) return segments.join('-');
+  const chars = full.split('');
+  const masked = chars.map((c, i) => {
+    if (i < 2 || i >= chars.length - 4) return c;
+    return 'X';
+  });
+  let result = '';
+  let pos = 0;
+  for (let i = 0; i < segments.length; i++) {
+    if (i > 0) result += '-';
+    result += masked.slice(pos, pos + segments[i].length).join('');
+    pos += segments[i].length;
+  }
+  return result;
+}
 
 export function PhoneLogin() {
   const [countryIndex, setCountryIndex] = useState(0);
   const [segmentValues, setSegmentValues] = useState<string[]>(() =>
-    COUNTRY_OPTIONS[0].segments.map(() => '')
+    COUNTRY_OPTIONS[0].segments.map(() => ''),
   );
   const [displayName, setDisplayName] = useState('');
   const [code, setCode] = useState('');
@@ -32,18 +85,18 @@ export function PhoneLogin() {
 
   const country = COUNTRY_OPTIONS[countryIndex];
   const localDigits = segmentValues.join('');
-  const fullPhone = '+' + country.code + (
-    country.localPrefix && localDigits.startsWith(country.localPrefix)
+  const fullPhone =
+    '+' +
+    country.code +
+    (country.localPrefix && localDigits.startsWith(country.localPrefix)
       ? localDigits.slice(country.localPrefix.length)
-      : localDigits
-  );
+      : localDigits);
   const isPhoneComplete =
     segmentValues.length === country.segments.length &&
     segmentValues.every((v, i) => v.length === country.segments[i]);
 
-  const formattedPhone = useMemo(() => segmentValues.join('-'), [segmentValues]);
+  const maskedPhone = useMemo(() => maskPhone(segmentValues), [segmentValues]);
 
-  // Countdown timer for resend
   useEffect(() => {
     if (countdown <= 0) return;
     const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
@@ -68,7 +121,7 @@ export function PhoneLogin() {
         setTimeout(() => segmentRefs.current[index + 1]?.focus(), 0);
       }
     },
-    [country.segments]
+    [country.segments],
   );
 
   const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -120,67 +173,87 @@ export function PhoneLogin() {
     }
   }
 
+  const doVerify = useCallback(
+    async (otpCode: string) => {
+      setError('');
+      setLoading(true);
+      try {
+        const res = await verifyPhoneOtp(fullPhone, otpCode, displayName);
+        setAuth(res);
+        navigate('/lists', { replace: true });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'שגיאה');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fullPhone, displayName, setAuth, navigate],
+  );
+
+  const handleOtpComplete = useCallback(
+    (otpCode: string) => {
+      setTimeout(() => doVerify(otpCode), 350);
+    },
+    [doVerify],
+  );
+
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const res = await verifyPhoneOtp(fullPhone, code, displayName);
-      setAuth(res);
-      navigate('/lists', { replace: true });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'שגיאה');
-    } finally {
-      setLoading(false);
-    }
+    doVerify(code);
   }
 
   return (
-    <>
-      <AppBar title="התחברות עם מספר טלפון" />
-      <main style={{ padding: 24, maxWidth: 400, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
-          <img src="/logo.png?v=3" alt="Listyyy" style={{ height: 80, objectFit: 'contain' }} />
-        </div>
-        {import.meta.env.VITE_DEV_LOGIN === 'true' && (
-          <div style={{ marginBottom: 24, textAlign: 'center' }}>
-            <button
-              type="button"
-              onClick={handleDevLogin}
-              disabled={loading}
-              style={{
-                padding: '12px 32px',
-                background: '#e65100',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: 16,
-                borderRadius: 8,
-                border: '2px dashed #bf360c',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.5 : 1,
-                width: '100%',
-                maxWidth: 300,
-              }}
-            >
-              {loading ? 'מתחבר...' : 'Dev Login (skip OTP)'}
-            </button>
-          </div>
-        )}
+    <main
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '24px 16px',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
+        <img src="/logo.png?v=3" alt="Listyyy" style={{ height: 72, objectFit: 'contain' }} />
+      </div>
+
+      <div style={cardStyle}>
         {step === 'phone' ? (
-          <form onSubmit={handleRequestOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', width: 'fit-content', margin: '0 auto', gap: 16 }}>
+          <>
+            <h2 style={{ margin: '0 0 4px', textAlign: 'center', fontSize: 22, fontWeight: 700 }}>
+              ברוכים הבאים!
+            </h2>
+            <p style={{ margin: '0 0 24px', textAlign: 'center', color: '#666', fontSize: 15 }}>
+              הזינו שם ומספר טלפון להתחברות
+            </p>
+            <form
+              onSubmit={handleRequestOtp}
+              style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+            >
               <div>
-                <label style={{ display: 'block', marginBottom: 4 }}>שם</label>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, fontSize: 14 }}>
+                  שם
+                </label>
                 <input
                   type="text"
+                  autoComplete="name"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   required
-                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                  placeholder="השם שלך"
+                  style={fieldStyle}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = 'var(--color-primary)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#ddd';
+                  }}
                 />
               </div>
               <div>
-                <label style={{ display: 'block', marginBottom: 8 }}>מספר טלפון</label>
+                <label style={{ display: 'block', marginBottom: 6, fontWeight: 500, fontSize: 14 }}>
+                  מספר טלפון
+                </label>
                 <div
                   style={{
                     display: 'flex',
@@ -196,11 +269,11 @@ export function PhoneLogin() {
                     onChange={handleCountryChange}
                     aria-label="קוד מדינה"
                     style={{
-                      ...inputStyle,
+                      ...segmentInputStyle,
                       width: 108,
                       minWidth: 108,
                       flexShrink: 0,
-                      padding: '8px 28px 8px 10px',
+                      padding: '10px 28px 10px 10px',
                       cursor: 'pointer',
                       fontSize: 15,
                       textAlign: 'left',
@@ -213,96 +286,129 @@ export function PhoneLogin() {
                     ))}
                   </select>
                   {country.segments.map((len, i) => (
-                    <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                      {i > 0 && <span style={{ color: '#999', fontWeight: 600, fontSize: 14 }}>–</span>}
+                    <span
+                      key={i}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0 }}
+                    >
+                      {i > 0 && (
+                        <span style={{ color: '#bbb', fontWeight: 600, fontSize: 14 }}>–</span>
+                      )}
                       <input
-                        ref={(el) => { segmentRefs.current[i] = el; }}
+                        ref={(el) => {
+                          segmentRefs.current[i] = el;
+                        }}
                         type="tel"
                         inputMode="numeric"
-                        autoComplete="tel-national"
+                        autoComplete={i === 0 ? 'tel-national' : 'off'}
                         value={segmentValues[i] ?? ''}
                         onChange={(e) => setSegment(i, e.target.value)}
                         placeholder={country.example[i]}
                         maxLength={len}
                         required
                         style={{
-                          ...inputStyle,
+                          ...segmentInputStyle,
                           width: Math.max(48, len * 14),
                         }}
                         aria-label={`קטע ${i + 1}`}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = 'var(--color-primary)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = '#ddd';
+                        }}
                       />
                     </span>
                   ))}
                 </div>
               </div>
-              {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
+              {error && (
+                <p style={{ color: 'var(--color-strike)', margin: 0, fontSize: 14, textAlign: 'center' }}>
+                  {error}
+                </p>
+              )}
               <button
                 type="submit"
                 disabled={loading || !isPhoneComplete || !displayName.trim()}
                 style={{
-                  padding: 12,
-                  width: '100%',
-                  background: 'var(--color-primary)',
-                  color: '#fff',
-                  fontWeight: 600,
+                  ...btnStyle,
                   opacity: loading || !isPhoneComplete || !displayName.trim() ? 0.5 : 1,
+                  cursor:
+                    loading || !isPhoneComplete || !displayName.trim() ? 'not-allowed' : 'pointer',
                 }}
               >
                 {loading ? 'שולח...' : 'שלח קוד'}
               </button>
-            </div>
-          </form>
+            </form>
+          </>
         ) : (
-          <form onSubmit={handleVerify} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', width: 'fit-content', margin: '0 auto', gap: 16 }}>
-              <p style={{ margin: 0, textAlign: 'center' }}>
-                הקוד נשלח ל־<span dir="ltr" style={{ fontWeight: 600, unicodeBidi: 'embed' }}>{formattedPhone}</span>
+          <form
+            onSubmit={handleVerify}
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20 }}
+          >
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ margin: '0 0 4px', fontSize: 17, color: '#444' }}>
+                שלחנו קוד חד פעמי למספר
               </p>
-              <div>
-                <label style={{ display: 'block', marginBottom: 4 }}>קוד</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="123456"
-                  required
-                  autoFocus
-                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box', minWidth: 280 }}
-                />
-              </div>
-              {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
-              <button
-                type="submit"
-                disabled={loading || code.length < 4}
+              <p
+                dir="ltr"
                 style={{
-                  padding: 12,
-                  width: '100%',
-                  background: 'var(--color-primary)',
-                  color: '#fff',
-                  fontWeight: 600,
-                  opacity: loading || code.length < 4 ? 0.5 : 1,
+                  margin: 0,
+                  fontSize: 22,
+                  fontWeight: 700,
+                  unicodeBidi: 'embed',
+                  letterSpacing: 1,
                 }}
               >
-                {loading ? 'בודק...' : 'אימות'}
-              </button>
+                {maskedPhone}
+              </p>
+            </div>
+
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 500, color: '#333' }}>
+              מה הקוד שקיבלת?
+            </p>
+
+            <OtpInput
+              value={code}
+              onChange={setCode}
+              onComplete={handleOtpComplete}
+              disabled={loading}
+            />
+
+            {error && (
+              <p style={{ color: 'var(--color-strike)', margin: 0, fontSize: 14 }}>{error}</p>
+            )}
+            {loading && <p style={{ margin: 0, color: '#999', fontSize: 14 }}>מאמת...</p>}
+
+            <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 4 }}>
               <button
                 type="button"
-                onClick={() => { setStep('phone'); setCode(''); setError(''); setCountdown(0); }}
-                style={{ background: 'transparent', color: '#666' }}
+                onClick={() => {
+                  setStep('phone');
+                  setCode('');
+                  setError('');
+                  setCountdown(0);
+                }}
+                style={{ background: 'transparent', color: '#666', fontSize: 14, padding: '8px 4px' }}
               >
                 החלף מספר
               </button>
+              <span style={{ color: '#ddd' }}>|</span>
               {countdown > 0 ? (
-                <p style={{ margin: 0, textAlign: 'center', color: '#999', fontSize: 14 }}>
+                <span style={{ color: '#999', fontSize: 14 }}>
                   שליחה חוזרת בעוד {countdown} שניות
-                </p>
+                </span>
               ) : (
                 <button
                   type="button"
                   onClick={handleResend}
                   disabled={loading}
-                  style={{ background: 'transparent', color: 'var(--color-primary)', fontSize: 14, fontWeight: 500 }}
+                  style={{
+                    background: 'transparent',
+                    color: 'var(--color-primary)',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    padding: '8px 4px',
+                  }}
                 >
                   שלח קוד שוב
                 </button>
@@ -310,10 +416,34 @@ export function PhoneLogin() {
             </div>
           </form>
         )}
-        <p style={{ marginTop: 16, textAlign: 'center' }}>
-          <Link to="/login/email">התחברות עם אימייל</Link>
-        </p>
-      </main>
-    </>
+      </div>
+
+      <p style={{ marginTop: 20, textAlign: 'center', fontSize: 14 }}>
+        <Link to="/login/email" style={{ color: 'var(--color-primary)', fontWeight: 500 }}>
+          התחברות עם אימייל
+        </Link>
+      </p>
+
+      {import.meta.env.VITE_DEV_LOGIN === 'true' && (
+        <button
+          type="button"
+          onClick={handleDevLogin}
+          disabled={loading}
+          style={{
+            marginTop: 8,
+            padding: '8px 16px',
+            background: 'transparent',
+            color: '#999',
+            fontSize: 12,
+            border: '1px dashed #ccc',
+            borderRadius: 6,
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.5 : 1,
+          }}
+        >
+          Dev Login (skip OTP)
+        </button>
+      )}
+    </main>
   );
 }
