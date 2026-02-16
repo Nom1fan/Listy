@@ -16,7 +16,7 @@ type DisplayImageType = 'icon' | 'device' | 'link' | 'web';
 export function Categories() {
   const queryClient = useQueryClient();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
-  const [viewMode, setViewMode] = useViewMode();
+  const [viewMode, setViewMode] = useViewMode('categories');
   const [nameHe, setNameHe] = useState('');
   const [displayImageType, setDisplayImageType] = useState<DisplayImageType>('icon');
   const [iconId, setIconId] = useState<string>('');

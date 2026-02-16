@@ -2,12 +2,14 @@ import { useState, useCallback } from 'react';
 
 export type ViewMode = 'list' | 'grid' | 'compact';
 
-const STORAGE_KEY = 'listyyy-view-mode';
+const STORAGE_PREFIX = 'listyyy-view-mode';
 
-export function useViewMode(): [ViewMode, (mode: ViewMode) => void] {
+export function useViewMode(key: string): [ViewMode, (mode: ViewMode) => void] {
+  const storageKey = `${STORAGE_PREFIX}:${key}`;
+
   const [viewMode, setViewModeState] = useState<ViewMode>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY);
+      const stored = localStorage.getItem(storageKey);
       if (stored === 'list' || stored === 'grid' || stored === 'compact') return stored;
     } catch { /* ignore */ }
     return 'list';
@@ -15,8 +17,8 @@ export function useViewMode(): [ViewMode, (mode: ViewMode) => void] {
 
   const setViewMode = useCallback((mode: ViewMode) => {
     setViewModeState(mode);
-    try { localStorage.setItem(STORAGE_KEY, mode); } catch { /* ignore */ }
-  }, []);
+    try { localStorage.setItem(storageKey, mode); } catch { /* ignore */ }
+  }, [storageKey]);
 
   return [viewMode, setViewMode];
 }

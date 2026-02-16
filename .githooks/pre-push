@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Git pre-push hook — runs all tests before allowing a push.
+#
+# To skip in an emergency:  git push --no-verify
+#
+# This hook is activated by setting core.hooksPath in .gitconfig or by running:
+#   git config core.hooksPath .githooks
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║  Pre-push hook: running all tests before push…          ║"
+echo "║  (skip with: git push --no-verify)                      ║"
+echo "╚══════════════════════════════════════════════════════════╝"
+echo ""
+
+"$REPO_ROOT/scripts/run-all-tests.sh"

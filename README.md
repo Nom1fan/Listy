@@ -36,3 +36,21 @@ Hebrew-first (RTL) list management app with categories, product bank, list shari
 - **WebSocket** – Connect to `/ws` (SockJS), then subscribe to `/topic/lists/:listId`; send `Authorization: Bearer <jwt>` in CONNECT. Events: `ADDED`, `REMOVED`, `UPDATED` with item and user info.
 
 All authenticated endpoints use header: `Authorization: Bearer <token>`.
+
+## Development setup
+
+### Pre-push hook (runs all tests before pushing)
+
+After cloning, enable the shared git hooks:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This runs backend + frontend tests automatically before every `git push`. To skip in emergencies: `git push --no-verify`.
+
+You can also run the tests manually at any time:
+
+```bash
+./scripts/run-all-tests.sh
+```
