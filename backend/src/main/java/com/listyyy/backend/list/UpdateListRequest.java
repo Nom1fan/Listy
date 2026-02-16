@@ -8,4 +8,6 @@ public class UpdateListRequest {
     private String name;
     private String iconId;
     private String imageUrl;
+    /** Optimistic-locking version from the client; null skips the check. */
+    private Long version;
 }

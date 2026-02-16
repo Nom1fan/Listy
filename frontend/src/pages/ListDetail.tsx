@@ -30,11 +30,12 @@ import {
 import { getCategories, getProducts, updateProduct } from '../api/products';
 import { uploadFile } from '../api/client';
 import { useListEvents } from '../hooks/useListEvents';
+import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
-import type { ListItemResponse, ListEvent } from '../types';
+import type { ListItemResponse, ListEvent, WorkspaceEvent } from '../types';
 
 function SortableItem({ id, children }: {
   id: string;
@@ -138,6 +139,21 @@ export function ListDetail() {
     if (event.type === 'UPDATED') showNotification(`${who} עדכן: ${what}`);
   }, [listId, queryClient]));
 
+  useWorkspaceEvents(list?.workspaceId ?? null, useCallback((event: WorkspaceEvent) => {
+    if (event.entityType === 'LIST') {
+      queryClient.invalidateQueries({ queryKey: ['list', listId] });
+      queryClient.invalidateQueries({ queryKey: ['lists'] });
+    }
+    if (event.entityType === 'CATEGORY') {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
+    }
+    if (event.entityType === 'PRODUCT') {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
+    }
+  }, [listId, queryClient]));
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
@@ -186,17 +202,26 @@ export function ListDetail() {
       body,
     }: {
       itemId: string;
-      body: { crossedOff?: boolean; quantity?: number; unit?: string; note?: string; itemImageUrl?: string | null; iconId?: string | null };
+      body: { crossedOff?: boolean; quantity?: number; unit?: string; note?: string; itemImageUrl?: string | null; iconId?: string | null; version?: number };
     }) => updateListItem(listId!, itemId, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['listItems', listId] }),
+    onError: (err: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
+      showNotification(err.message || 'שגיאה בעדכון הפריט', true);
+    },
   });
 
   const updateProductMutation = useMutation({
-    mutationFn: ({ productId, imageUrl, iconId }: { productId: string; imageUrl: string | null; iconId: string }) =>
-      updateProduct(productId, { imageUrl, iconId }),
+    mutationFn: ({ productId, imageUrl, iconId, version }: { productId: string; imageUrl: string | null; iconId: string; version?: number }) =>
+      updateProduct(productId, { imageUrl, iconId, version }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
+    },
+    onError: (err: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
+      showNotification(err.message || 'שגיאה בעדכון הפריט', true);
     },
   });
 
@@ -218,7 +243,7 @@ export function ListDetail() {
   });
 
   const updateListMutation = useMutation({
-    mutationFn: async (payload: { name?: string; iconId?: string | null; imageUrl?: string | null }) => {
+    mutationFn: async (payload: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number }) => {
       const updated = await updateList(listId!, payload);
       const file = pendingListImageFileRef.current;
       pendingListImageFileRef.current = null;
@@ -234,6 +259,10 @@ export function ListDetail() {
       queryClient.invalidateQueries({ queryKey: ['list', listId] });
       queryClient.invalidateQueries({ queryKey: ['lists'] });
       setEditListOpen(false);
+    },
+    onError: (err: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['list', listId] });
+      showNotification(err.message || 'שגיאה בעדכון הרשימה', true);
     },
   });
 
@@ -348,14 +377,16 @@ export function ListDetail() {
     e.preventDefault();
     if (!editImageItem || !listId) return;
     const url = itemDisplayImageType === 'icon' ? '' : (itemImageUrlInput.trim() || '');
-    updateMutation.mutate({ itemId: editImageItem.id, body: { itemImageUrl: url } });
+    updateMutation.mutate({ itemId: editImageItem.id, body: { itemImageUrl: url, version: editImageItem.version } });
     // Update the product's icon (not the category) when editing icon from list
     const productId = editImageItem.productId;
     if (productId && productId !== editImageItem.categoryId && itemDisplayImageType === 'icon') {
+      const product = allProducts.find((p) => p.id === productId);
       updateProductMutation.mutate({
         productId,
         imageUrl: '',
         iconId: itemIconId || '',
+        version: product?.version,
       });
     }
     closeEditItemImage();
@@ -390,10 +421,10 @@ export function ListDetail() {
     const iconId = editListDisplayImageType === 'icon' ? (editListIconId || '') : '';
     const imageUrl = editListDisplayImageType === 'link' || editListDisplayImageType === 'web' ? (editListImageUrl.trim() || '') : '';
     if (editListDisplayImageType === 'device' && pendingListImageFileRef.current) {
-      updateListMutation.mutate({ name });
+      updateListMutation.mutate({ name, version: list?.version });
       return;
     }
-    updateListMutation.mutate({ name, iconId, imageUrl });
+    updateListMutation.mutate({ name, iconId, imageUrl, version: list?.version });
   }
 
   return (

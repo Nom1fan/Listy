@@ -38,6 +38,9 @@ public class Category {
     @Builder.Default
     private int sortOrder = 0;
 
+    @Version
+    private Long version;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private Instant createdAt;

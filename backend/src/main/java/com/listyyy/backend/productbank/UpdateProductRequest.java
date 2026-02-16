@@ -14,4 +14,6 @@ public class UpdateProductRequest {
     private String iconId;
     /** Permanent note on this product; null = no change, empty string = clear */
     private String note;
+    /** Optimistic-locking version from the client; null skips the check. */
+    private Long version;
 }

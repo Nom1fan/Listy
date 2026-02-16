@@ -4,6 +4,7 @@ import com.listyyy.backend.auth.JwtService;
 import com.listyyy.backend.auth.User;
 import com.listyyy.backend.auth.UserRepository;
 import com.listyyy.backend.list.ListAccessService;
+import com.listyyy.backend.workspace.WorkspaceAccessService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
@@ -37,10 +38,12 @@ import java.util.regex.Pattern;
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private static final Pattern LIST_TOPIC_PATTERN = Pattern.compile("^/topic/lists/([0-9a-fA-F-]{36})$");
+    private static final Pattern WORKSPACE_TOPIC_PATTERN = Pattern.compile("^/topic/workspaces/([0-9a-fA-F-]{36})$");
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
     private final ListAccessService listAccessService;
+    private final WorkspaceAccessService workspaceAccessService;
 
     @Value("${listyyy.cors.allowed-origins:http://localhost:5173}")
     private String corsAllowedOrigins;
@@ -85,16 +88,28 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
                     String destination = accessor.getDestination();
                     if (destination != null) {
-                        Matcher matcher = LIST_TOPIC_PATTERN.matcher(destination);
-                        if (matcher.matches()) {
+                        Matcher listMatcher = LIST_TOPIC_PATTERN.matcher(destination);
+                        Matcher wsMatcher = WORKSPACE_TOPIC_PATTERN.matcher(destination);
+                        if (listMatcher.matches()) {
                             User user = getAuthenticatedUser(accessor);
                             if (user == null) {
                                 log.warn("Unauthenticated SUBSCRIBE to {}", destination);
                                 throw new IllegalArgumentException("אין גישה");
                             }
-                            UUID listId = UUID.fromString(matcher.group(1));
+                            UUID listId = UUID.fromString(listMatcher.group(1));
                             if (!listAccessService.canAccess(user, listId)) {
                                 log.warn("User {} denied SUBSCRIBE to list {}", user.getId(), listId);
+                                throw new IllegalArgumentException("אין גישה");
+                            }
+                        } else if (wsMatcher.matches()) {
+                            User user = getAuthenticatedUser(accessor);
+                            if (user == null) {
+                                log.warn("Unauthenticated SUBSCRIBE to {}", destination);
+                                throw new IllegalArgumentException("אין גישה");
+                            }
+                            UUID workspaceId = UUID.fromString(wsMatcher.group(1));
+                            if (!workspaceAccessService.canAccess(user, workspaceId)) {
+                                log.warn("User {} denied SUBSCRIBE to workspace {}", user.getId(), workspaceId);
                                 throw new IllegalArgumentException("אין גישה");
                             }
                         }

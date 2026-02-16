@@ -18,4 +18,6 @@ public class ListResponse {
     private int sortOrder;
     private Instant createdAt;
     private Instant updatedAt;
+    /** Optimistic-locking version. */
+    private Long version;
 }

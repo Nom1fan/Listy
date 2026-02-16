@@ -4,8 +4,11 @@ import com.listyyy.backend.auth.User;
 import com.listyyy.backend.auth.UserRepository;
 import com.listyyy.backend.exception.AccessDeniedException;
 import com.listyyy.backend.exception.ResourceNotFoundException;
+import com.listyyy.backend.exception.VersionCheck;
 import com.listyyy.backend.sharing.InviteRequest;
 import com.listyyy.backend.sharing.ListMemberDto;
+import com.listyyy.backend.websocket.WorkspaceEvent;
+import com.listyyy.backend.websocket.WorkspaceEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +26,7 @@ public class WorkspaceService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final WorkspaceAccessService workspaceAccessService;
     private final UserRepository userRepository;
+    private final WorkspaceEventPublisher workspaceEventPublisher;
 
     public List<WorkspaceDto> listWorkspaces(User user) {
         List<Workspace> workspaces = workspaceRepository.findVisibleToUser(user.getId());
@@ -41,6 +45,7 @@ public class WorkspaceService {
                         .iconId(w.getIconId())
                         .memberCount(memberCounts.getOrDefault(w.getId(), 1))
                         .role(rolesByWorkspace.getOrDefault(w.getId(), null))
+                        .version(w.getVersion())
                         .build())
                 .toList();
     }
@@ -81,6 +86,7 @@ public class WorkspaceService {
         if (!workspaceAccessService.isOwner(user, workspaceId)) {
             throw new AccessDeniedException("רק בעל המרחב יכול לערוך");
         }
+        VersionCheck.check(req.getVersion(), workspace.getVersion());
         if (req.getName() != null && !req.getName().isBlank()) {
             String trimmedName = req.getName().trim();
             if (!trimmedName.equals(workspace.getName()) &&
@@ -90,7 +96,10 @@ public class WorkspaceService {
             workspace.setName(trimmedName);
         }
         if (req.getIconId() != null) workspace.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
-        return workspaceRepository.save(workspace);
+        workspace = workspaceRepository.save(workspace);
+        workspaceEventPublisher.publish(workspace.getId(), WorkspaceEvent.EntityType.WORKSPACE,
+                WorkspaceEvent.Action.UPDATED, workspace.getId(), workspace.getName(), user);
+        return workspace;
     }
 
     @Transactional

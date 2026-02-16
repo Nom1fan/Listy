@@ -22,4 +22,6 @@ public class ProductDto {
     private String note;
     /** Number of times this product has been added to any list (for sorting by frequency). */
     private long addCount;
+    /** Optimistic-locking version. */
+    private Long version;
 }

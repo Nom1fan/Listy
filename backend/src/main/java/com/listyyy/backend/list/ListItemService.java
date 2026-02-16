@@ -2,6 +2,7 @@ package com.listyyy.backend.list;
 
 import com.listyyy.backend.auth.User;
 import com.listyyy.backend.exception.ResourceNotFoundException;
+import com.listyyy.backend.exception.VersionCheck;
 import com.listyyy.backend.productbank.Category;
 import com.listyyy.backend.productbank.CategoryRepository;
 import com.listyyy.backend.productbank.Product;
@@ -116,6 +117,7 @@ public class ListItemService {
     @Transactional
     public ListItem updateItem(UUID listId, UUID itemId, User user, UpdateListItemRequest req) {
         ListItem item = getItemOrThrow(listId, itemId, user);
+        VersionCheck.check(req.getVersion(), item.getVersion());
         if (req.getQuantity() != null) item.setQuantity(req.getQuantity());
         if (req.getUnit() != null) item.setUnit(req.getUnit());
         if (req.getNote() != null) item.setNote(req.getNote());

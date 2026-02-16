@@ -39,6 +39,9 @@ public class GroceryList {
     @JoinColumn(name = "workspace_id", nullable = false)
     private Workspace workspace;
 
+    @Version
+    private Long version;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private Instant createdAt;

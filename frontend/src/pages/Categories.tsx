@@ -2,13 +2,14 @@ import { useState, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, createCategory, createProduct, updateCategory, updateProduct, deleteCategory, deleteProduct, reorderCategories } from '../api/products';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { uploadFile } from '../api/client';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm } from '../components/DisplayImageForm';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { ImageSearchPicker } from '../components/ImageSearchPicker';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
-import type { CategoryDto, ProductDto } from '../types';
+import type { CategoryDto, ProductDto, WorkspaceEvent } from '../types';
 
 type DisplayImageType = 'icon' | 'device' | 'link' | 'web';
 
@@ -73,6 +74,15 @@ export function Categories() {
     return acc;
   }, {});
 
+  useWorkspaceEvents(activeWorkspaceId, useCallback((event: WorkspaceEvent) => {
+    if (event.entityType === 'CATEGORY') {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    }
+    if (event.entityType === 'PRODUCT') {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    }
+  }, [queryClient]));
+
   const [createError, setCreateError] = useState<string | null>(null);
 
   const createMutation = useMutation({
@@ -99,12 +109,17 @@ export function Categories() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { nameHe?: string; iconId?: string | null; imageUrl?: string | null } }) =>
+    mutationFn: ({ id, body }: { id: string; body: { nameHe?: string; iconId?: string | null; imageUrl?: string | null; version?: number } }) =>
       updateCategory(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setEditing(null);
+    },
+    onError: (err: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      setProductImageToast({ message: err.message || 'שגיאה בעדכון קטגוריה', isError: true });
+      setTimeout(() => setProductImageToast(null), 5000);
     },
   });
 
@@ -150,7 +165,7 @@ export function Categories() {
   });
 
   const updateProductMutation = useMutation({
-    mutationFn: ({ id, ...body }: { id: string; nameHe?: string; defaultUnit?: string; imageUrl?: string | null; iconId?: string | null; note?: string | null }) =>
+    mutationFn: ({ id, ...body }: { id: string; nameHe?: string; defaultUnit?: string; imageUrl?: string | null; iconId?: string | null; note?: string | null; version?: number }) =>
       updateProduct(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -159,6 +174,7 @@ export function Categories() {
       setTimeout(() => setProductImageToast(null), 3000);
     },
     onError: (err: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       setProductImageToast({ message: err.message || 'שגיאה בעדכון הפריט', isError: true });
       setTimeout(() => setProductImageToast(null), 5000);
     },
@@ -246,6 +262,7 @@ export function Categories() {
         nameHe: editName.trim(),
         iconId: editDisplayImageType === 'icon' ? (editIconId || '') : '',
         imageUrl: editDisplayImageType !== 'icon' ? (editImageUrl.trim() || '') : '',
+        version: editing.version,
       },
     });
   }
@@ -293,6 +310,7 @@ export function Categories() {
       imageUrl,
       iconId,
       note: editProductNote.trim() || '',
+      version: editProduct.version,
     });
   }
 

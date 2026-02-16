@@ -17,4 +17,6 @@ public class CategoryDto {
     private int sortOrder;
     /** Total number of list-item adds for products in this category (for sorting by frequency). */
     private long addCount;
+    /** Optimistic-locking version. */
+    private Long version;
 }

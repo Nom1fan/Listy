@@ -26,7 +26,7 @@ export async function getList(listId: string): Promise<ListResponse> {
 
 export async function updateList(
   listId: string,
-  body: { name?: string; iconId?: string | null; imageUrl?: string | null }
+  body: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number }
 ): Promise<ListResponse> {
   return api<ListResponse>(`/api/lists/${listId}`, {
     method: 'PUT',
@@ -79,6 +79,7 @@ export async function updateListItem(
     customNameHe?: string;
     itemImageUrl?: string | null;
     iconId?: string | null;
+    version?: number;
   }
 ): Promise<ListItemResponse> {
   return api<ListItemResponse>(`/api/lists/${listId}/items/${itemId}`, {

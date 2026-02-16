@@ -3,6 +3,9 @@ package com.listyyy.backend.list;
 import com.listyyy.backend.auth.User;
 import com.listyyy.backend.exception.AccessDeniedException;
 import com.listyyy.backend.exception.ResourceNotFoundException;
+import com.listyyy.backend.exception.VersionCheck;
+import com.listyyy.backend.websocket.WorkspaceEvent;
+import com.listyyy.backend.websocket.WorkspaceEventPublisher;
 import com.listyyy.backend.workspace.Workspace;
 import com.listyyy.backend.workspace.WorkspaceAccessService;
 import com.listyyy.backend.workspace.WorkspaceRepository;
@@ -22,6 +25,7 @@ public class GroceryListService {
     private final ListAccessService listAccessService;
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceAccessService workspaceAccessService;
+    private final WorkspaceEventPublisher workspaceEventPublisher;
 
     public List<GroceryList> listsForUser(User user) {
         return listRepository.findVisibleToUser(user.getId());
@@ -46,7 +50,10 @@ public class GroceryListService {
                 .iconId(iconId)
                 .imageUrl(imageUrl)
                 .build();
-        return listRepository.save(list);
+        list = listRepository.save(list);
+        workspaceEventPublisher.publish(workspaceId, WorkspaceEvent.EntityType.LIST,
+                WorkspaceEvent.Action.CREATED, list.getId(), list.getName(), user);
+        return list;
     }
 
     public GroceryList get(UUID listId, User user) {
@@ -59,9 +66,10 @@ public class GroceryListService {
     }
 
     @Transactional
-    public GroceryList update(UUID listId, User user, String name, String iconId, String imageUrl) {
+    public GroceryList update(UUID listId, User user, String name, String iconId, String imageUrl, Long clientVersion) {
         GroceryList list = get(listId, user);
         if (!listAccessService.canEdit(user, listId)) throw new AccessDeniedException("אין הרשאה לערוך");
+        VersionCheck.check(clientVersion, list.getVersion());
         if (name != null && !name.isBlank()) {
             if (!name.equals(list.getName()) && listRepository.existsByWorkspaceIdAndNameAndIdNot(list.getWorkspace().getId(), name, list.getId())) {
                 throw new IllegalArgumentException("כבר קיימת רשימה בשם זה במרחב");
@@ -70,7 +78,10 @@ public class GroceryListService {
         }
         if (iconId != null) list.setIconId(iconId.isBlank() ? null : iconId);
         if (imageUrl != null) list.setImageUrl(imageUrl.isBlank() ? null : imageUrl);
-        return listRepository.save(list);
+        list = listRepository.save(list);
+        workspaceEventPublisher.publish(list.getWorkspace().getId(), WorkspaceEvent.EntityType.LIST,
+                WorkspaceEvent.Action.UPDATED, list.getId(), list.getName(), user);
+        return list;
     }
 
     @Transactional
@@ -92,8 +103,12 @@ public class GroceryListService {
         if (!listAccessService.isWorkspaceOwner(user, listId)) {
             throw new AccessDeniedException("רק בעל המרחב יכול למחוק רשימות");
         }
+        UUID wsId = list.getWorkspace().getId();
+        String name = list.getName();
         // Delete children first to stay portable across DBs (H2 tests don't have ON DELETE CASCADE).
         listItemRepository.deleteByListId(listId);
         listRepository.delete(list);
+        workspaceEventPublisher.publish(wsId, WorkspaceEvent.EntityType.LIST,
+                WorkspaceEvent.Action.DELETED, listId, name, user);
     }
 }

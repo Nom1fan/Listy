@@ -1,5 +1,21 @@
 const API_BASE = import.meta.env.VITE_API_BASE || '';
 
+/**
+ * Custom error class that carries the HTTP status code.
+ * Use `isConflict()` to check for optimistic-locking conflicts (409).
+ */
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+  isConflict(): boolean {
+    return this.status === 409;
+  }
+}
+
 function getToken(): string | null {
   return localStorage.getItem('listyyy_token');
 }
@@ -116,7 +132,8 @@ export async function api<T>(
     } catch {
       // use text as is
     }
-    throw new Error(msg || `HTTP ${res.status}`);
+    const error = new ApiError(msg || `HTTP ${res.status}`, res.status);
+    throw error;
   }
   if (res.status === 204) return undefined as T;
   return res.json();
