@@ -79,6 +79,7 @@ export async function updateListItem(
     customNameHe?: string;
     itemImageUrl?: string | null;
     iconId?: string | null;
+    categoryId?: string;
     version?: number;
   }
 ): Promise<ListItemResponse> {

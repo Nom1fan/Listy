@@ -2,6 +2,8 @@ package com.listyyy.backend.productbank;
 
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class UpdateProductRequest {
 
@@ -14,6 +16,8 @@ public class UpdateProductRequest {
     private String iconId;
     /** Permanent note on this product; null = no change, empty string = clear */
     private String note;
+    /** Move product to a different category; null = no change */
+    private UUID categoryId;
     /** Optimistic-locking version from the client; null skips the check. */
     private Long version;
 }

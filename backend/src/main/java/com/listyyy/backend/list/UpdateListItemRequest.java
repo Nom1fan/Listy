@@ -3,6 +3,7 @@ package com.listyyy.backend.list;
 import lombok.Data;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Data
 public class UpdateListItemRequest {
@@ -14,6 +15,8 @@ public class UpdateListItemRequest {
     private String customNameHe;
     private String itemImageUrl;
     private String iconId;
+    /** Move item to a different category; null = no change */
+    private UUID categoryId;
     /** Optimistic-locking version from the client; null skips the check. */
     private Long version;
 }

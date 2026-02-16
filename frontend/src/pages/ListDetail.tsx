@@ -37,6 +37,19 @@ import { DisplayImageForm, type DisplayImageType } from '../components/DisplayIm
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import type { ListItemResponse, ListEvent, WorkspaceEvent } from '../types';
 
+function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z" fill={color} />
+      <path d="M3 6a1 1 0 0 1 1-1h16a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Z" fill={color} />
+      <path d="M5 8h14l-1.2 13a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z" fill={color} />
+      <rect x="9.5" y="11" width="1.2" height="8" rx="0.6" fill="#fff" />
+      <rect x="11.4" y="11" width="1.2" height="8" rx="0.6" fill="#fff" />
+      <rect x="13.3" y="11" width="1.2" height="8" rx="0.6" fill="#fff" />
+    </svg>
+  );
+}
+
 function SortableItem({ id, children }: {
   id: string;
   children: (props: { handleProps: React.HTMLAttributes<HTMLElement> }) => React.ReactNode;
@@ -70,11 +83,7 @@ export function ListDetail() {
   const [notification, setNotification] = useState<string | null>(null);
   const [notificationIsError, setNotificationIsError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [editImageItem, setEditImageItem] = useState<ListItemResponse | null>(null);
-  const [itemDisplayImageType, setItemDisplayImageType] = useState<DisplayImageType>('icon');
-  const [itemIconId, setItemIconId] = useState('');
-  const [itemImageUrlInput, setItemImageUrlInput] = useState('');
-  const itemFileInputRef = useRef<HTMLInputElement>(null);
+  // Old standalone image editing state removed - image editing now in main edit modal
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddName, setQuickAddName] = useState('');
   const [quickAddQuantity, setQuickAddQuantity] = useState('1');
@@ -88,7 +97,17 @@ export function ListDetail() {
   const [quickAddCategoryId, setQuickAddCategoryId] = useState('');
   const quickAddFileInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useViewMode(`list-${listId}`);
-  const [itemMenuOpenId, setItemMenuOpenId] = useState<string | null>(null);
+  const [editItem, setEditItem] = useState<ListItemResponse | null>(null);
+  const [editItemName, setEditItemName] = useState('');
+  const [editItemQuantity, setEditItemQuantity] = useState('1');
+  const [editItemUnit, setEditItemUnit] = useState('');
+  const [editItemNote, setEditItemNote] = useState('');
+  const [editItemCategoryId, setEditItemCategoryId] = useState('');
+  const [editItemDisplayImageType, setEditItemDisplayImageType] = useState<DisplayImageType>('icon');
+  const [editItemIconId, setEditItemIconId] = useState('');
+  const [editItemImageUrl, setEditItemImageUrl] = useState('');
+  const editItemFileInputRef = useRef<HTMLInputElement>(null);
+  // itemMenuOpenId removed - items now use single-click edit + trash icon
   const [listDetailMenuOpen, setListDetailMenuOpen] = useState(false);
   const [editListOpen, setEditListOpen] = useState(false);
   const [editListName, setEditListName] = useState('');
@@ -202,9 +221,12 @@ export function ListDetail() {
       body,
     }: {
       itemId: string;
-      body: { crossedOff?: boolean; quantity?: number; unit?: string; note?: string; itemImageUrl?: string | null; iconId?: string | null; version?: number };
+      body: { crossedOff?: boolean; quantity?: number; unit?: string; note?: string; itemImageUrl?: string | null; iconId?: string | null; categoryId?: string; version?: number };
     }) => updateListItem(listId!, itemId, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['listItems', listId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
     onError: (err: Error) => {
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       showNotification(err.message || 'שגיאה בעדכון הפריט', true);
@@ -357,53 +379,69 @@ export function ListDetail() {
     return category?.imageUrl ?? null;
   }
 
-  function openEditItemImage(item: ListItemResponse, e: React.MouseEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    setEditImageItem(item);
-    setItemDisplayImageType(item.itemImageUrl ? 'link' : 'icon');
-    setItemIconId(item.iconId ?? item.categoryIconId ?? '');
-    setItemImageUrlInput(item.itemImageUrl || '');
+  function openEditItem(item: ListItemResponse) {
+    setEditItem(item);
+    setEditItemName(item.displayName);
+    setEditItemQuantity(String(item.quantity));
+    setEditItemUnit(item.unit || '');
+    setEditItemNote(item.note || '');
+    setEditItemCategoryId(item.categoryId || '');
+    setEditItemDisplayImageType(item.itemImageUrl || item.productImageUrl ? 'link' : 'icon');
+    setEditItemIconId(item.iconId ?? item.categoryIconId ?? '');
+    setEditItemImageUrl(item.itemImageUrl || item.productImageUrl || '');
   }
 
-  function closeEditItemImage() {
-    setEditImageItem(null);
-    setItemDisplayImageType('icon');
-    setItemIconId('');
-    setItemImageUrlInput('');
+  function closeEditItem() {
+    setEditItem(null);
+    setEditItemName('');
+    setEditItemQuantity('1');
+    setEditItemUnit('');
+    setEditItemNote('');
+    setEditItemCategoryId('');
+    setEditItemDisplayImageType('icon');
+    setEditItemIconId('');
+    setEditItemImageUrl('');
   }
 
-  function handleItemImageSubmit(e: React.FormEvent) {
+  function handleEditItemSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!editImageItem || !listId) return;
-    const url = itemDisplayImageType === 'icon' ? '' : (itemImageUrlInput.trim() || '');
-    updateMutation.mutate({ itemId: editImageItem.id, body: { itemImageUrl: url, version: editImageItem.version } });
-    // Update the product's icon (not the category) when editing icon from list
-    const productId = editImageItem.productId;
-    if (productId && productId !== editImageItem.categoryId && itemDisplayImageType === 'icon') {
+    if (!editItem || !listId) return;
+    const body: Record<string, unknown> = {
+      version: editItem.version,
+    };
+    const newQty = parseFloat(editItemQuantity);
+    if (!isNaN(newQty) && newQty !== editItem.quantity) body.quantity = newQty;
+    if (editItemUnit !== (editItem.unit || '')) body.unit = editItemUnit;
+    if (editItemNote !== (editItem.note || '')) body.note = editItemNote;
+    if (editItemCategoryId && editItemCategoryId !== (editItem.categoryId || '')) {
+      body.categoryId = editItemCategoryId;
+    }
+    // Image
+    const newImageUrl = editItemDisplayImageType === 'icon' ? '' : (editItemImageUrl.trim() || '');
+    const origImageUrl = editItem.itemImageUrl || '';
+    if (newImageUrl !== origImageUrl) body.itemImageUrl = newImageUrl;
+    const newIconId = editItemDisplayImageType === 'icon' ? (editItemIconId || '') : '';
+    const origIconId = editItem.iconId ?? '';
+    if (newIconId !== origIconId) body.iconId = newIconId;
+    // Also sync product icon when changing icon from list
+    const productId = editItem.productId;
+    if (productId && editItemDisplayImageType === 'icon' && newIconId !== origIconId) {
       const product = allProducts.find((p) => p.id === productId);
       updateProductMutation.mutate({
         productId,
         imageUrl: '',
-        iconId: itemIconId || '',
+        iconId: newIconId,
         version: product?.version,
       });
     }
-    closeEditItemImage();
+    updateMutation.mutate({
+      itemId: editItem.id,
+      body: body as { version?: number; quantity?: number; unit?: string; note?: string; categoryId?: string; itemImageUrl?: string | null; iconId?: string | null },
+    });
+    closeEditItem();
   }
 
-  async function handleItemImageFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !editImageItem || !listId) return;
-    e.target.value = '';
-    try {
-      const { url } = await uploadFile(`/api/upload/lists/${listId}/items/${editImageItem.id}`, file);
-      setItemImageUrlInput(url);
-      queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  // Old standalone image modal functions removed - image editing now in main edit modal
 
   function openEditList() {
     if (!list) return;
@@ -671,32 +709,21 @@ export function ListDetail() {
                           size={48}
                         />
                       )}
-                      <div style={{ flex: 1 }}>
+                      <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => openEditItem(item)}>
                         <div style={{ textDecoration: item.crossedOff ? 'line-through' : 'none', color: item.crossedOff ? 'var(--color-strike)' : 'inherit' }}>{item.displayName}</div>
                         <div style={{ fontSize: 14, color: '#666' }}>
                           {item.quantity} {item.unit}
                           {item.note && ` · ${item.note}`}
                         </div>
                       </div>
-                      <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
-                          aria-label="תפריט פריט"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, padding: '4px 8px', lineHeight: 1, color: '#555', borderRadius: 6 }}
-                        >
-                          &#8942;
-                        </button>
-                        {itemMenuOpenId === item.id && (
-                          <>
-                            <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
-                            <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 120, overflow: 'hidden' }}>
-                              <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
-                              <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeMutation.mutate(item.id)}
+                        aria-label="הסר פריט"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                      >
+                        <TrashIcon />
+                      </button>
                     </div>
                     )}
                   </SortableItem>
@@ -731,7 +758,9 @@ export function ListDetail() {
                         style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--color-primary)', flexShrink: 0 }}
                         aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
                       />
-                      <span style={{
+                      <span
+                        onClick={() => openEditItem(item)}
+                        style={{
                         flex: 1,
                         fontSize: 14,
                         textDecoration: item.crossedOff ? 'line-through' : 'none',
@@ -739,6 +768,7 @@ export function ListDetail() {
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
+                        cursor: 'pointer',
                       }}>
                         {item.displayName}
                       </span>
@@ -750,25 +780,14 @@ export function ListDetail() {
                           {item.note}
                         </span>
                       )}
-                      <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
-                          aria-label="תפריט פריט"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: '2px 4px', lineHeight: 1, color: '#999', borderRadius: 4 }}
-                        >
-                          &#8942;
-                        </button>
-                        {itemMenuOpenId === item.id && (
-                          <>
-                            <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
-                            <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 120, overflow: 'hidden' }}>
-                              <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
-                              <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeMutation.mutate(item.id)}
+                        aria-label="הסר פריט"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', lineHeight: 1, borderRadius: 4, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                      >
+                        <TrashIcon size={14} />
+                      </button>
                     </div>
                     )}
                   </SortableItem>
@@ -808,26 +827,16 @@ export function ListDetail() {
                           aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
                         />
                         <span {...handleProps} style={{ cursor: 'grab', touchAction: 'none', color: '#bbb', fontSize: 16, lineHeight: 1 }} aria-label="גרור לשינוי סדר">⠿</span>
-                        <div style={{ position: 'relative' }}>
-                          <button
-                            type="button"
-                            onClick={() => setItemMenuOpenId((prev) => prev === item.id ? null : item.id)}
-                            aria-label="תפריט פריט"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '2px 6px', lineHeight: 1, color: '#555', borderRadius: 6 }}
-                          >
-                            &#8942;
-                          </button>
-                          {itemMenuOpenId === item.id && (
-                            <>
-                              <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setItemMenuOpenId(null)} />
-                              <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 110, overflow: 'hidden' }}>
-                                <button type="button" onClick={(e) => { setItemMenuOpenId(null); openEditItemImage(item, e); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14 }}>שנה תמונה</button>
-                                <button type="button" onClick={() => { setItemMenuOpenId(null); removeMutation.mutate(item.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', cursor: 'pointer', fontSize: 14, color: 'var(--color-strike)' }}>הסר</button>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeMutation.mutate(item.id)}
+                          aria-label="הסר פריט"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                        >
+                          <TrashIcon size={14} />
+                        </button>
                       </div>
+                      <div onClick={() => openEditItem(item)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
                       {(item.itemImageUrl || item.productImageUrl) ? (
                         <img
                           src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
@@ -850,6 +859,7 @@ export function ListDetail() {
                           {item.note}
                         </span>
                       )}
+                      </div>
                     </div>
                     )}
                   </SortableItem>
@@ -1056,7 +1066,9 @@ export function ListDetail() {
           </div>
         )}
 
-        {editImageItem && (
+        {/* Old standalone image modal removed - image editing is now in the main edit modal */}
+
+        {editItem && (
           <div
             style={{
               position: 'fixed',
@@ -1068,7 +1080,7 @@ export function ListDetail() {
               zIndex: 1000,
               padding: 24,
             }}
-            onClick={closeEditItemImage}
+            onClick={closeEditItem}
           >
             <div
               onClick={(e) => e.stopPropagation()}
@@ -1076,48 +1088,171 @@ export function ListDetail() {
                 background: '#fff',
                 borderRadius: 16,
                 padding: 24,
-                maxWidth: 360,
+                maxWidth: 400,
                 width: '100%',
+                maxHeight: '90vh',
+                overflowY: 'auto',
               }}
             >
-              <h3 style={{ margin: '0 0 16px' }}>תמונת פריט: {editImageItem.displayName}</h3>
-              <form onSubmit={handleItemImageSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <h3 style={{ margin: '0 0 16px' }}>עריכת פריט</h3>
+              <form onSubmit={handleEditItemSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>שם פריט</label>
+                  <input
+                    type="text"
+                    value={editItemName}
+                    onChange={(e) => setEditItemName(e.target.value)}
+                    disabled={!!editItem.productId}
+                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box', background: editItem.productId ? '#f5f5f5' : '#fff' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>יחידת מידה</label>
+                    <input
+                      type="text"
+                      value={editItemUnit}
+                      onChange={(e) => setEditItemUnit(e.target.value)}
+                      style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div style={{ flex: '0 0 auto' }}>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>כמות</label>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const n = parseFloat(editItemQuantity) || 1;
+                          if (n > 1) setEditItemQuantity(String(n - 1));
+                        }}
+                        style={{
+                          width: 36, height: 40, border: '1px solid #ccc', borderRadius: '8px 0 0 8px',
+                          background: '#f5f5f5', cursor: 'pointer', fontSize: 18, display: 'flex',
+                          alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        −
+                      </button>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={editItemQuantity}
+                        onChange={(e) => setEditItemQuantity(e.target.value)}
+                        onBlur={() => {
+                          const n = parseFloat(editItemQuantity);
+                          if (isNaN(n) || n <= 0) setEditItemQuantity('1');
+                        }}
+                        style={{
+                          width: 56, height: 40, border: '1px solid #ccc', borderLeft: 'none', borderRight: 'none',
+                          textAlign: 'center', fontSize: 16, padding: 0, boxSizing: 'border-box',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const n = parseFloat(editItemQuantity) || 0;
+                          setEditItemQuantity(String(n + 1));
+                        }}
+                        style={{
+                          width: 36, height: 40, border: '1px solid #ccc', borderRadius: '0 8px 8px 0',
+                          background: '#f5f5f5', cursor: 'pointer', fontSize: 18, display: 'flex',
+                          alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>הערה</label>
+                  <textarea
+                    value={editItemNote}
+                    onChange={(e) => setEditItemNote(e.target.value)}
+                    rows={2}
+                    placeholder="אופציונלי"
+                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', resize: 'vertical', boxSizing: 'border-box' }}
+                  />
+                </div>
+                {workspaceCategories.length > 0 && (
+                  <div>
+                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קטגוריה</label>
+                    <select
+                      value={editItemCategoryId}
+                      onChange={(e) => setEditItemCategoryId(e.target.value)}
+                      style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', background: '#fff', fontSize: 14, boxSizing: 'border-box' }}
+                    >
+                      <option value="">ללא קטגוריה (אחר)</option>
+                      {workspaceCategories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.nameHe}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <DisplayImageForm
-                  displayType={itemDisplayImageType}
-                  iconId={itemIconId}
-                  imageUrl={itemImageUrlInput}
-                  onDisplayTypeChange={setItemDisplayImageType}
-                  onIconIdChange={setItemIconId}
-                  onImageUrlChange={setItemImageUrlInput}
-                  fileInputRef={itemFileInputRef}
+                  label="תמונה / אייקון"
+                  displayType={editItemDisplayImageType}
+                  iconId={editItemIconId}
+                  imageUrl={editItemImageUrl}
+                  onDisplayTypeChange={(v) => {
+                    setEditItemDisplayImageType(v);
+                    if (v === 'icon') setEditItemImageUrl('');
+                    if (v === 'link' || v === 'web') { setEditItemImageUrl(''); }
+                    if (v === 'device') setTimeout(() => editItemFileInputRef.current?.click(), 0);
+                  }}
+                  onIconIdChange={setEditItemIconId}
+                  onImageUrlChange={setEditItemImageUrl}
+                  fileInputRef={editItemFileInputRef}
                 />
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     type="submit"
                     disabled={updateMutation.isPending}
-                    style={{ flex: 1, padding: 12, background: 'var(--color-primary)', color: '#fff', fontWeight: 600 }}
+                    style={{
+                      flex: 1,
+                      padding: 12,
+                      background: updateMutation.isPending ? '#ccc' : 'var(--color-primary)',
+                      color: updateMutation.isPending ? '#666' : '#fff',
+                      fontWeight: 600,
+                      borderRadius: 8,
+                      border: 'none',
+                      cursor: updateMutation.isPending ? 'not-allowed' : 'pointer',
+                    }}
                   >
                     {updateMutation.isPending ? 'שומר...' : 'שמור'}
                   </button>
                   <button
                     type="button"
-                    onClick={closeEditItemImage}
-                    style={{ padding: 12, background: '#eee' }}
+                    onClick={closeEditItem}
+                    style={{ padding: 12, background: '#eee', borderRadius: 8, border: 'none', cursor: 'pointer' }}
                   >
                     ביטול
                   </button>
                 </div>
               </form>
+              <input
+                ref={editItemFileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !editItem || !listId) return;
+                  e.target.value = '';
+                  try {
+                    const { url } = await uploadFile(`/api/upload/lists/${listId}/items/${editItem.id}`, file);
+                    setEditItemImageUrl(url);
+                    queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
+                  } catch (err) {
+                    console.error(err);
+                  }
+                }}
+              />
             </div>
           </div>
         )}
-        <input
-          ref={itemFileInputRef}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={handleItemImageFile}
-        />
 
         {/* Delete confirmation dialog */}
         {confirmDelete && list && (
