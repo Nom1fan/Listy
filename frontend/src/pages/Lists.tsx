@@ -32,9 +32,11 @@ export function Lists() {
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
   const clearActiveWorkspace = useWorkspaceStore((s) => s.clearActiveWorkspace);
 
-  const { data: workspaces = [] } = useQuery({
+  const { data: workspaces = [], isLoading: workspacesLoading } = useQuery({
     queryKey: ['workspaces'],
     queryFn: getWorkspaces,
+    staleTime: 1000 * 60 * 2,
+    gcTime: 1000 * 60 * 60,
   });
 
   useEffect(() => {
@@ -296,6 +298,18 @@ export function Lists() {
         }
         right={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {workspacesLoading && workspaces.length === 0 && (
+              <span
+                style={{
+                  padding: '6px 10px',
+                  fontSize: 13,
+                  color: 'inherit',
+                  opacity: 0.6,
+                }}
+              >
+                טוען...
+              </span>
+            )}
             {workspaces.length === 1 && (
               <span
                 style={{
