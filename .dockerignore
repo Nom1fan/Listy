@@ -5,3 +5,11 @@ backend/target
 *.md
 frontend/android
 .cursor
+
+# Test files (type-checking happens locally, not in Docker)
+**/*.test.tsx
+**/*.test.ts
+**/*.spec.ts
+**/*.spec.tsx
+**/vitest*
+**/setupTests*
