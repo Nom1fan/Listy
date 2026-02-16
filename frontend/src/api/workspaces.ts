@@ -18,7 +18,7 @@ export async function createWorkspace(body: { name: string; iconId?: string | nu
 
 export async function updateWorkspace(
   id: string,
-  body: { name?: string; iconId?: string | null }
+  body: { name?: string; iconId?: string | null; version?: number }
 ): Promise<WorkspaceDto> {
   return api<WorkspaceDto>(`/api/workspaces/${id}`, {
     method: 'PATCH',

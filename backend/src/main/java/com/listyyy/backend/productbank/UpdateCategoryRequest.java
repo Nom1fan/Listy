@@ -9,4 +9,6 @@ public class UpdateCategoryRequest {
     private String iconId;
     private String imageUrl;
     private Integer sortOrder;
+    /** Optimistic-locking version from the client; null skips the check. */
+    private Long version;
 }

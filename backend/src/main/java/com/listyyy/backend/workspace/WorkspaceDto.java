@@ -15,4 +15,6 @@ public class WorkspaceDto {
     private int memberCount;
     /** Role of the current user in this workspace. */
     private String role;
+    /** Optimistic-locking version. */
+    private Long version;
 }

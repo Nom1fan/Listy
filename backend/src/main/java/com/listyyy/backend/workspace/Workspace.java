@@ -26,6 +26,9 @@ public class Workspace {
     @Column(name = "icon_id", length = 64)
     private String iconId;
 
+    @Version
+    private Long version;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private Instant createdAt;

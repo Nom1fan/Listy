@@ -2,9 +2,11 @@ package com.listyyy.backend;
 
 import com.listyyy.backend.exception.AccessDeniedException;
 import com.listyyy.backend.exception.ResourceNotFoundException;
+import com.listyyy.backend.exception.StaleDataException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -12,6 +14,8 @@ import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final String CONFLICT_MESSAGE = "הנתונים עודכנו על ידי משתמש אחר. רענן ונסה שוב.";
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException e) {
@@ -32,6 +36,17 @@ public class GlobalExceptionHandler {
             message = "שגיאה בשמירת הנתונים";
         }
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", message));
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, String>> handleOptimisticLock(ObjectOptimisticLockingFailureException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", CONFLICT_MESSAGE));
+    }
+
+    @ExceptionHandler(StaleDataException.class)
+    public ResponseEntity<Map<String, String>> handleStaleData(StaleDataException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("message", e.getMessage() != null ? e.getMessage() : CONFLICT_MESSAGE));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

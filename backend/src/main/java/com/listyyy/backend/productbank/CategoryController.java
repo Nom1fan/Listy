@@ -2,7 +2,10 @@ package com.listyyy.backend.productbank;
 
 import com.listyyy.backend.auth.User;
 import com.listyyy.backend.exception.AccessDeniedException;
+import com.listyyy.backend.exception.VersionCheck;
 import com.listyyy.backend.list.ListItemRepository;
+import com.listyyy.backend.websocket.WorkspaceEvent;
+import com.listyyy.backend.websocket.WorkspaceEventPublisher;
 import com.listyyy.backend.workspace.Workspace;
 import com.listyyy.backend.workspace.WorkspaceAccessService;
 import com.listyyy.backend.workspace.WorkspaceRepository;
@@ -29,6 +32,7 @@ public class CategoryController {
     private final ListItemRepository listItemRepository;
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceAccessService workspaceAccessService;
+    private final WorkspaceEventPublisher workspaceEventPublisher;
 
     @GetMapping
     public ResponseEntity<List<CategoryDto>> list(
@@ -83,6 +87,8 @@ public class CategoryController {
                 .sortOrder(sortOrder)
                 .build();
         c = categoryRepository.save(c);
+        workspaceEventPublisher.publish(wsId, WorkspaceEvent.EntityType.CATEGORY,
+                WorkspaceEvent.Action.CREATED, c.getId(), c.getNameHe(), user);
         return ResponseEntity.ok(toDto(c, 0L));
     }
 
@@ -95,6 +101,7 @@ public class CategoryController {
         if (user == null) return ResponseEntity.status(401).build();
         Category c = categoryAccessService.getCategoryOrThrow(id, user);
         if (!categoryAccessService.canEdit(user, id)) throw new AccessDeniedException("אין גישה");
+        VersionCheck.check(req.getVersion(), c.getVersion());
         if (req.getNameHe() != null && !req.getNameHe().isBlank()) {
             String trimmedName = req.getNameHe().trim();
             if (!trimmedName.equals(c.getNameHe()) && categoryRepository.existsByWorkspaceIdAndNameHeAndIdNot(c.getWorkspace().getId(), trimmedName, c.getId())) {
@@ -106,6 +113,8 @@ public class CategoryController {
         if (req.getImageUrl() != null) c.setImageUrl(req.getImageUrl().isBlank() ? null : req.getImageUrl());
         if (req.getSortOrder() != null) c.setSortOrder(req.getSortOrder());
         c = categoryRepository.save(c);
+        workspaceEventPublisher.publish(c.getWorkspace().getId(), WorkspaceEvent.EntityType.CATEGORY,
+                WorkspaceEvent.Action.UPDATED, c.getId(), c.getNameHe(), user);
         return ResponseEntity.ok(toDto(c, getCategoryAddCounts().getOrDefault(c.getId(), 0L)));
     }
 
@@ -141,7 +150,11 @@ public class CategoryController {
         listItemRepository.deleteByProductCategoryId(id);
         productRepository.findByCategoryIdOrderByNameHe(id)
                 .forEach(p -> productRepository.delete(p));
+        UUID wsId = c.getWorkspace().getId();
+        String name = c.getNameHe();
         categoryRepository.delete(c);
+        workspaceEventPublisher.publish(wsId, WorkspaceEvent.EntityType.CATEGORY,
+                WorkspaceEvent.Action.DELETED, id, name, user);
         return ResponseEntity.noContent().build();
     }
 
@@ -171,6 +184,7 @@ public class CategoryController {
                 .imageUrl(c.getImageUrl())
                 .sortOrder(c.getSortOrder())
                 .addCount(addCount)
+                .version(c.getVersion())
                 .build();
     }
 }

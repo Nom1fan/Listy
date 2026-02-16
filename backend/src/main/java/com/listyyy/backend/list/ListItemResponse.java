@@ -30,4 +30,6 @@ public class ListItemResponse {
     private int sortOrder;
     private Instant createdAt;
     private Instant updatedAt;
+    /** Optimistic-locking version. */
+    private Long version;
 }

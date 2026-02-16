@@ -17,6 +17,7 @@ export interface ListResponse {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+  version: number;
 }
 
 export interface ListItemResponse {
@@ -39,6 +40,7 @@ export interface ListItemResponse {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+  version: number;
 }
 
 export interface CategoryDto {
@@ -50,6 +52,7 @@ export interface CategoryDto {
   sortOrder: number;
   /** Total list-item adds for products in this category (for frequency sort). */
   addCount: number;
+  version: number;
 }
 
 export interface WorkspaceDto {
@@ -58,6 +61,7 @@ export interface WorkspaceDto {
   iconId: string | null;
   memberCount: number;
   role: string;
+  version: number;
 }
 
 export interface ProductDto {
@@ -74,6 +78,7 @@ export interface ProductDto {
   note: string | null;
   /** Times this product was added to any list (for frequency sort). */
   addCount: number;
+  version: number;
 }
 
 export interface ListEvent {
@@ -82,6 +87,16 @@ export interface ListEvent {
   itemId: string;
   itemDisplayName: string;
   quantityUnit: string;
+  userId: string;
+  userDisplayName: string;
+}
+
+export interface WorkspaceEvent {
+  entityType: 'WORKSPACE' | 'CATEGORY' | 'PRODUCT' | 'LIST';
+  action: 'CREATED' | 'UPDATED' | 'DELETED';
+  workspaceId: string;
+  entityId: string;
+  entityName: string;
   userId: string;
   userDisplayName: string;
 }

@@ -81,12 +81,17 @@ export function ProductBank() {
   });
 
   const updateProductMutation = useMutation({
-    mutationFn: ({ id, imageUrl, iconId }: { id: string; imageUrl: string | null; iconId: string | null }) =>
-      updateProduct(id, { imageUrl, iconId }),
+    mutationFn: ({ id, imageUrl, iconId, version }: { id: string; imageUrl: string | null; iconId: string | null; version?: number }) =>
+      updateProduct(id, { imageUrl, iconId, version }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setEditImageProduct(null);
       setImageUrlInput('');
+    },
+    onError: (err: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      setToast({ message: err.message || 'שגיאה בעדכון הפריט', isError: true });
+      setTimeout(() => setToast(null), 5000);
     },
   });
 
@@ -96,7 +101,7 @@ export function ProductBank() {
     // Send '' for imageUrl when icon so backend clears image; send '' for iconId when custom image to clear override
     const imageUrl = productDisplayImageType === 'icon' ? '' : (imageUrlInput.trim() || null);
     const iconId = productDisplayImageType === 'icon' ? (productIconId || '') : '';
-    updateProductMutation.mutate({ id: editImageProduct.id, imageUrl, iconId });
+    updateProductMutation.mutate({ id: editImageProduct.id, imageUrl, iconId, version: editImageProduct.version });
   }
 
   async function handleProductImageFile(e: React.ChangeEvent<HTMLInputElement>) {

@@ -61,7 +61,7 @@ public class ListController {
             @RequestBody UpdateListRequest req
     ) {
         if (user == null) return ResponseEntity.status(401).build();
-        GroceryList list = listService.update(listId, user, req.getName(), req.getIconId(), req.getImageUrl());
+        GroceryList list = listService.update(listId, user, req.getName(), req.getIconId(), req.getImageUrl(), req.getVersion());
         return ResponseEntity.ok(toListResponse(list));
     }
 
@@ -151,6 +151,7 @@ public class ListController {
                 .sortOrder(list.getSortOrder())
                 .createdAt(list.getCreatedAt())
                 .updatedAt(list.getUpdatedAt())
+                .version(list.getVersion())
                 .build();
     }
 
@@ -194,6 +195,7 @@ public class ListController {
                 .sortOrder(item.getSortOrder())
                 .createdAt(item.getCreatedAt())
                 .updatedAt(item.getUpdatedAt())
+                .version(item.getVersion())
                 .build();
     }
 }

@@ -14,4 +14,6 @@ public class UpdateListItemRequest {
     private String customNameHe;
     private String itemImageUrl;
     private String iconId;
+    /** Optimistic-locking version from the client; null skips the check. */
+    private Long version;
 }

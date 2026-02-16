@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { api, getWsUrl } from './client'
+import { api, ApiError, getWsUrl } from './client'
 
 describe('api', () => {
   const originalFetch = globalThis.fetch
@@ -38,6 +38,38 @@ describe('api', () => {
       text: () => Promise.resolve(JSON.stringify({ message: 'Invalid input' })),
     })
     await expect(api('/api/x')).rejects.toThrow('Invalid input')
+  })
+
+  it('throws ApiError with status code on failure', async () => {
+    ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      text: () => Promise.resolve(JSON.stringify({ message: 'Conflict' })),
+    })
+    try {
+      await api('/api/x')
+      expect.fail('should have thrown')
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError)
+      expect((e as ApiError).status).toBe(409)
+      expect((e as ApiError).isConflict()).toBe(true)
+      expect((e as ApiError).message).toBe('Conflict')
+    }
+  })
+
+  it('ApiError.isConflict returns false for non-409 errors', async () => {
+    ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      text: () => Promise.resolve(JSON.stringify({ message: 'Bad request' })),
+    })
+    try {
+      await api('/api/x')
+      expect.fail('should have thrown')
+    } catch (e) {
+      expect(e).toBeInstanceOf(ApiError)
+      expect((e as ApiError).isConflict()).toBe(false)
+    }
   })
 
   it('adds Authorization when token in localStorage', async () => {

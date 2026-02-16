@@ -38,6 +38,7 @@ public class WorkspaceController {
                 .iconId(w.getIconId())
                 .memberCount(memberCount)
                 .role(role)
+                .version(w.getVersion())
                 .build());
     }
 
@@ -54,6 +55,7 @@ public class WorkspaceController {
                 .iconId(w.getIconId())
                 .memberCount(1)
                 .role("owner")
+                .version(w.getVersion())
                 .build());
     }
 
@@ -73,6 +75,7 @@ public class WorkspaceController {
                 .iconId(w.getIconId())
                 .memberCount(memberCount)
                 .role(role)
+                .version(w.getVersion())
                 .build());
     }
 

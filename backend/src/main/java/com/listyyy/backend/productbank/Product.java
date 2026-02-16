@@ -40,6 +40,9 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    @Version
+    private Long version;
+
     @CreationTimestamp
     @Column(name = "created_at")
     private Instant createdAt;

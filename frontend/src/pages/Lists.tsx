@@ -6,13 +6,14 @@ import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace } from
 import { uploadFile } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
+import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
 import { getUserDisplayLabel } from '../utils/user';
 import { WorkspaceTabs, type TabKey } from '../components/WorkspaceTabs';
 import { Categories } from './Categories';
-import type { ListResponse } from '../types';
+import type { ListResponse, WorkspaceEvent } from '../types';
 
 export function Lists() {
   const [activeTab, setActiveTab] = useState<TabKey>('lists');
@@ -62,6 +63,21 @@ export function Lists() {
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
 
+  useWorkspaceEvents(activeWorkspaceId, useCallback((event: WorkspaceEvent) => {
+    if (event.entityType === 'LIST') {
+      queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] });
+    }
+    if (event.entityType === 'WORKSPACE') {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+    }
+    if (event.entityType === 'CATEGORY') {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    }
+    if (event.entityType === 'PRODUCT') {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    }
+  }, [activeWorkspaceId, queryClient]));
+
   function showToast(msg: string, isError = false) {
     setToast({ message: msg, isError });
     setTimeout(() => setToast(null), isError ? 5000 : 4000);
@@ -81,13 +97,14 @@ export function Lists() {
   });
 
   const updateWorkspaceMutation = useMutation({
-    mutationFn: ({ id, name }: { id: string; name: string }) => updateWorkspace(id, { name }),
+    mutationFn: ({ id, name, version }: { id: string; name: string; version?: number }) => updateWorkspace(id, { name, version }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       setEditingWorkspace(false);
       setEditWorkspaceName('');
     },
     onError: (err: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       showToast(err.message || 'שגיאה בעדכון מרחב עבודה', true);
     },
   });
@@ -166,7 +183,7 @@ export function Lists() {
   });
 
   const updateListMutation = useMutation({
-    mutationFn: async ({ listId, payload }: { listId: string; payload: { name?: string; iconId?: string | null; imageUrl?: string | null } }) => {
+    mutationFn: async ({ listId, payload }: { listId: string; payload: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number } }) => {
       const { updateList } = await import('../api/lists');
       const updated = await updateList(listId, payload);
       const file = pendingEditFileRef.current;
@@ -183,6 +200,7 @@ export function Lists() {
       setEditList(null);
     },
     onError: (err: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] });
       showToast(err.message || 'שגיאה בעדכון הרשימה', true);
     },
   });
@@ -210,10 +228,10 @@ export function Lists() {
     const iconId = editDisplayImageType === 'icon' ? (editIconId || '') : '';
     const imageUrl = (editDisplayImageType === 'link' || editDisplayImageType === 'web') ? (editImageUrl.trim() || '') : '';
     if (editDisplayImageType === 'device' && pendingEditFileRef.current) {
-      updateListMutation.mutate({ listId: editList.id, payload: { name: nameVal } });
+      updateListMutation.mutate({ listId: editList.id, payload: { name: nameVal, version: editList.version } });
       return;
     }
-    updateListMutation.mutate({ listId: editList.id, payload: { name: nameVal, iconId, imageUrl } });
+    updateListMutation.mutate({ listId: editList.id, payload: { name: nameVal, iconId, imageUrl, version: editList.version } });
   }
 
   // Drag handlers
@@ -491,7 +509,7 @@ export function Lists() {
               onSubmit={(e) => {
                 e.preventDefault();
                 if (editWorkspaceName.trim() && activeWorkspaceId) {
-                  updateWorkspaceMutation.mutate({ id: activeWorkspaceId, name: editWorkspaceName.trim() });
+                  updateWorkspaceMutation.mutate({ id: activeWorkspaceId, name: editWorkspaceName.trim(), version: activeWorkspace?.version });
                 }
               }}
               style={{ display: 'flex', gap: 8, alignItems: 'center' }}

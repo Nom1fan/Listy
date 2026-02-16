@@ -3,7 +3,10 @@ package com.listyyy.backend.productbank;
 import com.listyyy.backend.auth.User;
 import com.listyyy.backend.exception.AccessDeniedException;
 import com.listyyy.backend.exception.ResourceNotFoundException;
+import com.listyyy.backend.exception.VersionCheck;
 import com.listyyy.backend.list.ListItemRepository;
+import com.listyyy.backend.websocket.WorkspaceEvent;
+import com.listyyy.backend.websocket.WorkspaceEventPublisher;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -27,6 +30,7 @@ public class ProductController {
     private final CategoryRepository categoryRepository;
     private final CategoryAccessService categoryAccessService;
     private final ListItemRepository listItemRepository;
+    private final WorkspaceEventPublisher workspaceEventPublisher;
 
     @GetMapping
     public ResponseEntity<List<ProductDto>> list(
@@ -93,6 +97,8 @@ public class ProductController {
                 .note(note)
                 .build();
         p = productRepository.save(p);
+        workspaceEventPublisher.publish(category.getWorkspace().getId(), WorkspaceEvent.EntityType.PRODUCT,
+                WorkspaceEvent.Action.CREATED, p.getId(), p.getNameHe(), user);
         return ResponseEntity.ok(toDto(p, 0L));
     }
 
@@ -106,10 +112,14 @@ public class ProductController {
         Product p = productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("הפריט לא נמצא"));
         categoryAccessService.getCategoryOrThrow(p.getCategory().getId(), user);
         if (!categoryAccessService.canEdit(user, p.getCategory().getId())) throw new AccessDeniedException("אין גישה");
+        UUID wsId = p.getCategory().getWorkspace().getId();
+        String name = p.getNameHe();
         // Remove any list items referencing this product before deleting,
         // to avoid violating the name_from_product_or_custom check constraint.
         listItemRepository.deleteByProductId(id);
         productRepository.delete(p);
+        workspaceEventPublisher.publish(wsId, WorkspaceEvent.EntityType.PRODUCT,
+                WorkspaceEvent.Action.DELETED, id, name, user);
         return ResponseEntity.noContent().build();
     }
 
@@ -124,6 +134,7 @@ public class ProductController {
         Product p = productRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("הפריט לא נמצא"));
         categoryAccessService.getCategoryOrThrow(p.getCategory().getId(), user);
         if (!categoryAccessService.canEdit(user, p.getCategory().getId())) throw new AccessDeniedException("אין גישה");
+        VersionCheck.check(req.getVersion(), p.getVersion());
         // nameHe: set when provided and not blank
         if (req.getNameHe() != null && !req.getNameHe().isBlank()) {
             String trimmedName = req.getNameHe().trim();
@@ -141,6 +152,8 @@ public class ProductController {
         // note: set when provided; use empty string in request to clear
         if (req.getNote() != null) p.setNote(req.getNote().isBlank() ? null : req.getNote().trim());
         p = productRepository.save(p);
+        workspaceEventPublisher.publish(p.getCategory().getWorkspace().getId(), WorkspaceEvent.EntityType.PRODUCT,
+                WorkspaceEvent.Action.UPDATED, p.getId(), p.getNameHe(), user);
         return ResponseEntity.ok(toDto(p, getProductAddCounts().getOrDefault(p.getId(), 0L)));
     }
 
@@ -173,6 +186,7 @@ public class ProductController {
                 .imageUrl(p.getImageUrl())
                 .note(p.getNote())
                 .addCount(addCount)
+                .version(p.getVersion())
                 .build();
     }
 }
