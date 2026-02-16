@@ -151,6 +151,18 @@ public class ProductController {
         if (req.getIconId() != null) p.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
         // note: set when provided; use empty string in request to clear
         if (req.getNote() != null) p.setNote(req.getNote().isBlank() ? null : req.getNote().trim());
+        // categoryId: move product to a different category
+        if (req.getCategoryId() != null && !req.getCategoryId().equals(p.getCategory().getId())) {
+            Category newCategory = categoryAccessService.getCategoryOrThrow(req.getCategoryId(), user);
+            if (!categoryAccessService.canEdit(user, req.getCategoryId())) throw new AccessDeniedException("אין גישה לקטגוריה היעד");
+            if (!newCategory.getWorkspace().getId().equals(p.getCategory().getWorkspace().getId())) {
+                throw new IllegalArgumentException("הקטגוריה לא שייכת לאותו מרחב עבודה");
+            }
+            if (productRepository.existsByCategoryIdAndNameHeAndIdNot(req.getCategoryId(), p.getNameHe(), p.getId())) {
+                throw new IllegalArgumentException("כבר קיים פריט בשם זה בקטגוריה היעד");
+            }
+            p.setCategory(newCategory);
+        }
         p = productRepository.save(p);
         workspaceEventPublisher.publish(p.getCategory().getWorkspace().getId(), WorkspaceEvent.EntityType.PRODUCT,
                 WorkspaceEvent.Action.UPDATED, p.getId(), p.getNameHe(), user);

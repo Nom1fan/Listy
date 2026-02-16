@@ -355,6 +355,72 @@ class ListIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void move_product_based_item_to_different_category() throws Exception {
+        String listId = createList("רשימה עם העברה");
+
+        // Add product-based item
+        ResultActions add = mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "productId", productId.toString()))))
+                .andExpect(status().isOk());
+        String itemId = objectMapper.readTree(add.andReturn().getResponse().getContentAsString()).get("id").asText();
+
+        // Create a second category
+        var cat2 = categoryRepository.save(
+                com.listyyy.backend.productbank.Category.builder()
+                        .workspace(workspaceRepository.findById(workspaceId).orElseThrow())
+                        .nameHe("ירקות")
+                        .sortOrder(1)
+                        .build());
+
+        // Move item to the new category (this moves the underlying product)
+        mvc.perform(patch("/api/lists/" + listId + "/items/" + itemId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("categoryId", cat2.getId().toString()))))
+                .andExpect(status().isOk());
+
+        // Verify the underlying product is now in the new category
+        mvc.perform(get("/api/products/" + productId)
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categoryId").value(cat2.getId().toString()));
+    }
+
+    @Test
+    void move_custom_item_to_category_creates_product() throws Exception {
+        String listId = createList("רשימה עם מותאם");
+
+        // Add a custom item (no product, no category)
+        ResultActions add = mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "customNameHe", "פריט מותאם לנייד",
+                                "quantity", 1,
+                                "unit", "יחידה"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("פריט מותאם לנייד"));
+        String itemId = objectMapper.readTree(add.andReturn().getResponse().getContentAsString()).get("id").asText();
+
+        // Move the custom item to a category (this should create a product)
+        mvc.perform(patch("/api/lists/" + listId + "/items/" + itemId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("categoryId", categoryId.toString()))))
+                .andExpect(status().isOk());
+
+        // Verify a product was created in the category
+        mvc.perform(get("/api/products")
+                        .header("Authorization", getBearerToken())
+                        .param("categoryId", categoryId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.nameHe == 'פריט מותאם לנייד')]").exists());
+    }
+
+    @Test
     void delete_list_also_removes_items() throws Exception {
         String listId = createList("רשימה למחיקה");
 

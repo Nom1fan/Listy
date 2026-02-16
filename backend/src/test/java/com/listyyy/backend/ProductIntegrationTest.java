@@ -2,6 +2,7 @@ package com.listyyy.backend;
 
 import com.listyyy.backend.list.GroceryList;
 import com.listyyy.backend.productbank.Category;
+import com.listyyy.backend.productbank.Product;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -171,6 +172,63 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/products/" + productId)
                         .header("Authorization", getBearerToken()))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void move_product_to_different_category() throws Exception {
+        // Create a second category
+        Category cat2 = categoryRepository.save(Category.builder()
+                .workspace(workspaceRepository.findById(workspaceId).orElseThrow())
+                .nameHe("ירקות")
+                .sortOrder(1)
+                .build());
+
+        // Move product from מכולת to ירקות
+        mvc.perform(patch("/api/products/" + productId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("categoryId", cat2.getId().toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categoryId").value(cat2.getId().toString()));
+
+        // Verify the product is now in the new category
+        mvc.perform(get("/api/products/" + productId).header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categoryId").value(cat2.getId().toString()));
+    }
+
+    @Test
+    void cannot_move_product_to_category_with_duplicate_name() throws Exception {
+        // Create a second category with a product of the same name
+        Category cat2 = categoryRepository.save(Category.builder()
+                .workspace(workspaceRepository.findById(workspaceId).orElseThrow())
+                .nameHe("ירקות")
+                .sortOrder(1)
+                .build());
+        productRepository.save(Product.builder()
+                .category(cat2)
+                .nameHe("אורז")
+                .defaultUnit("קילו")
+                .build());
+
+        // Try to move our product (also named "אורז") to the same category
+        mvc.perform(patch("/api/products/" + productId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("categoryId", cat2.getId().toString()))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(containsString("כבר קיים")));
+    }
+
+    @Test
+    void move_product_to_same_category_is_noop() throws Exception {
+        // Moving to the same category should succeed without error
+        mvc.perform(patch("/api/products/" + productId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("categoryId", categoryId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categoryId").value(categoryId.toString()));
     }
 
     @Test

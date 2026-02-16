@@ -125,6 +125,42 @@ public class ListItemService {
         if (req.getCustomNameHe() != null && item.getProduct() == null) item.setCustomNameHe(req.getCustomNameHe());
         if (req.getItemImageUrl() != null) item.setItemImageUrl(req.getItemImageUrl().isBlank() ? null : req.getItemImageUrl());
         if (req.getIconId() != null) item.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
+        // Move item to a different category
+        if (req.getCategoryId() != null) {
+            GroceryList list = item.getList();
+            Category newCategory = categoryRepository.findById(req.getCategoryId())
+                    .orElseThrow(() -> new ResourceNotFoundException("הקטגוריה לא נמצאה"));
+            if (!newCategory.getWorkspace().getId().equals(list.getWorkspace().getId())) {
+                throw new IllegalArgumentException("הקטגוריה לא שייכת למרחב העבודה של הרשימה");
+            }
+            if (item.getProduct() != null) {
+                // Move the underlying product to the new category
+                Product product = item.getProduct();
+                if (!req.getCategoryId().equals(product.getCategory().getId())) {
+                    product.setCategory(newCategory);
+                    productRepository.save(product);
+                }
+            } else {
+                // Custom item with no product: create a product in the new category and link it
+                String itemName = item.getCustomNameHe() != null ? item.getCustomNameHe() : "";
+                String itemUnit = item.getUnit();
+                String itemIconId = item.getIconId();
+                String itemImageUrl = item.getItemImageUrl();
+                String itemNote = item.getNote();
+                Product product = productRepository.findByCategoryIdAndNameHe(req.getCategoryId(), itemName)
+                        .orElseGet(() -> productRepository.save(Product.builder()
+                                .category(newCategory)
+                                .nameHe(itemName)
+                                .defaultUnit(itemUnit)
+                                .iconId(itemIconId)
+                                .imageUrl(itemImageUrl)
+                                .note(itemNote)
+                                .build()));
+                item.setProduct(product);
+                item.setCategory(null);
+                item.setCustomNameHe(null);
+            }
+        }
         item = listItemRepository.save(item);
         listEventPublisher.publishItemUpdated(listId, item, user);
         return item;

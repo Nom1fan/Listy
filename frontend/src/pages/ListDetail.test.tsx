@@ -165,7 +165,7 @@ describe('ListDetail', () => {
   })
 
   it('persists view mode preference in localStorage', async () => {
-    localStorage.setItem('listyyy-view-mode', 'grid')
+    localStorage.setItem('listyyy-view-mode:list-list1', 'grid')
     mockFetch()
     render(
       <Wrapper>
@@ -178,6 +178,188 @@ describe('ListDetail', () => {
 
     const gridBtn = screen.getByRole('button', { name: /תצוגת כרטיסיות/i })
     expect(gridBtn).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  describe('edit item dialog (single-click)', () => {
+    const mockCategories = [
+      { id: 'c1', nameHe: 'מוצרי חלב', iconId: 'dairy', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', version: 1 },
+      { id: 'c2', nameHe: 'מאפים', iconId: 'bakery', imageUrl: null, sortOrder: 1, workspaceId: 'ws1', version: 1 },
+    ]
+
+    function mockFetchWithCategories() {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string) => {
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItems) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        if (url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategories) })
+        }
+        if (url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+    }
+
+    it('opens edit modal when clicking on item name', async () => {
+      mockFetchWithCategories()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('חלב'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+    })
+
+    it('edit modal shows item name field (disabled for product-based items)', async () => {
+      mockFetchWithCategories()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('חלב'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+      // Name field should show item name and be disabled (product-based)
+      const nameInput = screen.getByDisplayValue('חלב') as HTMLInputElement
+      expect(nameInput).toBeInTheDocument()
+      expect(nameInput.disabled).toBe(true)
+    })
+
+    it('edit modal has unit as free text input (not a dropdown)', async () => {
+      mockFetchWithCategories()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('חלב'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+      // Unit should be a text input with the current unit value
+      const unitInput = screen.getByDisplayValue('ליטר') as HTMLInputElement
+      expect(unitInput).toBeInTheDocument()
+      expect(unitInput.tagName).toBe('INPUT')
+      expect(unitInput.type).toBe('text')
+    })
+
+    it('edit modal has quantity controls', async () => {
+      mockFetchWithCategories()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('חלב'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+      // Quantity should show current value
+      const qtyInput = screen.getByDisplayValue('2') as HTMLInputElement
+      expect(qtyInput).toBeInTheDocument()
+    })
+
+    it('edit modal has note field', async () => {
+      mockFetchWithCategories()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('לחם')).toBeInTheDocument()
+      })
+      // Click "לחם" which has a note
+      fireEvent.click(screen.getByText('לחם'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+      const noteArea = screen.getByDisplayValue('מחיטה מלאה') as HTMLTextAreaElement
+      expect(noteArea).toBeInTheDocument()
+      expect(noteArea.tagName).toBe('TEXTAREA')
+    })
+
+    it('edit modal has category dropdown', async () => {
+      mockFetchWithCategories()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('חלב'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+      // Category select should exist with current category selected
+      const catSelect = screen.getByDisplayValue('מוצרי חלב') as HTMLSelectElement
+      expect(catSelect).toBeInTheDocument()
+      expect(catSelect.tagName).toBe('SELECT')
+    })
+
+    it('edit modal has image/icon form section', async () => {
+      mockFetchWithCategories()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('חלב'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+      // DisplayImageForm should be present (it renders a "תמונה / אייקון" label)
+      expect(screen.getByText('תמונה / אייקון')).toBeInTheDocument()
+    })
+  })
+
+  describe('trash icon on items', () => {
+    it('shows trash icon buttons instead of kebab menus', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      const deleteButtons = screen.getAllByRole('button', { name: /הסר פריט/i })
+      expect(deleteButtons.length).toBe(2)
+      // Each delete button should contain an SVG (TrashIcon)
+      deleteButtons.forEach((btn) => {
+        expect(btn.querySelector('svg')).toBeTruthy()
+      })
+      // No kebab menus should exist on items
+      expect(screen.queryByRole('button', { name: /תפריט פריט/i })).not.toBeInTheDocument()
+    })
   })
 
   describe('quick-add dialog – unit & amount', () => {

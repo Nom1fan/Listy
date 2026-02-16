@@ -13,6 +13,19 @@ import type { CategoryDto, ProductDto, WorkspaceEvent } from '../types';
 
 type DisplayImageType = 'icon' | 'device' | 'link' | 'web';
 
+function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z" fill={color} />
+      <path d="M3 6a1 1 0 0 1 1-1h16a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Z" fill={color} />
+      <path d="M5 8h14l-1.2 13a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z" fill={color} />
+      <rect x="9.5" y="11" width="1.2" height="8" rx="0.6" fill="#fff" />
+      <rect x="11.4" y="11" width="1.2" height="8" rx="0.6" fill="#fff" />
+      <rect x="13.3" y="11" width="1.2" height="8" rx="0.6" fill="#fff" />
+    </svg>
+  );
+}
+
 export function Categories() {
   const queryClient = useQueryClient();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
@@ -42,6 +55,7 @@ export function Categories() {
   const [editProductName, setEditProductName] = useState('');
   const [editProductUnit, setEditProductUnit] = useState('');
   const [editProductNote, setEditProductNote] = useState('');
+  const [editProductCategoryId, setEditProductCategoryId] = useState('');
   const [editProductDisplayImageType, setEditProductDisplayImageType] = useState<DisplayImageType>('icon');
   const [editProductIconId, setEditProductIconId] = useState('');
   const [editProductImageUrl, setEditProductImageUrl] = useState('');
@@ -50,7 +64,6 @@ export function Categories() {
   const [productImageToast, setProductImageToast] = useState<{ message: string; isError: boolean } | null>(null);
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<CategoryDto | null>(null);
   const [categoryMenuOpenId, setCategoryMenuOpenId] = useState<string | null>(null);
-  const [productMenuOpenId, setProductMenuOpenId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Drag reorder
@@ -165,10 +178,11 @@ export function Categories() {
   });
 
   const updateProductMutation = useMutation({
-    mutationFn: ({ id, ...body }: { id: string; nameHe?: string; defaultUnit?: string; imageUrl?: string | null; iconId?: string | null; note?: string | null; version?: number }) =>
+    mutationFn: ({ id, ...body }: { id: string; nameHe?: string; defaultUnit?: string; imageUrl?: string | null; iconId?: string | null; note?: string | null; categoryId?: string; version?: number }) =>
       updateProduct(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       setEditProduct(null);
       setProductImageToast({ message: 'הפריט עודכן', isError: false });
       setTimeout(() => setProductImageToast(null), 3000);
@@ -293,6 +307,7 @@ export function Categories() {
     setEditProductName(p.nameHe);
     setEditProductUnit(p.defaultUnit);
     setEditProductNote(p.note || '');
+    setEditProductCategoryId(p.categoryId);
     setEditProductDisplayImageType(p.imageUrl ? 'link' : 'icon');
     setEditProductIconId(p.iconId ?? p.categoryIconId ?? '');
     setEditProductImageUrl(p.imageUrl || '');
@@ -303,6 +318,7 @@ export function Categories() {
     if (!editProduct) return;
     const imageUrl = editProductDisplayImageType === 'icon' ? '' : (editProductImageUrl.trim() || '');
     const iconId = editProductDisplayImageType === 'icon' ? (editProductIconId || '') : '';
+    const categoryChanged = editProductCategoryId && editProductCategoryId !== editProduct.categoryId;
     updateProductMutation.mutate({
       id: editProduct.id,
       nameHe: editProductName.trim(),
@@ -310,6 +326,7 @@ export function Categories() {
       imageUrl,
       iconId,
       note: editProductNote.trim() || '',
+      ...(categoryChanged ? { categoryId: editProductCategoryId } : {}),
       version: editProduct.version,
     });
   }
@@ -610,12 +627,14 @@ export function Categories() {
                     {(productsByCategory[c.id] || []).map((p) => (
                       <li
                         key={p.id}
+                        onClick={() => openEditProduct(p)}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
                           gap: 8,
                           padding: '6px 0',
                           borderBottom: '1px solid #f0f0f0',
+                          cursor: 'pointer',
                         }}
                       >
                         <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={24} />
@@ -628,29 +647,14 @@ export function Categories() {
                           )}
                         </div>
                         <span style={{ fontSize: 12, color: '#666' }}>{p.defaultUnit}</span>
-                        <div style={{ position: 'relative', flexShrink: 0 }}>
-                          <button
-                            type="button"
-                            onClick={() => setProductMenuOpenId((prev) => prev === p.id ? null : p.id)}
-                            aria-label="תפריט פריט"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '2px 6px', lineHeight: 1, color: '#555', borderRadius: 6 }}
-                          >
-                            &#8942;
-                          </button>
-                          {productMenuOpenId === p.id && (
-                            <>
-                              <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setProductMenuOpenId(null)} />
-                              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 110, overflow: 'hidden' }}>
-                                <button type="button" onClick={() => { setProductMenuOpenId(null); openEditProduct(p); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}>
-                                  ערוך
-                                </button>
-                                <button type="button" onClick={() => { setProductMenuOpenId(null); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', color: '#c00' }}>
-                                  מחק
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }}
+                          aria-label="מחק פריט"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                        >
+                          <TrashIcon />
+                        </button>
                       </li>
                     ))}
                   </ul>
@@ -659,6 +663,7 @@ export function Categories() {
                     {(productsByCategory[c.id] || []).map((p) => (
                       <div
                         key={p.id}
+                        onClick={() => openEditProduct(p)}
                         style={{
                           position: 'relative',
                           padding: 10,
@@ -670,6 +675,7 @@ export function Categories() {
                           alignItems: 'center',
                           gap: 6,
                           textAlign: 'center',
+                          cursor: 'pointer',
                         }}
                       >
                         <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={48} />
@@ -680,29 +686,14 @@ export function Categories() {
                             {p.note}
                           </span>
                         )}
-                        <div style={{ position: 'relative' }}>
-                          <button
-                            type="button"
-                            onClick={() => setProductMenuOpenId((prev) => prev === p.id ? null : p.id)}
-                            aria-label="תפריט פריט"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, padding: '2px 6px', lineHeight: 1, color: '#555', borderRadius: 6 }}
-                          >
-                            &#8942;
-                          </button>
-                          {productMenuOpenId === p.id && (
-                            <>
-                              <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={() => setProductMenuOpenId(null)} />
-                              <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 4, background: '#fff', borderRadius: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.15)', zIndex: 1000, minWidth: 110, overflow: 'hidden' }}>
-                                <button type="button" onClick={() => { setProductMenuOpenId(null); openEditProduct(p); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', borderBottom: '1px solid #f0f0f0' }}>
-                                  ערוך
-                                </button>
-                                <button type="button" onClick={() => { setProductMenuOpenId(null); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }} style={{ display: 'block', width: '100%', padding: '10px 16px', background: 'none', border: 'none', textAlign: 'right', fontSize: 14, cursor: 'pointer', color: '#c00' }}>
-                                  מחק
-                                </button>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }}
+                          aria-label="מחק פריט"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                        >
+                          <TrashIcon size={16} />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -945,6 +936,18 @@ export function Categories() {
                   placeholder="תופיע אוטומטית כשמוסיפים את הפריט לרשימה"
                   style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', resize: 'vertical', boxSizing: 'border-box' }}
                 />
+              </div>
+              <div>
+                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קטגוריה</label>
+                <select
+                  value={editProductCategoryId}
+                  onChange={(e) => setEditProductCategoryId(e.target.value)}
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', background: '#fff', fontSize: 14, boxSizing: 'border-box' }}
+                >
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.nameHe}</option>
+                  ))}
+                </select>
               </div>
               <DisplayImageForm
                 label="תמונה / אייקון"
