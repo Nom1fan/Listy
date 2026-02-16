@@ -76,8 +76,8 @@ export function ListDetail() {
   const itemFileInputRef = useRef<HTMLInputElement>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [quickAddName, setQuickAddName] = useState('');
-  const [quickAddQuantity, setQuickAddQuantity] = useState(1);
-  const [quickAddUnit, setQuickAddUnit] = useState('יחידה');
+  const [quickAddQuantity, setQuickAddQuantity] = useState('1');
+  const [quickAddUnit, setQuickAddUnit] = useState('');
   const [quickAddNote, setQuickAddNote] = useState('');
   const [quickAddImageType, setQuickAddImageType] = useState<DisplayImageType>('icon');
   const [quickAddIconId, setQuickAddIconId] = useState('');
@@ -248,8 +248,8 @@ export function ListDetail() {
   function closeQuickAddModal() {
     setQuickAddOpen(false);
     setQuickAddName('');
-    setQuickAddQuantity(1);
-    setQuickAddUnit('יחידה');
+    setQuickAddQuantity('1');
+    setQuickAddUnit('');
     setQuickAddNote('');
     setQuickAddImageType('icon');
     setQuickAddIconId('');
@@ -266,8 +266,7 @@ export function ListDetail() {
 
     const body: Parameters<typeof addListItem>[1] = {
       customNameHe: name,
-      quantity: quickAddQuantity,
-      unit: quickAddUnit || 'יחידה',
+      ...(quickAddUnit ? { quantity: parseFloat(quickAddQuantity) || 1, unit: quickAddUnit } : {}),
       note: quickAddNote.trim() || undefined,
       categoryId: quickAddCategoryId || undefined,
     };
@@ -871,37 +870,78 @@ export function ListDetail() {
                     style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
                   />
                 </div>
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <div style={{ flex: '1 1 80px' }}>
-                    <label style={{ display: 'block', marginBottom: 4 }}>כמות</label>
-                    <input
-                      type="number"
-                      min={0.001}
-                      step="any"
-                      value={quickAddQuantity}
-                      onChange={(e) => setQuickAddQuantity(parseFloat(e.target.value) || 1)}
-                      style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-                    />
-                  </div>
-                  <div style={{ flex: '1 1 100px' }}>
-                    <label style={{ display: 'block', marginBottom: 4 }}>יחידה</label>
-                    <input
-                      type="text"
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <div style={{ flex: '1 1 120px' }}>
+                    <label htmlFor="quick-add-unit" style={{ display: 'block', marginBottom: 4 }}>יחידה</label>
+                    <select
+                      id="quick-add-unit"
                       value={quickAddUnit}
-                      onChange={(e) => setQuickAddUnit(e.target.value)}
-                      list="quick-add-units"
-                      style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-                    />
-                    <datalist id="quick-add-units">
-                      <option value="יחידה" />
-                      <option value={'ק"ג'} />
-                      <option value="גרם" />
-                      <option value="ליטר" />
-                      <option value={'מ"ל'} />
-                      <option value="חבילה" />
-                      <option value="קופסה" />
-                    </datalist>
+                      onChange={(e) => {
+                        setQuickAddUnit(e.target.value);
+                        if (e.target.value && !quickAddUnit) setQuickAddQuantity('1');
+                      }}
+                      style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', background: '#fff' }}
+                    >
+                      <option value="">ללא</option>
+                      <option value="יחידה">יחידה</option>
+                      <option value={'ק"ג'}>ק&quot;ג</option>
+                      <option value="גרם">גרם</option>
+                      <option value="ליטר">ליטר</option>
+                      <option value={'מ"ל'}>מ&quot;ל</option>
+                      <option value="חבילה">חבילה</option>
+                      <option value="קופסה">קופסה</option>
+                    </select>
                   </div>
+                  {quickAddUnit && (
+                    <div style={{ flex: '0 0 auto' }}>
+                      <label htmlFor="quick-add-qty" style={{ display: 'block', marginBottom: 4 }}>כמות</label>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const n = parseFloat(quickAddQuantity) || 1;
+                            if (n > 1) setQuickAddQuantity(String(n - 1));
+                          }}
+                          style={{
+                            width: 36, height: 40, border: '1px solid #ccc', borderRadius: '8px 0 0 8px',
+                            background: '#f5f5f5', cursor: 'pointer', fontSize: 18, display: 'flex',
+                            alignItems: 'center', justifyContent: 'center',
+                          }}
+                        >
+                          −
+                        </button>
+                        <input
+                          id="quick-add-qty"
+                          type="text"
+                          inputMode="decimal"
+                          value={quickAddQuantity}
+                          onChange={(e) => setQuickAddQuantity(e.target.value)}
+                          onBlur={() => {
+                            const n = parseFloat(quickAddQuantity);
+                            if (isNaN(n) || n <= 0) setQuickAddQuantity('1');
+                          }}
+                          style={{
+                            width: 56, height: 40, border: '1px solid #ccc', borderLeft: 'none', borderRight: 'none',
+                            textAlign: 'center', fontSize: 16, padding: 0, boxSizing: 'border-box',
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const n = parseFloat(quickAddQuantity) || 0;
+                            setQuickAddQuantity(String(n + 1));
+                          }}
+                          style={{
+                            width: 36, height: 40, border: '1px solid #ccc', borderRadius: '0 8px 8px 0',
+                            background: '#f5f5f5', cursor: 'pointer', fontSize: 18, display: 'flex',
+                            alignItems: 'center', justifyContent: 'center',
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label style={{ display: 'block', marginBottom: 4 }}>הערה</label>

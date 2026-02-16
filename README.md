@@ -1,6 +1,6 @@
 # Listyyy – List Management App
 
-Hebrew-first (RTL) management list app with categories, product bank, list sharing, and real-time updates. Supports web and Android (Capacitor).
+Hebrew-first (RTL) list management app with categories, product bank, list sharing, and real-time updates. Supports web and Android (Capacitor).
 
 ## Features
 

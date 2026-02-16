@@ -1,9 +1,9 @@
 ---
-name: run-tests
-description: Run backend (Java/Spring Boot) tests in this project. Use when running tests, verifying test results, or executing Maven commands. Prevents wasting time looking for the correct Maven executable.
+name: run-backend-tests
+description: Run backend (Java/Spring Boot) tests. Use when running backend tests, verifying backend test results, or executing Maven commands. NOT for frontend tests — see run-frontend-tests instead.
 ---
 
-# Running Tests
+# Running Backend Tests
 
 This project uses the Maven wrapper (`./mvnw`) located in the `backend/` directory. There is no global `mvn` on PATH.
 

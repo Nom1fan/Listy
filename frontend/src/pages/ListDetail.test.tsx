@@ -179,4 +179,199 @@ describe('ListDetail', () => {
     const gridBtn = screen.getByRole('button', { name: /תצוגת כרטיסיות/i })
     expect(gridBtn).toHaveAttribute('aria-pressed', 'true')
   })
+
+  describe('quick-add dialog – unit & amount', () => {
+    async function openQuickAdd() {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('הוסף פריט'))
+      await waitFor(() => {
+        expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument()
+      })
+    }
+
+    it('defaults unit to ללא and hides amount field', async () => {
+      await openQuickAdd()
+
+      const unitSelect = screen.getByLabelText('יחידה') as HTMLSelectElement
+      expect(unitSelect.value).toBe('')
+      expect(unitSelect).toHaveDisplayValue('ללא')
+
+      expect(screen.queryByLabelText('כמות')).not.toBeInTheDocument()
+    })
+
+    it('shows amount stepper when a unit is selected', async () => {
+      await openQuickAdd()
+
+      const unitSelect = screen.getByLabelText('יחידה')
+      fireEvent.change(unitSelect, { target: { value: 'יחידה' } })
+
+      expect(screen.getByLabelText('כמות')).toBeInTheDocument()
+      expect(screen.getByText('−')).toBeInTheDocument()
+      expect(screen.getByText('+')).toBeInTheDocument()
+
+      const qtyInput = screen.getByLabelText('כמות') as HTMLInputElement
+      expect(qtyInput.value).toBe('1')
+    })
+
+    it('hides amount stepper when unit is switched back to ללא', async () => {
+      await openQuickAdd()
+
+      const unitSelect = screen.getByLabelText('יחידה')
+      fireEvent.change(unitSelect, { target: { value: 'גרם' } })
+      expect(screen.getByLabelText('כמות')).toBeInTheDocument()
+
+      fireEvent.change(unitSelect, { target: { value: '' } })
+      expect(screen.queryByLabelText('כמות')).not.toBeInTheDocument()
+    })
+
+    it('increment button increases quantity', async () => {
+      await openQuickAdd()
+
+      fireEvent.change(screen.getByLabelText('יחידה'), { target: { value: 'יחידה' } })
+      const qtyInput = screen.getByLabelText('כמות') as HTMLInputElement
+      expect(qtyInput.value).toBe('1')
+
+      fireEvent.click(screen.getByText('+'))
+      expect(qtyInput.value).toBe('2')
+
+      fireEvent.click(screen.getByText('+'))
+      expect(qtyInput.value).toBe('3')
+    })
+
+    it('decrement button decreases quantity but not below 1', async () => {
+      await openQuickAdd()
+
+      fireEvent.change(screen.getByLabelText('יחידה'), { target: { value: 'חבילה' } })
+      const qtyInput = screen.getByLabelText('כמות') as HTMLInputElement
+
+      fireEvent.click(screen.getByText('+'))
+      fireEvent.click(screen.getByText('+'))
+      expect(qtyInput.value).toBe('3')
+
+      fireEvent.click(screen.getByText('−'))
+      expect(qtyInput.value).toBe('2')
+
+      fireEvent.click(screen.getByText('−'))
+      expect(qtyInput.value).toBe('1')
+
+      // Should not go below 1
+      fireEvent.click(screen.getByText('−'))
+      expect(qtyInput.value).toBe('1')
+    })
+
+    it('allows typing a quantity directly', async () => {
+      await openQuickAdd()
+
+      fireEvent.change(screen.getByLabelText('יחידה'), { target: { value: 'ק"ג' } })
+      const qtyInput = screen.getByLabelText('כמות') as HTMLInputElement
+
+      fireEvent.change(qtyInput, { target: { value: '2.5' } })
+      expect(qtyInput.value).toBe('2.5')
+    })
+
+    it('resets invalid quantity to 1 on blur', async () => {
+      await openQuickAdd()
+
+      fireEvent.change(screen.getByLabelText('יחידה'), { target: { value: 'ליטר' } })
+      const qtyInput = screen.getByLabelText('כמות') as HTMLInputElement
+
+      fireEvent.change(qtyInput, { target: { value: '' } })
+      fireEvent.blur(qtyInput)
+      expect(qtyInput.value).toBe('1')
+
+      fireEvent.change(qtyInput, { target: { value: 'abc' } })
+      fireEvent.blur(qtyInput)
+      expect(qtyInput.value).toBe('1')
+    })
+
+    it('submits without quantity/unit when ללא is selected', async () => {
+      await openQuickAdd()
+
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, opts?: RequestInit) => {
+        if (url.includes('/api/lists/list1/items') && opts?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ id: 'new-item', displayName: 'test' }),
+          })
+        }
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItems) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+
+      // Unit is already ללא by default; fill the name and submit
+      const nameInput = screen.getByPlaceholderText('שם פריט')
+      fireEvent.change(nameInput, { target: { value: 'פריט חדש' } })
+      fireEvent.submit(nameInput.closest('form')!)
+
+      await waitFor(() => {
+        const postCall = fetchMock.mock.calls.find(
+          ([url, opts]: [string, RequestInit | undefined]) =>
+            url.includes('/api/lists/list1/items') && opts?.method === 'POST'
+        )
+        expect(postCall).toBeDefined()
+        const body = JSON.parse(postCall![1].body as string)
+        expect(body.customNameHe).toBe('פריט חדש')
+        expect(body.quantity).toBeUndefined()
+        expect(body.unit).toBeUndefined()
+      })
+    })
+
+    it('submits with quantity and unit when a unit is selected', async () => {
+      await openQuickAdd()
+
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, opts?: RequestInit) => {
+        if (url.includes('/api/lists/list1/items') && opts?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ id: 'new-item', displayName: 'test' }),
+          })
+        }
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItems) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+
+      // Select a unit and set quantity
+      fireEvent.change(screen.getByLabelText('יחידה'), { target: { value: 'ק"ג' } })
+      const qtyInput = screen.getByLabelText('כמות') as HTMLInputElement
+      fireEvent.change(qtyInput, { target: { value: '3' } })
+
+      const nameInput = screen.getByPlaceholderText('שם פריט')
+      fireEvent.change(nameInput, { target: { value: 'עגבניות' } })
+      fireEvent.submit(nameInput.closest('form')!)
+
+      await waitFor(() => {
+        const postCall = fetchMock.mock.calls.find(
+          ([url, opts]: [string, RequestInit | undefined]) =>
+            url.includes('/api/lists/list1/items') && opts?.method === 'POST'
+        )
+        expect(postCall).toBeDefined()
+        const body = JSON.parse(postCall![1].body as string)
+        expect(body.customNameHe).toBe('עגבניות')
+        expect(body.quantity).toBe(3)
+        expect(body.unit).toBe('ק"ג')
+      })
+    })
+  })
 })
