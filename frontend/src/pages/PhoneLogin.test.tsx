@@ -19,7 +19,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 
 /** Fill in the name and phone segments to make the form complete */
 async function fillPhoneForm(user: ReturnType<typeof userEvent.setup>) {
-  const nameInput = document.querySelector('input[type="text"]')!
+  const nameInput = screen.getByPlaceholderText('השם שלך')
   const seg1 = screen.getByLabelText('קטע 1')
   const seg2 = screen.getByLabelText('קטע 2')
   await user.type(nameInput, 'Moshe')
@@ -54,7 +54,7 @@ describe('PhoneLogin', () => {
   it('submit button is disabled when name is filled but phone is incomplete', async () => {
     const user = userEvent.setup()
     render(<Wrapper><PhoneLogin /></Wrapper>)
-    await user.type(document.querySelector('input[type="text"]')!, 'Moshe')
+    await user.type(screen.getByPlaceholderText('השם שלך'), 'Moshe')
     expect(screen.getByRole('button', { name: 'שלח קוד' })).toBeDisabled()
   })
 
@@ -73,7 +73,7 @@ describe('PhoneLogin', () => {
     expect(screen.getByRole('button', { name: 'שלח קוד' })).toBeEnabled()
   })
 
-  it('submitting OTP request shows code step', async () => {
+  it('submitting OTP request shows code step with OTP input', async () => {
     const user = userEvent.setup()
     ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
@@ -83,12 +83,13 @@ describe('PhoneLogin', () => {
     await fillPhoneForm(user)
     await user.click(screen.getByRole('button', { name: 'שלח קוד' }))
     await waitFor(() => {
-      expect(screen.getByText('קוד')).toBeInTheDocument()
+      expect(screen.getByText('מה הקוד שקיבלת?')).toBeInTheDocument()
     })
-    expect(screen.getByRole('button', { name: 'אימות' })).toBeInTheDocument()
+    expect(screen.getByLabelText('קוד אימות')).toBeInTheDocument()
+    expect(screen.getByText('החלף מספר')).toBeInTheDocument()
   })
 
-  it('verify button is disabled until code has at least 4 digits', async () => {
+  it('shows masked phone number in code step', async () => {
     const user = userEvent.setup()
     ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: true,
@@ -98,11 +99,8 @@ describe('PhoneLogin', () => {
     await fillPhoneForm(user)
     await user.click(screen.getByRole('button', { name: 'שלח קוד' }))
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'אימות' })).toBeDisabled()
+      expect(screen.getByText('05X-XXX4567')).toBeInTheDocument()
     })
-    const codeInput = screen.getByPlaceholderText('123456')
-    await user.type(codeInput, '1234')
-    expect(screen.getByRole('button', { name: 'אימות' })).toBeEnabled()
   })
 
   it('strips local prefix 0 from phone number when requesting OTP', async () => {
