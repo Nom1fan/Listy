@@ -50,6 +50,24 @@ function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: strin
   );
 }
 
+function EyeIcon({ size = 18, color = '#666' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon({ size = 18, color = '#666' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+      <line x1="1" y1="1" x2="23" y2="23" />
+    </svg>
+  );
+}
+
 function SortableItem({ id, children }: {
   id: string;
   children: (props: { handleProps: React.HTMLAttributes<HTMLElement> }) => React.ReactNode;
@@ -97,6 +115,7 @@ export function ListDetail() {
   const [quickAddCategoryId, setQuickAddCategoryId] = useState('');
   const quickAddFileInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useViewMode(`list-${listId}`);
+  const [hideCrossedOff, setHideCrossedOff] = useState(false);
   const [editItem, setEditItem] = useState<ListItemResponse | null>(null);
   const [editItemName, setEditItemName] = useState('');
   const [editItemQuantity, setEditItemQuantity] = useState('1');
@@ -142,6 +161,7 @@ export function ListDetail() {
   });
 
   const hasProductsInCategories = allProducts.length > 0;
+  const hasCrossedOff = items.some(i => i.crossedOff);
 
   function showNotification(msg: string, isError = false) {
     setNotification(msg);
@@ -641,7 +661,27 @@ export function ListDetail() {
         )}
 
         {!isLoading && items.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            {hasCrossedOff && (
+              <button
+                type="button"
+                onClick={() => setHideCrossedOff(v => !v)}
+                title={hideCrossedOff ? 'הצג פריטים מסומנים' : 'הסתר פריטים מסומנים'}
+                aria-label={hideCrossedOff ? 'הצג פריטים מסומנים' : 'הסתר פריטים מסומנים'}
+                style={{
+                  padding: '6px 8px',
+                  background: hideCrossedOff ? 'var(--color-primary)' : '#fff',
+                  border: '1px solid #ccc',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  lineHeight: 1,
+                }}
+              >
+                {hideCrossedOff ? <EyeOffIcon size={18} color={hideCrossedOff ? '#fff' : '#666'} /> : <EyeIcon size={18} color="#666" />}
+              </button>
+            )}
             <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
           </div>
         )}
@@ -650,7 +690,10 @@ export function ListDetail() {
           <p>טוען...</p>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          {categories.map((cat) => (
+          {categories.map((cat) => {
+            const visibleItems = hideCrossedOff ? grouped[cat].filter(i => !i.crossedOff) : grouped[cat];
+            if (visibleItems.length === 0) return null;
+            return (
             <section key={cat} style={{ marginBottom: 24 }}>
               <div
                 style={{
@@ -666,10 +709,10 @@ export function ListDetail() {
                 <CategoryIcon iconId={getCategoryIconId(cat)} imageUrl={getCategoryImageUrl(cat)} size={24} />
                 <span style={{ fontWeight: 600 }}>{cat}</span>
               </div>
-              <SortableContext items={grouped[cat].map((i) => i.id)} strategy={verticalListSortingStrategy}>
+              <SortableContext items={visibleItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
               {viewMode === 'list' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {grouped[cat].map((item) => (
+                {visibleItems.map((item) => (
                   <SortableItem key={item.id} id={item.id}>
                     {({ handleProps }) => (
                     <div
@@ -731,7 +774,7 @@ export function ListDetail() {
               </div>
               ) : viewMode === 'compact' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {grouped[cat].map((item) => (
+                {visibleItems.map((item) => (
                   <SortableItem key={item.id} id={item.id}>
                     {({ handleProps }) => (
                     <div
@@ -795,7 +838,7 @@ export function ListDetail() {
               </div>
               ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
-                {grouped[cat].map((item) => (
+                {visibleItems.map((item) => (
                   <SortableItem key={item.id} id={item.id}>
                     {({ handleProps }) => (
                     <div
@@ -868,7 +911,8 @@ export function ListDetail() {
               )}
               </SortableContext>
             </section>
-          ))}
+            );
+          })}
           </DndContext>
         )}
 

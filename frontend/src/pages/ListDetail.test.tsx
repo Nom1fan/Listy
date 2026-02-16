@@ -362,6 +362,181 @@ describe('ListDetail', () => {
     })
   })
 
+  describe('hide crossed-off items toggle', () => {
+    const mockItemsWithCrossedOff = [
+      {
+        id: 'item1',
+        listId: 'list1',
+        productId: 'p1',
+        customNameHe: null,
+        displayName: 'חלב',
+        categoryId: 'c1',
+        categoryNameHe: 'מוצרי חלב',
+        categoryIconId: 'dairy',
+        iconId: null,
+        quantity: 2,
+        unit: 'ליטר',
+        note: null,
+        crossedOff: false,
+        itemImageUrl: null,
+        productImageUrl: null,
+        sortOrder: 0,
+        createdAt: '2025-01-01',
+        updatedAt: '2025-01-01',
+      },
+      {
+        id: 'item2',
+        listId: 'list1',
+        productId: 'p2',
+        customNameHe: null,
+        displayName: 'לחם',
+        categoryId: 'c2',
+        categoryNameHe: 'מאפים',
+        categoryIconId: 'bakery',
+        iconId: null,
+        quantity: 1,
+        unit: 'יחידה',
+        note: 'מחיטה מלאה',
+        crossedOff: true,
+        itemImageUrl: null,
+        productImageUrl: null,
+        sortOrder: 1,
+        createdAt: '2025-01-01',
+        updatedAt: '2025-01-01',
+      },
+      {
+        id: 'item3',
+        listId: 'list1',
+        productId: 'p3',
+        customNameHe: null,
+        displayName: 'גבינה',
+        categoryId: 'c1',
+        categoryNameHe: 'מוצרי חלב',
+        categoryIconId: 'dairy',
+        iconId: null,
+        quantity: 1,
+        unit: 'יחידה',
+        note: null,
+        crossedOff: true,
+        itemImageUrl: null,
+        productImageUrl: null,
+        sortOrder: 2,
+        createdAt: '2025-01-01',
+        updatedAt: '2025-01-01',
+      },
+    ]
+
+    function mockFetchCrossedOff(itemsOverride = mockItemsWithCrossedOff) {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string) => {
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(itemsOverride) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+    }
+
+    it('does not show eye toggle when no items are crossed off', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      expect(screen.queryByRole('button', { name: /הסתר פריטים מסומנים/i })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: /הצג פריטים מסומנים/i })).not.toBeInTheDocument()
+    })
+
+    it('shows eye toggle when at least one item is crossed off', async () => {
+      mockFetchCrossedOff()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      expect(screen.getByRole('button', { name: /הסתר פריטים מסומנים/i })).toBeInTheDocument()
+    })
+
+    it('hides crossed-off items when eye toggle is clicked', async () => {
+      mockFetchCrossedOff()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      // All items visible initially
+      expect(screen.getByText('חלב')).toBeInTheDocument()
+      expect(screen.getByText('לחם')).toBeInTheDocument()
+      expect(screen.getByText('גבינה')).toBeInTheDocument()
+
+      // Click eye toggle to hide crossed-off items
+      fireEvent.click(screen.getByRole('button', { name: /הסתר פריטים מסומנים/i }))
+
+      // Crossed-off items should be hidden
+      expect(screen.getByText('חלב')).toBeInTheDocument()
+      expect(screen.queryByText('לחם')).not.toBeInTheDocument()
+      expect(screen.queryByText('גבינה')).not.toBeInTheDocument()
+    })
+
+    it('shows crossed-off items again when toggled back', async () => {
+      mockFetchCrossedOff()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      // Hide crossed-off items
+      fireEvent.click(screen.getByRole('button', { name: /הסתר פריטים מסומנים/i }))
+      expect(screen.queryByText('לחם')).not.toBeInTheDocument()
+
+      // Toggle back to show them
+      fireEvent.click(screen.getByRole('button', { name: /הצג פריטים מסומנים/i }))
+      expect(screen.getByText('לחם')).toBeInTheDocument()
+      expect(screen.getByText('גבינה')).toBeInTheDocument()
+    })
+
+    it('hides entire category section when all its items are crossed off', async () => {
+      mockFetchCrossedOff()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      // Both category headers visible initially
+      expect(screen.getByText('מוצרי חלב')).toBeInTheDocument()
+      expect(screen.getByText('מאפים')).toBeInTheDocument()
+
+      // Hide crossed-off items — "לחם" is the only item in "מאפים" and it's crossed off
+      fireEvent.click(screen.getByRole('button', { name: /הסתר פריטים מסומנים/i }))
+
+      // "מוצרי חלב" category should still show (has non-crossed-off "חלב")
+      expect(screen.getByText('מוצרי חלב')).toBeInTheDocument()
+      // "מאפים" category should be hidden (all items crossed off)
+      expect(screen.queryByText('מאפים')).not.toBeInTheDocument()
+    })
+  })
+
   describe('quick-add dialog – unit & amount', () => {
     async function openQuickAdd() {
       mockFetch()
