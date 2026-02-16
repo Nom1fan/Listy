@@ -23,12 +23,13 @@ Run the release script from the **project root**:
 
 | Flag | Effect |
 |------|--------|
-| *(none)* | Bump **minor** version (e.g. 0.10.0 → 0.11.0), export DB, build+push Docker image, git commit+tag+push, deploy to EC2 |
+| *(none)* | Run all tests, bump **minor** version (e.g. 0.10.0 → 0.11.0), export DB, build+push Docker image, git commit+tag+push, deploy to EC2 |
 | `--major` | Bump **major** version instead (e.g. 0.10.0 → 1.0.0) |
 | `--patch` | Bump **patch** version instead (e.g. 0.10.0 → 0.10.1) |
 | `--db` | Also SCP the DB dump to EC2 and import it |
 | `--windows` | Also build the Windows package and zip |
 | `--skip-deploy` | Build and push only, skip EC2 deployment |
+| `--skip-tests` | Skip running all tests before the release (not recommended) |
 
 ### Choosing flags
 

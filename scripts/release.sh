@@ -2,7 +2,7 @@
 # Full release: bump version, export DB, optionally build Windows package,
 # build/push Docker image, git commit + tag + push, deploy to EC2.
 #
-# Usage: ./scripts/release.sh [--major|--patch] [--db] [--windows] [--skip-deploy]
+# Usage: ./scripts/release.sh [--major|--patch] [--db] [--windows] [--skip-deploy] [--skip-tests]
 #
 # Flags:
 #   --major           Bump major version (e.g. 0.10.0 -> 1.0.0)
@@ -11,6 +11,7 @@
 #   --db              Include DB dump in EC2 deployment (SCP + import)
 #   --windows         Also build the Windows package and zip
 #   --skip-deploy     Skip EC2 deployment (build and push only)
+#   --skip-tests      Skip running tests before release
 #
 # Config:
 #   release.config    LISTYYY_IMAGE (Docker Hub repo, e.g. mmerhav/listyyy)
@@ -28,6 +29,7 @@ VERSION_FILE="$REPO_ROOT/VERSION"
 DEPLOY_DB=false
 BUILD_WINDOWS=false
 SKIP_DEPLOY=false
+SKIP_TESTS=false
 BUMP_TYPE=minor
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -36,6 +38,7 @@ while [[ $# -gt 0 ]]; do
     --db)            DEPLOY_DB=true; shift ;;
     --windows)       BUILD_WINDOWS=true; shift ;;
     --skip-deploy)   SKIP_DEPLOY=true; shift ;;
+    --skip-tests)    SKIP_TESTS=true; shift ;;
     *)               echo "Unknown option: $1"; exit 1 ;;
   esac
 done
@@ -59,7 +62,17 @@ if [ -z "${LISTYYY_IMAGE:-}" ]; then
   fi
 fi
 
-# ── 0. Bump version ──────────────────────────────────────────
+# ── 0. Run tests ─────────────────────────────────────────────
+if ! $SKIP_TESTS; then
+  echo "=== 0. Running all tests ==="
+  "$SCRIPT_DIR/run-all-tests.sh"
+  echo ""
+else
+  echo "=== 0. Running all tests (SKIPPED -- --skip-tests) ==="
+  echo ""
+fi
+
+# ── 1. Bump version ─────────────────────────────────────────
 current=$(cat "$VERSION_FILE")
 IFS=. read -r major minor patch <<EOF
 $current
@@ -70,7 +83,7 @@ case "$BUMP_TYPE" in
   *)     new_version="$major.$((minor + 1)).0" ;;
 esac
 echo "$new_version" > "$VERSION_FILE"
-echo "=== 0. Bump version ($BUMP_TYPE): $current -> $new_version ==="
+echo "=== 1. Bump version ($BUMP_TYPE): $current -> $new_version ==="
 # Update pom.xml (project version, not parent)
 sed -i.bak "s|<version>${current}-SNAPSHOT</version>|<version>${new_version}-SNAPSHOT</version>|" "$REPO_ROOT/backend/pom.xml" && rm -f "$REPO_ROOT/backend/pom.xml.bak"
 # Update package.json
@@ -81,8 +94,8 @@ require('fs').writeFileSync(\"$REPO_ROOT/frontend/package.json\", JSON.stringify
 "
 echo ""
 
-# ── 1. Export DB ─────────────────────────────────────────────
-echo "=== 1. Export DB ==="
+# ── 2. Export DB ─────────────────────────────────────────────
+echo "=== 2. Export DB ==="
 if "$SCRIPT_DIR/export-db.sh"; then
   echo "DB exported to db/listyyy-db.sql"
 else
@@ -90,19 +103,19 @@ else
 fi
 echo ""
 
-# ── 2. Build Windows package ────────────────────────────────
+# ── 3. Build Windows package ────────────────────────────────
 if $BUILD_WINDOWS; then
-  echo "=== 2. Build Windows package ==="
+  echo "=== 3. Build Windows package ==="
   "$SCRIPT_DIR/package-for-windows.sh"
 
   echo ""
-  echo "=== 3. Zip ==="
+  echo "=== 3b. Zip ==="
   cd "$REPO_ROOT"
   rm -f "$ZIP"
   zip -r "$ZIP" listyyy-windows -x "*.DS_Store"
   echo "Created $ZIP"
 else
-  echo "=== 2. Build Windows package (SKIPPED -- pass --windows to include) ==="
+  echo "=== 3. Build Windows package (SKIPPED -- pass --windows to include) ==="
 fi
 echo ""
 
