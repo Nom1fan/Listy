@@ -9,6 +9,7 @@ import { DisplayImageForm } from '../components/DisplayImageForm';
 import { EmojiPicker } from '../components/EmojiPicker';
 import { ImageSearchPicker } from '../components/ImageSearchPicker';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
+import { ProductAutocomplete } from '../components/ProductAutocomplete';
 import type { CategoryDto, ProductDto, WorkspaceEvent } from '../types';
 
 type DisplayImageType = 'icon' | 'device' | 'link' | 'web';
@@ -706,12 +707,14 @@ export function Categories() {
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                         <div>
                           <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600 }}>שם פריט <span style={{ color: '#c00' }}>*</span></label>
-                          <input
-                            type="text"
+                          <ProductAutocomplete
                             value={newProductName}
-                            onChange={(e) => setNewProductName(e.target.value)}
+                            onChange={setNewProductName}
+                            products={allProducts}
                             placeholder="שם פריט"
                             style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', minWidth: 120 }}
+                            warnOnly
+                            categoryId={c.id}
                           />
                         </div>
                         <div>

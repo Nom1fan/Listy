@@ -35,7 +35,8 @@ import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
-import type { ListItemResponse, ListEvent, WorkspaceEvent } from '../types';
+import { ProductAutocomplete } from '../components/ProductAutocomplete';
+import type { ListItemResponse, ListEvent, WorkspaceEvent, ProductDto } from '../types';
 
 function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: string }) {
   return (
@@ -946,13 +947,28 @@ export function ListDetail() {
               <form onSubmit={handleQuickAddSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: 4, fontWeight: 600 }}>שם הפריט <span style={{ color: '#c00' }}>*</span></label>
-                  <input
-                    type="text"
+                  <ProductAutocomplete
                     value={quickAddName}
-                    onChange={(e) => setQuickAddName(e.target.value)}
+                    onChange={setQuickAddName}
+                    products={allProducts}
                     placeholder="שם פריט"
                     required
                     style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
+                    onSelectProduct={(p: ProductDto) => {
+                      setQuickAddName(p.nameHe);
+                      if (p.defaultUnit && p.defaultUnit !== 'יחידה') {
+                        setQuickAddUnit(p.defaultUnit);
+                        if (!quickAddQuantity || quickAddQuantity === '1') setQuickAddQuantity('1');
+                      }
+                      if (p.categoryId) setQuickAddCategoryId(p.categoryId);
+                      if (p.iconId) {
+                        setQuickAddImageType('icon');
+                        setQuickAddIconId(p.iconId);
+                      } else if (p.imageUrl) {
+                        setQuickAddImageType('link');
+                        setQuickAddImageUrl(p.imageUrl);
+                      }
+                    }}
                   />
                 </div>
                 <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
