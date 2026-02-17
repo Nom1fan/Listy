@@ -170,4 +170,87 @@ describe('Categories', () => {
       expect(categorySelect.tagName).toBe('SELECT')
     })
   })
+
+  describe('inline product creation – autocomplete warnings', () => {
+    const categoriesWithProducts = [
+      { id: 'c1', nameHe: 'מכולת', iconId: 'groceries', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', version: 1, addCount: 0 },
+      { id: 'c2', nameHe: 'ירקות', iconId: 'veggies', imageUrl: null, sortOrder: 1, workspaceId: 'ws1', version: 1, addCount: 0 },
+    ]
+
+    const productsForAutocomplete = [
+      { id: 'p1', nameHe: 'אורז', defaultUnit: 'קילו', categoryId: 'c1', categoryNameHe: 'מכולת', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, addCount: 5, version: 1 },
+      { id: 'p2', nameHe: 'אורז מלא', defaultUnit: 'קילו', categoryId: 'c1', categoryNameHe: 'מכולת', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, addCount: 2, version: 1 },
+      { id: 'p3', nameHe: 'עגבניות', defaultUnit: 'יחידה', categoryId: 'c2', categoryNameHe: 'ירקות', categoryIconId: 'veggies', iconId: null, imageUrl: null, note: 'אורגני', addCount: 3, version: 1 },
+    ]
+
+    function mockFetchForAutocomplete() {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string) => {
+        if (typeof url === 'string' && url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(categoriesWithProducts) })
+        }
+        if (typeof url === 'string' && url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(productsForAutocomplete) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+    }
+
+    async function openAddProductForm(categoryName: string) {
+      mockFetchForAutocomplete()
+      // Pre-seed products into React Query cache so autocomplete has data immediately
+      queryClient.setQueryData(['products'], productsForAutocomplete)
+      render(
+        <Wrapper>
+          <Categories />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText(categoryName)).toBeInTheDocument()
+      })
+      // Click the "add product" button for the target category
+      const addButtons = screen.getAllByText('+ הוסף פריט לקטגוריה')
+      // First button is for c1 (מכולת), second for c2 (ירקות)
+      const index = categoryName === 'מכולת' ? 0 : 1
+      fireEvent.click(addButtons[index])
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('שם פריט')).toBeInTheDocument()
+      })
+    }
+
+    it('shows similar items dropdown when typing in add product form', async () => {
+      await openAddProductForm('ירקות')
+      const nameInput = screen.getByPlaceholderText('שם פריט')
+      // Type "עגב" to match "עגבניות" which is in category ירקות
+      fireEvent.change(nameInput, { target: { value: 'עגב' } })
+
+      await waitFor(() => {
+        expect(screen.getByText('פריטים דומים שכבר קיימים:')).toBeInTheDocument()
+      })
+    })
+
+    it('shows exact-duplicate warning when name matches product in same category', async () => {
+      await openAddProductForm('מכולת')
+      const nameInput = screen.getByPlaceholderText('שם פריט')
+      fireEvent.change(nameInput, { target: { value: 'אורז' } })
+
+      await waitFor(() => {
+        expect(screen.getByText(/פריט בשם זה כבר קיים בקטגוריה/)).toBeInTheDocument()
+      })
+    })
+
+    it('does NOT show exact-duplicate warning when name matches product in different category', async () => {
+      await openAddProductForm('ירקות')
+      const nameInput = screen.getByPlaceholderText('שם פריט')
+      // "אורז" exists in מכולת (c1), but we're adding to ירקות (c2)
+      fireEvent.change(nameInput, { target: { value: 'אורז' } })
+
+      await waitFor(() => {
+        // Similar items dropdown should still show
+        expect(screen.getByText('פריטים דומים שכבר קיימים:')).toBeInTheDocument()
+      })
+      // But the exact-duplicate warning should NOT appear
+      expect(screen.queryByText(/פריט בשם זה כבר קיים בקטגוריה/)).not.toBeInTheDocument()
+    })
+  })
 })

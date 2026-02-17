@@ -731,4 +731,107 @@ describe('ListDetail', () => {
       })
     })
   })
+
+  describe('quick-add dialog – autocomplete', () => {
+    const mockProducts = [
+      { id: 'p1', nameHe: 'חלב', defaultUnit: 'ליטר', categoryId: 'c1', categoryNameHe: 'מוצרי חלב', categoryIconId: 'dairy', iconId: null, imageUrl: null, note: null, addCount: 5, version: 1 },
+      { id: 'p2', nameHe: 'חלב סויה', defaultUnit: 'ליטר', categoryId: 'c2', categoryNameHe: 'טבעוני', categoryIconId: null, iconId: null, imageUrl: null, note: null, addCount: 1, version: 1 },
+      { id: 'p3', nameHe: 'לחם', defaultUnit: 'יחידה', categoryId: 'c3', categoryNameHe: 'מאפים', categoryIconId: 'bakery', iconId: null, imageUrl: null, note: null, addCount: 10, version: 1 },
+    ]
+
+    const mockCats = [
+      { id: 'c1', nameHe: 'מוצרי חלב', iconId: 'dairy', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', version: 1 },
+      { id: 'c2', nameHe: 'טבעוני', iconId: null, imageUrl: null, sortOrder: 1, workspaceId: 'ws1', version: 1 },
+      { id: 'c3', nameHe: 'מאפים', iconId: 'bakery', imageUrl: null, sortOrder: 2, workspaceId: 'ws1', version: 1 },
+    ]
+
+    function mockFetchWithProducts() {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string) => {
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItems) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        if (url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCats) })
+        }
+        if (url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockProducts) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+    }
+
+    async function openQuickAddWithProducts() {
+      mockFetchWithProducts()
+      // Pre-seed products into React Query cache so autocomplete has data immediately
+      queryClient.setQueryData(['products'], mockProducts)
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('הוסף פריט'))
+      await waitFor(() => {
+        expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument()
+      })
+    }
+
+    it('shows autocomplete suggestions when typing 2+ characters', async () => {
+      await openQuickAddWithProducts()
+      const nameInput = screen.getByPlaceholderText('שם פריט')
+      fireEvent.change(nameInput, { target: { value: 'סוי' } })
+
+      // "חלב סויה" should appear in the autocomplete dropdown
+      expect(screen.getByText('חלב סויה')).toBeInTheDocument()
+      // "טבעוני" appears both in the dropdown AND category select; verify at least 2 instances
+      expect(screen.getAllByText('טבעוני').length).toBeGreaterThanOrEqual(2)
+    })
+
+    it('does not show autocomplete with only 1 character', async () => {
+      await openQuickAddWithProducts()
+      const nameInput = screen.getByPlaceholderText('שם פריט')
+      fireEvent.change(nameInput, { target: { value: 'ס' } })
+
+      // No suggestion dropdown should appear
+      expect(screen.queryByText('חלב סויה')).not.toBeInTheDocument()
+    })
+
+    it('auto-fills category when selecting a suggestion', async () => {
+      await openQuickAddWithProducts()
+      const nameInput = screen.getByPlaceholderText('שם פריט')
+
+      // Verify category starts unselected
+      const catSelect = screen.getByDisplayValue('ללא קטגוריה (אחר)') as HTMLSelectElement
+      expect(catSelect.value).toBe('')
+
+      fireEvent.change(nameInput, { target: { value: 'סוי' } })
+      expect(screen.getByText('חלב סויה')).toBeInTheDocument()
+
+      // Click on "חלב סויה" suggestion (product in category c2)
+      fireEvent.mouseDown(screen.getByText('חלב סויה'))
+
+      // Category dropdown should now be set to the product's category
+      await waitFor(() => {
+        expect(catSelect.value).toBe('c2')
+      })
+    })
+
+    it('does not show non-matching products in autocomplete', async () => {
+      await openQuickAddWithProducts()
+      const nameInput = screen.getByPlaceholderText('שם פריט')
+      fireEvent.change(nameInput, { target: { value: 'סוי' } })
+
+      // Should show "חלב סויה" (contains "סוי")
+      expect(screen.getByText('חלב סויה')).toBeInTheDocument()
+      // "לחם" exists in the background items list but should NOT appear in the dropdown;
+      // verify only 1 instance (the list item), not 2 (which would mean it's also in autocomplete)
+      expect(screen.getAllByText('לחם').length).toBe(1)
+    })
+  })
 })
