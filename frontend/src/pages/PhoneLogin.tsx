@@ -285,40 +285,52 @@ export function PhoneLogin() {
                       </option>
                     ))}
                   </select>
-                  {country.segments.map((len, i) => (
-                    <span
-                      key={i}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 2, flexShrink: 0 }}
-                    >
-                      {i > 0 && (
-                        <span style={{ color: '#bbb', fontWeight: 600, fontSize: 14 }}>–</span>
-                      )}
-                      <input
-                        ref={(el) => {
-                          segmentRefs.current[i] = el;
-                        }}
-                        type="tel"
-                        inputMode="numeric"
-                        autoComplete={i === 0 ? 'tel-national' : 'off'}
-                        value={segmentValues[i] ?? ''}
-                        onChange={(e) => setSegment(i, e.target.value)}
-                        placeholder={country.example[i]}
-                        maxLength={len}
-                        required
+                  {country.segments.map((len, i) => {
+                    const isLast = i === country.segments.length - 1;
+                    return (
+                      <span
+                        key={i}
                         style={{
-                          ...segmentInputStyle,
-                          width: Math.max(48, len * 14),
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          ...(isLast
+                            ? { flex: 1, minWidth: 0 }
+                            : { flexShrink: 0 }),
                         }}
-                        aria-label={`קטע ${i + 1}`}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = 'var(--color-primary)';
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = '#ddd';
-                        }}
-                      />
-                    </span>
-                  ))}
+                      >
+                        {i > 0 && (
+                          <span style={{ color: '#bbb', fontWeight: 600, fontSize: 14 }}>–</span>
+                        )}
+                        <input
+                          ref={(el) => {
+                            segmentRefs.current[i] = el;
+                          }}
+                          type="tel"
+                          inputMode="numeric"
+                          autoComplete={i === 0 ? 'tel-national' : 'off'}
+                          value={segmentValues[i] ?? ''}
+                          onChange={(e) => setSegment(i, e.target.value)}
+                          placeholder={country.example[i]}
+                          maxLength={len}
+                          required
+                          style={{
+                            ...segmentInputStyle,
+                            ...(isLast
+                              ? { width: '100%' }
+                              : { width: Math.max(48, len * 14) }),
+                          }}
+                          aria-label={`קטע ${i + 1}`}
+                          onFocus={(e) => {
+                            e.target.style.borderColor = 'var(--color-primary)';
+                          }}
+                          onBlur={(e) => {
+                            e.target.style.borderColor = '#ddd';
+                          }}
+                        />
+                      </span>
+                    );
+                  })}
                 </div>
               </div>
               {error && (
