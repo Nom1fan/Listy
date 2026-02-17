@@ -197,6 +197,34 @@ export function PhoneLogin() {
     [doVerify],
   );
 
+  // WebOTP API: listen for incoming SMS with origin-bound OTP code
+  useEffect(() => {
+    if (step !== 'code') return;
+    if (!('OTPCredential' in window)) return;
+
+    const ac = new AbortController();
+
+    navigator.credentials
+      .get({
+        otp: { transport: ['sms'] },
+        signal: ac.signal,
+      } as CredentialRequestOptions)
+      .then((credential) => {
+        const otpCode = (credential as { code: string } | null)?.code;
+        if (otpCode) {
+          setCode(otpCode);
+          if (otpCode.length === 6) {
+            handleOtpComplete(otpCode);
+          }
+        }
+      })
+      .catch(() => {
+        // User dismissed prompt or API unavailable – fall back to manual entry
+      });
+
+    return () => ac.abort();
+  }, [step, handleOtpComplete]);
+
   async function handleVerify(e: React.FormEvent) {
     e.preventDefault();
     doVerify(code);
