@@ -43,6 +43,17 @@ a {
   text-decoration: none;
 }
 
+@keyframes welcomeFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes sideMenuOverlayIn {
   from { opacity: 0; }
   to { opacity: 1; }

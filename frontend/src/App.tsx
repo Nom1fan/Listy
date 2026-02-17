@@ -5,6 +5,7 @@ import { SideMenu } from './components/SideMenu';
 import { Login } from './pages/Login';
 
 import { PhoneLogin } from './pages/PhoneLogin';
+import { Welcome } from './pages/Welcome';
 import { Lists } from './pages/Lists';
 import { ListDetail } from './pages/ListDetail';
 import { ProductBank } from './pages/ProductBank';
@@ -20,14 +21,22 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Redirects to /welcome if the user hasn't seen the onboarding yet */
+function WelcomeGate({ children }: { children: React.ReactNode }) {
+  const seen = localStorage.getItem('listyyy_welcome_seen');
+  if (!seen) return <Navigate to="/welcome" replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   useFcmRegistration();
   return (
     <BrowserRouter>
       <SideMenu />
       <Routes>
-        <Route path="/login" element={<PhoneLogin />} />
-        <Route path="/login/email" element={<Login />} />
+        <Route path="/welcome" element={<Welcome />} />
+        <Route path="/login" element={<WelcomeGate><PhoneLogin /></WelcomeGate>} />
+        <Route path="/login/email" element={<WelcomeGate><Login /></WelcomeGate>} />
         <Route path="/login/phone" element={<Navigate to="/login" replace />} />
         <Route path="/register" element={<Navigate to="/login" replace />} />
         <Route
