@@ -44,7 +44,7 @@ public class SmsService {
             Message.creator(
                     new PhoneNumber(toPhone),
                     new PhoneNumber(fromNumber),
-                    "Listyyy: הקוד שלך הוא " + code
+                    "Listyyy: הקוד שלך הוא " + code + "\n\n@web.listyyy.com #" + code
             ).create();
         } catch (Exception e) {
             log.error("Failed to send SMS to {}", toPhone, e);
