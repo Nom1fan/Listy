@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
@@ -30,6 +30,7 @@ const mockList = {
   sortOrder: 0,
   createdAt: '2025-01-01',
   updatedAt: '2025-01-01',
+  version: 0,
 }
 
 const mockItems = [
@@ -52,6 +53,7 @@ const mockItems = [
     sortOrder: 0,
     createdAt: '2025-01-01',
     updatedAt: '2025-01-01',
+    version: 0,
   },
   {
     id: 'item2',
@@ -72,6 +74,7 @@ const mockItems = [
     sortOrder: 1,
     createdAt: '2025-01-01',
     updatedAt: '2025-01-01',
+    version: 0,
   },
 ]
 
@@ -338,6 +341,82 @@ describe('ListDetail', () => {
       // DisplayImageForm should be present (it renders a "תמונה / אייקון" label)
       expect(screen.getByText('תמונה / אייקון')).toBeInTheDocument()
     })
+
+    it('sends latest version even if cache was updated while modal was open', async () => {
+      mockFetchWithCategories()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      // Open edit modal for item1 (version 0)
+      fireEvent.click(screen.getByText('חלב'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+
+      // Simulate a background version bump (e.g. crossedOff toggle refetch)
+      const updatedItems = mockItems.map((i) =>
+        i.id === 'item1' ? { ...i, version: 5 } : i
+      )
+      await act(async () => {
+        queryClient.setQueryData(['listItems', 'list1'], updatedItems)
+        // Flush microtasks so React Query notifies subscribers
+        await new Promise((r) => setTimeout(r, 0))
+      })
+      // Extra render cycle for the useEffect -> setEditItem chain
+      await act(async () => {})
+
+      // Now set up fetch mock to capture the PATCH call
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, opts?: RequestInit) => {
+        if (opts?.method === 'PATCH') {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ ...updatedItems[0], version: 6 }),
+          })
+        }
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(updatedItems) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        if (url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategories) })
+        }
+        if (url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+
+      // Change note and submit the edit form
+      const noteArea = screen.getByPlaceholderText('אופציונלי') as HTMLTextAreaElement
+      await act(async () => {
+        fireEvent.change(noteArea, { target: { value: 'הערה חדשה' } })
+      })
+      await act(async () => {
+        fireEvent.submit(noteArea.closest('form')!)
+        await new Promise((r) => setTimeout(r, 0))
+      })
+
+      await waitFor(() => {
+        const calls = fetchMock.mock.calls as [string, RequestInit | undefined][]
+        const patchCall = calls.find(
+          ([url, opts]) => opts?.method === 'PATCH' && url.includes('/items/')
+        )
+        expect(patchCall).toBeDefined()
+        const body = JSON.parse(patchCall![1]!.body as string)
+        // Should use the updated version (5), not the original (0)
+        expect(body.version).toBe(5)
+      })
+    })
   })
 
   describe('trash icon on items', () => {
@@ -383,6 +462,7 @@ describe('ListDetail', () => {
         sortOrder: 0,
         createdAt: '2025-01-01',
         updatedAt: '2025-01-01',
+        version: 0,
       },
       {
         id: 'item2',
@@ -403,6 +483,7 @@ describe('ListDetail', () => {
         sortOrder: 1,
         createdAt: '2025-01-01',
         updatedAt: '2025-01-01',
+        version: 0,
       },
       {
         id: 'item3',
@@ -423,6 +504,7 @@ describe('ListDetail', () => {
         sortOrder: 2,
         createdAt: '2025-01-01',
         updatedAt: '2025-01-01',
+        version: 0,
       },
     ]
 

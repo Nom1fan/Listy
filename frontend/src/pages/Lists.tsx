@@ -213,6 +213,14 @@ export function Lists() {
     },
   });
 
+  useEffect(() => {
+    if (!editList) return;
+    const fresh = lists.find((l) => l.id === editList.id);
+    if (fresh && fresh.version !== editList.version) {
+      setEditList((prev) => prev ? { ...prev, version: fresh.version } : prev);
+    }
+  }, [lists, editList]);
+
   function openEditList(list: ListResponse) {
     setEditList(list);
     setEditName(list.name);

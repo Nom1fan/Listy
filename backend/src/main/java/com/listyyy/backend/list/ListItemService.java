@@ -184,8 +184,10 @@ public class ListItemService {
             if (!item.getList().getId().equals(listId)) {
                 throw new IllegalArgumentException("הפריט לא שייך לרשימה");
             }
-            item.setSortOrder(i);
-            listItemRepository.save(item);
+            if (item.getSortOrder() != i) {
+                item.setSortOrder(i);
+                listItemRepository.save(item);
+            }
         }
     }
 

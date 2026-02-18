@@ -92,8 +92,10 @@ public class GroceryListService {
             if (!listAccessService.canAccess(user, list.getId())) {
                 throw new AccessDeniedException("אין גישה");
             }
-            list.setSortOrder(i);
-            listRepository.save(list);
+            if (list.getSortOrder() != i) {
+                list.setSortOrder(i);
+                listRepository.save(list);
+            }
         }
     }
 
