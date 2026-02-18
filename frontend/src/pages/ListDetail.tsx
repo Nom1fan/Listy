@@ -69,6 +69,15 @@ function EyeOffIcon({ size = 18, color = '#666' }: { size?: number; color?: stri
   );
 }
 
+function SearchIcon({ size = 18, color = '#999' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
 function SortableItem({ id, children }: {
   id: string;
   children: (props: { handleProps: React.HTMLAttributes<HTMLElement> }) => React.ReactNode;
@@ -117,6 +126,7 @@ export function ListDetail() {
   const quickAddFileInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useViewMode(`list-${listId}`);
   const [hideCrossedOff, setHideCrossedOff] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [editItem, setEditItem] = useState<ListItemResponse | null>(null);
   const [editItemName, setEditItemName] = useState('');
   const [editItemQuantity, setEditItemQuantity] = useState('1');
@@ -379,7 +389,15 @@ export function ListDetail() {
     if (file) setQuickAddImageUrl('');
   }
 
-  const grouped = items.reduce<Record<string, ListItemResponse[]>>((acc, item) => {
+  const filteredItems = searchQuery.trim()
+    ? items.filter(i => {
+        const q = searchQuery.trim().toLowerCase();
+        return i.displayName.toLowerCase().includes(q)
+          || (i.note && i.note.toLowerCase().includes(q));
+      })
+    : items;
+
+  const grouped = filteredItems.reduce<Record<string, ListItemResponse[]>>((acc, item) => {
     const key = item.categoryNameHe || 'אחר';
     if (!acc[key]) acc[key] = [];
     acc[key].push(item);
@@ -662,34 +680,85 @@ export function ListDetail() {
         )}
 
         {!isLoading && items.length > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            {hasCrossedOff && (
-              <button
-                type="button"
-                onClick={() => setHideCrossedOff(v => !v)}
-                title={hideCrossedOff ? 'הצג פריטים מסומנים' : 'הסתר פריטים מסומנים'}
-                aria-label={hideCrossedOff ? 'הצג פריטים מסומנים' : 'הסתר פריטים מסומנים'}
+          <>
+            <div style={{ position: 'relative', marginBottom: 12 }}>
+              <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
+                <SearchIcon size={18} color="#999" />
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="חיפוש ברשימה..."
                 style={{
-                  padding: '6px 8px',
-                  background: hideCrossedOff ? 'var(--color-primary)' : '#fff',
-                  border: '1px solid #ccc',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  lineHeight: 1,
+                  width: '100%',
+                  padding: '10px 40px 10px 36px',
+                  borderRadius: 10,
+                  border: '1px solid #ddd',
+                  fontSize: 15,
+                  background: '#f8f8f8',
+                  boxSizing: 'border-box',
+                  outline: 'none',
                 }}
-              >
-                {hideCrossedOff ? <EyeOffIcon size={18} color={hideCrossedOff ? '#fff' : '#666'} /> : <EyeIcon size={18} color="#666" />}
-              </button>
-            )}
-            <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
-          </div>
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="נקה חיפוש"
+                  style={{
+                    position: 'absolute',
+                    left: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    fontSize: 16,
+                    color: '#999',
+                    lineHeight: 1,
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              {hasCrossedOff && (
+                <button
+                  type="button"
+                  onClick={() => setHideCrossedOff(v => !v)}
+                  title={hideCrossedOff ? 'הצג פריטים מסומנים' : 'הסתר פריטים מסומנים'}
+                  aria-label={hideCrossedOff ? 'הצג פריטים מסומנים' : 'הסתר פריטים מסומנים'}
+                  style={{
+                    padding: '6px 8px',
+                    background: hideCrossedOff ? 'var(--color-primary)' : '#fff',
+                    border: '1px solid #ccc',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    lineHeight: 1,
+                  }}
+                >
+                  {hideCrossedOff ? <EyeOffIcon size={18} color={hideCrossedOff ? '#fff' : '#666'} /> : <EyeIcon size={18} color="#666" />}
+                </button>
+              )}
+              <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+            </div>
+          </>
         )}
 
         {isLoading ? (
           <p>טוען...</p>
         ) : (
+          <>
+          {searchQuery.trim() && filteredItems.length === 0 && (
+            <p style={{ textAlign: 'center', color: '#999', fontSize: 14, margin: '20px 0' }}>
+              לא נמצאו פריטים תואמים
+            </p>
+          )}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           {categories.map((cat) => {
             const visibleItems = hideCrossedOff ? grouped[cat].filter(i => !i.crossedOff) : grouped[cat];
@@ -915,6 +984,7 @@ export function ListDetail() {
             );
           })}
           </DndContext>
+          </>
         )}
 
         {quickAddOpen && (
