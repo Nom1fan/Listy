@@ -732,6 +732,160 @@ describe('ListDetail', () => {
     })
   })
 
+  describe('search within list', () => {
+    it('shows search input when items exist', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      expect(screen.getByPlaceholderText('חיפוש ברשימה...')).toBeInTheDocument()
+    })
+
+    it('does not show search input when list is empty', async () => {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string) => {
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('הרשימה ריקה — הוסיפו פריטים לרשימה')).toBeInTheDocument()
+      })
+      expect(screen.queryByPlaceholderText('חיפוש ברשימה...')).not.toBeInTheDocument()
+    })
+
+    it('filters items by display name', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      expect(screen.getByText('לחם')).toBeInTheDocument()
+
+      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      fireEvent.change(searchInput, { target: { value: 'חלב' } })
+
+      expect(screen.getByText('חלב')).toBeInTheDocument()
+      expect(screen.queryByText('לחם')).not.toBeInTheDocument()
+    })
+
+    it('filters items by note', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      fireEvent.change(searchInput, { target: { value: 'מחיטה' } })
+
+      expect(screen.getByText('לחם')).toBeInTheDocument()
+      expect(screen.queryByText('חלב')).not.toBeInTheDocument()
+    })
+
+    it('shows no-results message when nothing matches', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      fireEvent.change(searchInput, { target: { value: 'שוקולד' } })
+
+      expect(screen.queryByText('חלב')).not.toBeInTheDocument()
+      expect(screen.queryByText('לחם')).not.toBeInTheDocument()
+      expect(screen.getByText('לא נמצאו פריטים תואמים')).toBeInTheDocument()
+    })
+
+    it('clears search and restores all items when clear button is clicked', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      fireEvent.change(searchInput, { target: { value: 'חלב' } })
+      expect(screen.queryByText('לחם')).not.toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: /נקה חיפוש/i }))
+
+      expect(screen.getByText('חלב')).toBeInTheDocument()
+      expect(screen.getByText('לחם')).toBeInTheDocument()
+      expect((searchInput as HTMLInputElement).value).toBe('')
+    })
+
+    it('hides category header when all its items are filtered out', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      expect(screen.getByText('מוצרי חלב')).toBeInTheDocument()
+      expect(screen.getByText('מאפים')).toBeInTheDocument()
+
+      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      fireEvent.change(searchInput, { target: { value: 'חלב' } })
+
+      expect(screen.getByText('מוצרי חלב')).toBeInTheDocument()
+      expect(screen.queryByText('מאפים')).not.toBeInTheDocument()
+    })
+
+    it('search is case-insensitive', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      fireEvent.change(searchInput, { target: { value: 'מחיטה מלאה' } })
+
+      expect(screen.getByText('לחם')).toBeInTheDocument()
+      expect(screen.queryByText('חלב')).not.toBeInTheDocument()
+    })
+  })
+
   describe('quick-add dialog – autocomplete', () => {
     const mockProducts = [
       { id: 'p1', nameHe: 'חלב', defaultUnit: 'ליטר', categoryId: 'c1', categoryNameHe: 'מוצרי חלב', categoryIconId: 'dairy', iconId: null, imageUrl: null, note: null, addCount: 5, version: 1 },
