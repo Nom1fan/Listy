@@ -62,6 +62,20 @@ if [ -z "${LISTYYY_IMAGE:-}" ]; then
   fi
 fi
 
+# ── Pre-flight: check for unreleased changes ─────────────────
+LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+if [ -n "$LAST_TAG" ]; then
+  UNRELEASED=$(git log --oneline "$LAST_TAG"..HEAD)
+  if [ -z "$UNRELEASED" ]; then
+    echo "No changes since $LAST_TAG — nothing to release."
+    exit 0
+  fi
+  COMMIT_COUNT=$(echo "$UNRELEASED" | wc -l | tr -d ' ')
+  echo "=== $COMMIT_COUNT unreleased commit(s) since $LAST_TAG ==="
+  echo "$UNRELEASED"
+  echo ""
+fi
+
 # ── 0. Run tests ─────────────────────────────────────────────
 if ! $SKIP_TESTS; then
   echo "=== 0. Running all tests ==="
