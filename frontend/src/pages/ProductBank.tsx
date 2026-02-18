@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from 'react';
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, updateProduct } from '../api/products';
@@ -112,6 +112,14 @@ export function ProductBank() {
     setEditProductIconId(p.iconId ?? p.categoryIconId ?? '');
     setEditProductImageUrl(p.imageUrl || '');
   }
+
+  useEffect(() => {
+    if (!editProduct) return;
+    const fresh = products.find((p) => p.id === editProduct.id);
+    if (fresh && fresh.version !== editProduct.version) {
+      setEditProduct((prev) => prev ? { ...prev, version: fresh.version } : prev);
+    }
+  }, [products, editProduct]);
 
   function handleEditProductSubmit(e: React.FormEvent) {
     e.preventDefault();

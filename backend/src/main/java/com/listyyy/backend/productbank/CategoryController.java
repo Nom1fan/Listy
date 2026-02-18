@@ -127,8 +127,10 @@ public class CategoryController {
         if (user == null) return ResponseEntity.status(401).build();
         for (int i = 0; i < req.getCategoryIds().size(); i++) {
             Category c = categoryAccessService.getCategoryOrThrow(req.getCategoryIds().get(i), user);
-            c.setSortOrder(i);
-            categoryRepository.save(c);
+            if (c.getSortOrder() != i) {
+                c.setSortOrder(i);
+                categoryRepository.save(c);
+            }
         }
         return ResponseEntity.noContent().build();
     }

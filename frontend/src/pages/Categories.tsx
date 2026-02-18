@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, createCategory, createProduct, updateCategory, updateProduct, deleteCategory, deleteProduct, reorderCategories } from '../api/products';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -267,6 +267,22 @@ export function Categories() {
     setEditIconId(c.iconId || '');
     setEditImageUrl(c.imageUrl || '');
   }
+
+  useEffect(() => {
+    if (!editing) return;
+    const fresh = categories.find((c) => c.id === editing.id);
+    if (fresh && fresh.version !== editing.version) {
+      setEditing((prev) => prev ? { ...prev, version: fresh.version } : prev);
+    }
+  }, [categories, editing]);
+
+  useEffect(() => {
+    if (!editProduct) return;
+    const fresh = allProducts.find((p) => p.id === editProduct.id);
+    if (fresh && fresh.version !== editProduct.version) {
+      setEditProduct((prev) => prev ? { ...prev, version: fresh.version } : prev);
+    }
+  }, [allProducts, editProduct]);
 
   function handleUpdate(e: React.FormEvent) {
     e.preventDefault();

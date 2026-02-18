@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -441,6 +441,14 @@ export function ListDetail() {
     setEditItemIconId('');
     setEditItemImageUrl('');
   }
+
+  useEffect(() => {
+    if (!editItem) return;
+    const fresh = items.find((i) => i.id === editItem.id);
+    if (fresh && fresh.version !== editItem.version) {
+      setEditItem((prev) => prev ? { ...prev, version: fresh.version } : prev);
+    }
+  }, [items, editItem]);
 
   function handleEditItemSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -487,4 +487,81 @@ class OptimisticLockingIntegrationTest extends AbstractIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(v2).isEqualTo(v0 + 2);
         org.assertj.core.api.Assertions.assertThat(v3).isEqualTo(v0 + 3);
     }
+
+    // ── Reorder should not bump version for unmoved items ────────────────
+
+    @Test
+    void reorder_items_does_not_bump_version_when_order_unchanged() throws Exception {
+        String listId = createList("סדר רשימה");
+
+        // Add three items
+        ResultActions a1 = mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "customNameHe", "פריט א", "quantity", 1))))
+                .andExpect(status().isOk());
+        String id1 = getIdFromResponse(a1);
+
+        ResultActions a2 = mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "customNameHe", "פריט ב", "quantity", 1))))
+                .andExpect(status().isOk());
+        String id2 = getIdFromResponse(a2);
+
+        ResultActions a3 = mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "customNameHe", "פריט ג", "quantity", 1))))
+                .andExpect(status().isOk());
+        String id3 = getIdFromResponse(a3);
+
+        // First reorder assigns distinct sortOrder values
+        mvc.perform(put("/api/lists/" + listId + "/items/reorder")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "itemIds", java.util.List.of(id3, id1, id2)))))
+                .andExpect(status().isNoContent());
+
+        // Capture versions after the first reorder
+        String body = mvc.perform(get("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        var items = objectMapper.readTree(body);
+        long v1Mid = -1, v2Mid = -1, v3Mid = -1;
+        for (var item : items) {
+            String itemId = item.get("id").asText();
+            if (itemId.equals(id1)) v1Mid = item.get("version").asLong();
+            if (itemId.equals(id2)) v2Mid = item.get("version").asLong();
+            if (itemId.equals(id3)) v3Mid = item.get("version").asLong();
+        }
+
+        // Reorder with the SAME order — no versions should change
+        mvc.perform(put("/api/lists/" + listId + "/items/reorder")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "itemIds", java.util.List.of(id3, id1, id2)))))
+                .andExpect(status().isNoContent());
+
+        String body2 = mvc.perform(get("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        var items2 = objectMapper.readTree(body2);
+        for (var item : items2) {
+            String itemId = item.get("id").asText();
+            long versionAfter = item.get("version").asLong();
+            if (itemId.equals(id1)) org.assertj.core.api.Assertions.assertThat(versionAfter).isEqualTo(v1Mid);
+            if (itemId.equals(id2)) org.assertj.core.api.Assertions.assertThat(versionAfter).isEqualTo(v2Mid);
+            if (itemId.equals(id3)) org.assertj.core.api.Assertions.assertThat(versionAfter).isEqualTo(v3Mid);
+        }
+    }
 }
