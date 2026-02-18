@@ -1,27 +1,28 @@
 ---
 name: restart-vite-when-needed
-description: When a Vite/frontend dev server restart is required (e.g. after vite.config, env or proxy changes), run the project's restart script instead of asking the user. Use when the user or context implies the frontend dev server must be restarted, or after changes that require a restart.
+description: Restart the Vite frontend dev server automatically after changes that require it (e.g. vite.config.ts, .env files, proxy settings). Use when the user or context implies the frontend dev server must be restarted, or after making changes that require a restart. Never tell the user to restart manually — just do it.
 ---
 
-# Restart Vite Dev Server When Required
+# Restart Vite Dev Server
 
-## When to apply
+Run from the **project root**:
 
-- The user says the frontend or Vite needs a restart, or something "doesn't work until you restart the dev server".
-- You made changes that require a Vite restart (e.g. `vite.config.ts`, `.env` or env vars, proxy settings, or other config read at dev server startup).
-- You previously said "restart the Vite dev server" or "restart the frontend" and want to do it yourself from now on.
+```bash
+./restart-frontend.sh
+```
 
-## What to do
+## When to restart
 
-1. **If the project has a restart script** (e.g. `restart-frontend.sh` in the repo root):
-   - Run it from the **project root**: `./restart-frontend.sh`
-   - Use the terminal. The script typically stops the current Vite dev server (e.g. port 5173) and starts it again (foreground or background per project).
-   - Do **not** tell the user to restart the frontend manually.
+- Changes to `vite.config.ts`.
+- Changes to `.env` or environment variables.
+- Changes to proxy settings or other config read at dev server startup.
+- User says the frontend or Vite needs a restart.
 
-2. **If there is no restart script** but there is a run script (e.g. `run-frontend.sh`):
-   - Stop any process on the Vite port (e.g. 5173: `lsof -ti:5173 | xargs kill`) or `pkill -f "vite"`, then run the run script. Prefer adding a `restart-frontend.sh` that stops and then calls the run script, then run it.
+## Fallback
+
+If `restart-frontend.sh` does not exist but `run-frontend.sh` does, stop Vite (`lsof -ti:5173 | xargs kill` or `pkill -f "vite"`) then run `./run-frontend.sh`.
 
 ## Important
 
-- **Do not** say "restart the Vite dev server" or "you need to restart the frontend" without actually running the restart when you have the ability to run the script.
-- Run the restart script from the project root so the script path is correct.
+- Never say "restart the frontend" without actually running the script.
+- Run from the project root so relative paths resolve correctly.
