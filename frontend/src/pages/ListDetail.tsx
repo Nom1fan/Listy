@@ -127,6 +127,7 @@ export function ListDetail() {
   const [viewMode, setViewMode] = useViewMode(`list-${listId}`);
   const [hideCrossedOff, setHideCrossedOff] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddSuggestion, setShowAddSuggestion] = useState(false);
   const [editItem, setEditItem] = useState<ListItemResponse | null>(null);
   const [editItemName, setEditItemName] = useState('');
   const [editItemQuantity, setEditItemQuantity] = useState('1');
@@ -396,6 +397,28 @@ export function ListDetail() {
           || (i.note && i.note.toLowerCase().includes(q));
       })
     : items;
+
+  const hasExactMatch = searchQuery.trim()
+    ? items.some(i => i.displayName.toLowerCase() === searchQuery.trim().toLowerCase())
+    : true;
+
+  useEffect(() => {
+    if (!searchQuery.trim() || hasExactMatch) {
+      setShowAddSuggestion(false);
+      return;
+    }
+    const timer = setTimeout(() => setShowAddSuggestion(true), 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, hasExactMatch]);
+
+  function handleAddFromSearch() {
+    const name = searchQuery.trim();
+    if (!name) return;
+    setSearchQuery('');
+    setShowAddSuggestion(false);
+    setQuickAddName(name);
+    setQuickAddOpen(true);
+  }
 
   const grouped = filteredItems.reduce<Record<string, ListItemResponse[]>>((acc, item) => {
     const key = item.categoryNameHe || 'אחר';
@@ -697,6 +720,7 @@ export function ListDetail() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onBlur={() => setTimeout(() => setShowAddSuggestion(false), 150)}
                 placeholder="חיפוש ברשימה..."
                 style={{
                   width: '100%',
@@ -712,7 +736,7 @@ export function ListDetail() {
               {searchQuery && (
                 <button
                   type="button"
-                  onClick={() => setSearchQuery('')}
+                  onClick={() => { setSearchQuery(''); setShowAddSuggestion(false); }}
                   aria-label="נקה חיפוש"
                   style={{
                     position: 'absolute',
@@ -730,6 +754,47 @@ export function ListDetail() {
                 >
                   ✕
                 </button>
+              )}
+              {showAddSuggestion && searchQuery.trim() && (
+                <div
+                  role="listbox"
+                  style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    right: 0,
+                    marginTop: 4,
+                    background: '#fff',
+                    borderRadius: 10,
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.13)',
+                    border: '1px solid #e0e0e0',
+                    zIndex: 10,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <button
+                    type="button"
+                    role="option"
+                    onMouseDown={handleAddFromSearch}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 15,
+                      color: 'var(--color-primary-dark)',
+                      fontWeight: 500,
+                      textAlign: 'right',
+                    }}
+                  >
+                    <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
+                    <span>הוסף &quot;{searchQuery.trim()}&quot; לרשימה</span>
+                  </button>
+                </div>
               )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 12 }}>

@@ -1070,4 +1070,137 @@ describe('ListDetail', () => {
       expect(screen.getAllByText('לחם').length).toBe(1)
     })
   })
+
+  describe('search add-suggestion dropdown', () => {
+    function renderWithData() {
+      mockFetch()
+      queryClient.setQueryData(['list', 'list1'], mockList)
+      queryClient.setQueryData(['listItems', 'list1'], mockItems)
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+    }
+
+    it('shows add suggestion after 500ms when no exact match', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      renderWithData()
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      await act(async () => {
+        fireEvent.change(searchInput, { target: { value: 'שוקולד' } })
+      })
+
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+
+      await act(async () => { vi.advanceTimersByTime(500) })
+
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+      expect(screen.getByText(/הוסף "שוקולד" לרשימה/)).toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+
+    it('does not show add suggestion when there is an exact match', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      renderWithData()
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      await act(async () => {
+        fireEvent.change(searchInput, { target: { value: 'חלב' } })
+      })
+
+      await act(async () => { vi.advanceTimersByTime(500) })
+
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+
+    it('opens quick-add dialog pre-filled when clicking the suggestion', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      renderWithData()
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      await act(async () => {
+        fireEvent.change(searchInput, { target: { value: 'שוקולד' } })
+      })
+      await act(async () => { vi.advanceTimersByTime(500) })
+
+      const addBtn = screen.getByRole('option')
+      await act(async () => {
+        fireEvent.mouseDown(addBtn)
+      })
+
+      vi.useRealTimers()
+
+      // Quick-add dialog should open with the search text pre-filled
+      await waitFor(() => {
+        expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument()
+      })
+      expect(screen.getByDisplayValue('שוקולד')).toBeInTheDocument()
+
+      // Search should be cleared
+      expect((searchInput as HTMLInputElement).value).toBe('')
+    })
+
+    it('hides suggestion when search is cleared', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      renderWithData()
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      await act(async () => {
+        fireEvent.change(searchInput, { target: { value: 'שוקולד' } })
+      })
+      await act(async () => { vi.advanceTimersByTime(500) })
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /נקה חיפוש/i }))
+      })
+
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+
+    it('resets debounce on subsequent keystrokes', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      renderWithData()
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      await act(async () => {
+        fireEvent.change(searchInput, { target: { value: 'שו' } })
+      })
+      await act(async () => { vi.advanceTimersByTime(300) })
+
+      await act(async () => {
+        fireEvent.change(searchInput, { target: { value: 'שוקו' } })
+      })
+      await act(async () => { vi.advanceTimersByTime(300) })
+
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+
+      await act(async () => { vi.advanceTimersByTime(200) })
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+
+      vi.useRealTimers()
+    })
+  })
 })
