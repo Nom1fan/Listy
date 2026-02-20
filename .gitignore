@@ -20,6 +20,7 @@ Desktop.ini
 .env
 .env.*
 !.env.example
+!frontend/.env.production
 
 # Release config (per-machine image name; copy from release.config.example)
 release.config

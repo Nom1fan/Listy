@@ -5,9 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Listyyy',
   webDir: 'dist',
   server: {
-    // For production, set androidScheme and optionally url to your API
-    // androidScheme: 'https',
-    // url: 'https://your-ec2-domain.com',
+    androidScheme: 'https',
   },
 };
 
