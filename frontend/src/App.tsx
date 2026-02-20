@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/authStore';
 import { useFcmRegistration } from './hooks/useFcmRegistration';
+import { useAuthFailureRedirect } from './hooks/useAuthFailureRedirect';
 import { SideMenu } from './components/SideMenu';
 import { Login } from './pages/Login';
 
@@ -28,10 +29,12 @@ function WelcomeGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export default function App() {
+function AppShell() {
   useFcmRegistration();
+  useAuthFailureRedirect();
+
   return (
-    <BrowserRouter>
+    <>
       <SideMenu />
       <Routes>
         <Route path="/welcome" element={<Welcome />} />
@@ -85,6 +88,14 @@ export default function App() {
         <Route path="/" element={<Navigate to="/lists" replace />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppShell />
     </BrowserRouter>
   );
 }

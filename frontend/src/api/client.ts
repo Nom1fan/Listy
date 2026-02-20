@@ -77,7 +77,7 @@ async function tryRefreshToken(): Promise<boolean> {
 function handleAuthFailure(): never {
   localStorage.removeItem('listyyy_token');
   localStorage.removeItem('listyyy-auth');
-  window.location.href = '/login';
+  window.dispatchEvent(new CustomEvent('listyyy:auth-failure'));
   throw new Error('פג תוקף החיבור');
 }
 
