@@ -57,3 +57,7 @@ backend/uploads/
 *.keystore
 *.jks
 keystore/
+
+# Firebase / Google Services (contains API keys)
+google-services.json
+GoogleService-Info.plist
