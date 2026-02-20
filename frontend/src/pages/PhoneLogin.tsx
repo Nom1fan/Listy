@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { requestPhoneOtp, verifyPhoneOtp, devLogin } from '../api/auth';
 import { OtpInput } from '../components/OtpInput';
 import { COUNTRY_OPTIONS } from '../data/countries';
+import SmsConsent, { isNativeAndroid } from '../plugins/smsConsent';
 
 const cardStyle: React.CSSProperties = {
   background: '#fff',
@@ -197,32 +198,45 @@ export function PhoneLogin() {
     [doVerify],
   );
 
-  // WebOTP API: listen for incoming SMS with origin-bound OTP code
+  // Auto-read SMS: native Android plugin (SMS User Consent) or WebOTP for browsers
   useEffect(() => {
     if (step !== 'code') return;
-    if (!('OTPCredential' in window)) return;
 
+    let cancelled = false;
     const ac = new AbortController();
 
-    navigator.credentials
-      .get({
-        otp: { transport: ['sms'] },
-        signal: ac.signal,
-      } as CredentialRequestOptions)
-      .then((credential) => {
-        const otpCode = (credential as { code: string } | null)?.code;
-        if (otpCode) {
-          setCode(otpCode);
-          if (otpCode.length === 6) {
-            handleOtpComplete(otpCode);
-          }
-        }
-      })
-      .catch(() => {
-        // User dismissed prompt or API unavailable – fall back to manual entry
-      });
+    function applyCode(otpCode: string) {
+      if (cancelled) return;
+      setCode(otpCode);
+      if (otpCode.length === 6) {
+        handleOtpComplete(otpCode);
+      }
+    }
 
-    return () => ac.abort();
+    if (isNativeAndroid()) {
+      SmsConsent.startListening()
+        .then(({ code: otpCode }) => applyCode(otpCode))
+        .catch(() => {});
+    } else if ('OTPCredential' in window) {
+      navigator.credentials
+        .get({
+          otp: { transport: ['sms'] },
+          signal: ac.signal,
+        } as CredentialRequestOptions)
+        .then((credential) => {
+          const otpCode = (credential as { code: string } | null)?.code;
+          if (otpCode) applyCode(otpCode);
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      cancelled = true;
+      ac.abort();
+      if (isNativeAndroid()) {
+        SmsConsent.stopListening().catch(() => {});
+      }
+    };
   }, [step, handleOtpComplete]);
 
   async function handleVerify(e: React.FormEvent) {

@@ -5,6 +5,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { PhoneLogin } from './PhoneLogin'
 
+vi.mock('../plugins/smsConsent', () => ({
+  default: {
+    startListening: vi.fn(() => new Promise(() => {})),
+    stopListening: vi.fn(() => Promise.resolve()),
+  },
+  isNativeAndroid: vi.fn(() => false),
+}))
+
+import SmsConsent, { isNativeAndroid } from '../plugins/smsConsent'
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 })
@@ -124,5 +134,87 @@ describe('PhoneLogin', () => {
     const link = screen.getByRole('link', { name: 'התחברות עם אימייל' })
     expect(link).toBeInTheDocument()
     expect(link).toHaveAttribute('href', '/login/email')
+  })
+
+  describe('SMS auto-complete', () => {
+    beforeEach(() => {
+      vi.mocked(isNativeAndroid).mockReturnValue(false)
+      vi.mocked(SmsConsent.startListening).mockClear()
+      vi.mocked(SmsConsent.stopListening).mockClear()
+    })
+
+    async function goToCodeStep(user: ReturnType<typeof userEvent.setup>) {
+      ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        ok: true,
+        status: 204,
+      })
+      render(<Wrapper><PhoneLogin /></Wrapper>)
+      await fillPhoneForm(user)
+      await user.click(screen.getByRole('button', { name: 'שלח קוד' }))
+      await waitFor(() => {
+        expect(screen.getByText('מה הקוד שקיבלת?')).toBeInTheDocument()
+      })
+    }
+
+    it('calls SmsConsent.startListening on native Android', async () => {
+      const user = userEvent.setup()
+      vi.mocked(isNativeAndroid).mockReturnValue(true)
+      vi.mocked(SmsConsent.startListening).mockReturnValue(new Promise(() => {}))
+
+      await goToCodeStep(user)
+
+      expect(SmsConsent.startListening).toHaveBeenCalled()
+    })
+
+    it('does not call SmsConsent.startListening in browser', async () => {
+      const user = userEvent.setup()
+      vi.mocked(isNativeAndroid).mockReturnValue(false)
+
+      await goToCodeStep(user)
+
+      expect(SmsConsent.startListening).not.toHaveBeenCalled()
+    })
+
+    it('auto-fills OTP code when native plugin resolves', async () => {
+      const user = userEvent.setup()
+      vi.mocked(isNativeAndroid).mockReturnValue(true)
+      vi.mocked(SmsConsent.startListening).mockResolvedValue({ code: '123456' })
+
+      // Mock the verify call that will be triggered by auto-complete
+      ;(globalThis.fetch as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce({ ok: true, status: 204 })        // requestOtp
+        .mockResolvedValueOnce({                                   // verifyOtp
+          ok: true,
+          json: () => Promise.resolve({ token: 't', userId: 1, displayName: 'Moshe' }),
+        })
+
+      render(<Wrapper><PhoneLogin /></Wrapper>)
+      await fillPhoneForm(user)
+      await user.click(screen.getByRole('button', { name: 'שלח קוד' }))
+
+      await waitFor(() => {
+        expect(screen.getByText('מה הקוד שקיבלת?')).toBeInTheDocument()
+      })
+
+      await waitFor(() => {
+        const otpInput = screen.getByLabelText('קוד אימות') as HTMLInputElement
+        expect(otpInput.value).toBe('123456')
+      })
+    })
+
+    it('calls stopListening on cleanup when leaving code step', async () => {
+      const user = userEvent.setup()
+      vi.mocked(isNativeAndroid).mockReturnValue(true)
+      vi.mocked(SmsConsent.startListening).mockReturnValue(new Promise(() => {}))
+
+      await goToCodeStep(user)
+
+      // Go back to phone step, triggering cleanup
+      await user.click(screen.getByText('החלף מספר'))
+
+      await waitFor(() => {
+        expect(SmsConsent.stopListening).toHaveBeenCalled()
+      })
+    })
   })
 })
