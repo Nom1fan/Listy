@@ -13,7 +13,7 @@ import type { ProductDto } from '../types';
 
 export function ProductBank() {
   const { listId } = useParams<{ listId: string }>();
-  const [viewMode, setViewMode] = useViewMode();
+  const [viewMode, setViewMode] = useViewMode('product-bank');
 
   if (!listId) {
     return <Navigate to="/lists" replace />;

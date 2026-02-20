@@ -259,7 +259,7 @@ export function Welcome() {
                 {slide.description}
               </p>
 
-              {slide.isCta && (
+              {'isCta' in slide && slide.isCta && (
                 <button
                   onClick={markSeenAndGo}
                   style={{
