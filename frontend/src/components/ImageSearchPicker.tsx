@@ -164,6 +164,7 @@ export function ImageSearchPicker({ onSelect, placeholder = 'חיפוש תמונ
                     opacity: isSelected ? 0.85 : 1,
                     transition: 'opacity 0.15s',
                   }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
                 {isSelected && (
                   <span

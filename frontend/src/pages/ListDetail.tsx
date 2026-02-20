@@ -887,6 +887,7 @@ export function ListDetail() {
                           src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
                           alt=""
                           style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                       ) : (
                         <CategoryIcon
@@ -1028,6 +1029,7 @@ export function ListDetail() {
                           src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
                           alt=""
                           style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                         />
                       ) : (
                         <CategoryIcon

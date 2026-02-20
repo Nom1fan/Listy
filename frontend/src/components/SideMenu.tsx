@@ -119,6 +119,7 @@ export function SideMenu() {
                   borderRadius: '50%',
                   objectFit: 'cover',
                 }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
               />
             ) : (
               <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>👤</span>

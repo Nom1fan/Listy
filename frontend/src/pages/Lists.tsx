@@ -310,6 +310,7 @@ export function Lists() {
                     objectFit: 'cover',
                     border: '2px solid rgba(255,255,255,0.5)',
                   }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
                 <span style={{ fontSize: 11, fontWeight: 500, opacity: 0.85 }}>
                   {getUserDisplayLabel(user)}
