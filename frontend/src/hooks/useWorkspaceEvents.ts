@@ -24,6 +24,7 @@ export function useWorkspaceEvents(
     const client = new Client({
       webSocketFactory: () => sock as unknown as WebSocket,
       connectHeaders: { Authorization: `Bearer ${token}` },
+      reconnectDelay: 3000,
       onConnect: () => {
         client.subscribe(`/topic/workspaces/${workspaceId}`, (msg) => {
           try {

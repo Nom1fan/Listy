@@ -20,6 +20,7 @@ export function useListEvents(
     const client = new Client({
       webSocketFactory: () => sock as unknown as WebSocket,
       connectHeaders: { Authorization: `Bearer ${token}` },
+      reconnectDelay: 3000,
       onConnect: () => {
         client.subscribe(`/topic/lists/${listId}`, (msg) => {
           try {
