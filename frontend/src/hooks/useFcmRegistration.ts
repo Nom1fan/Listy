@@ -11,30 +11,31 @@ export function useFcmRegistration() {
     if (!Capacitor.isNativePlatform()) return;
 
     let cancelled = false;
-    let removeListeners: (() => void) | null = null;
+    type PNModule = typeof import('@capacitor/push-notifications');
+    let pnModule: Awaited<PNModule> | null = null;
 
     import('@capacitor/push-notifications')
-      .then(({ PushNotifications }) => {
+      .then((mod) => {
         if (cancelled) return;
+        pnModule = mod;
+        const { PushNotifications } = mod;
+
+        PushNotifications.addListener('registration', (token) => {
+          if (!cancelled) registerFcmToken(token.value).catch(() => {});
+        });
+
         PushNotifications.requestPermissions()
           .then((result) => {
-            if (result.receive !== 'granted') return;
+            if (cancelled || result.receive !== 'granted') return;
             PushNotifications.register();
           })
           .catch(() => {});
-
-        const registrationHandler = (token: { value: string }) => {
-          registerFcmToken(token.value).catch(() => {});
-        };
-
-        PushNotifications.addListener('registration', registrationHandler);
-        removeListeners = () => PushNotifications.removeAllListeners();
       })
       .catch(() => {});
 
     return () => {
       cancelled = true;
-      removeListeners?.();
+      pnModule?.PushNotifications.removeAllListeners();
     };
   }, [isAuthenticated]);
 }
