@@ -38,7 +38,7 @@ export function CategoryIcon({ iconId, imageUrl, size = 32 }: CategoryIconProps)
   const resolved = iconId ? LEGACY_ICON_MAP[iconId] : undefined;
   const emoji = resolved
     ? resolved
-    : iconId && iconId.codePointAt(0)! > 0xff
+    : iconId && (iconId.codePointAt(0) ?? 0) > 0xff
       ? iconId
       : '📦';
   return (

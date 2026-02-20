@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, updateProduct } from '../api/products';
 import { addListItem } from '../api/lists';
@@ -14,6 +14,10 @@ import type { ProductDto } from '../types';
 export function ProductBank() {
   const { listId } = useParams<{ listId: string }>();
   const [viewMode, setViewMode] = useViewMode();
+
+  if (!listId) {
+    return <Navigate to="/lists" replace />;
+  }
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [search, setSearch] = useState('');
@@ -70,7 +74,7 @@ export function ProductBank() {
 
   const addMutation = useMutation({
     mutationFn: (body: { productId?: string; customNameHe?: string; quantity?: number; unit?: string; note?: string }) =>
-      addListItem(listId!, body),
+      addListItem(listId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       const productName = addModal?.nameHe ?? '';

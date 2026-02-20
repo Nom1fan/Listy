@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
@@ -108,6 +108,10 @@ export function ListDetail() {
   const { listId } = useParams<{ listId: string }>();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+
+  if (!listId) {
+    return <Navigate to="/lists" replace />;
+  }
   const [notification, setNotification] = useState<string | null>(null);
   const [notificationIsError, setNotificationIsError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -150,13 +154,13 @@ export function ListDetail() {
 
   const { data: list } = useQuery({
     queryKey: ['list', listId],
-    queryFn: () => getList(listId!),
+    queryFn: () => getList(listId),
     enabled: !!listId,
   });
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['listItems', listId],
-    queryFn: () => getListItems(listId!),
+    queryFn: () => getListItems(listId),
     enabled: !!listId,
   });
 
@@ -211,7 +215,7 @@ export function ListDetail() {
   );
 
   const reorderMutation = useMutation({
-    mutationFn: (itemIds: string[]) => reorderListItems(listId!, itemIds),
+    mutationFn: (itemIds: string[]) => reorderListItems(listId, itemIds),
     onError: () => queryClient.invalidateQueries({ queryKey: ['listItems', listId] }),
   });
 
@@ -254,7 +258,7 @@ export function ListDetail() {
     }: {
       itemId: string;
       body: { crossedOff?: boolean; quantity?: number; unit?: string; note?: string; itemImageUrl?: string | null; iconId?: string | null; categoryId?: string; version?: number };
-    }) => updateListItem(listId!, itemId, body),
+    }) => updateListItem(listId, itemId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -280,12 +284,12 @@ export function ListDetail() {
   });
 
   const removeMutation = useMutation({
-    mutationFn: (itemId: string) => removeListItem(listId!, itemId),
+    mutationFn: (itemId: string) => removeListItem(listId, itemId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['listItems', listId] }),
   });
 
   const addItemMutation = useMutation({
-    mutationFn: (body: Parameters<typeof addListItem>[1]) => addListItem(listId!, body),
+    mutationFn: (body: Parameters<typeof addListItem>[1]) => addListItem(listId, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -298,7 +302,7 @@ export function ListDetail() {
 
   const updateListMutation = useMutation({
     mutationFn: async (payload: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number }) => {
-      const updated = await updateList(listId!, payload);
+      const updated = await updateList(listId, payload);
       const file = pendingListImageFileRef.current;
       pendingListImageFileRef.current = null;
       if (file && listId) {
@@ -321,7 +325,7 @@ export function ListDetail() {
   });
 
   const deleteListMutation = useMutation({
-    mutationFn: () => deleteList(listId!),
+    mutationFn: () => deleteList(listId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lists'] });
       navigate('/lists');
