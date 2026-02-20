@@ -75,7 +75,7 @@ export function SideMenu() {
         {/* Header */}
         <div
           style={{
-            padding: '16px 20px',
+            padding: 'max(16px, env(safe-area-inset-top)) 20px 16px',
             borderBottom: '1px solid #eee',
             display: 'flex',
             alignItems: 'center',
@@ -143,7 +143,7 @@ export function SideMenu() {
         </nav>
 
         {/* Version footer */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #eee', fontSize: 12, color: '#aaa', textAlign: 'center' }}>
+        <div style={{ padding: '12px 20px max(12px, env(safe-area-inset-bottom))', borderTop: '1px solid #eee', fontSize: 12, color: '#aaa', textAlign: 'center' }}>
           גרסה {APP_VERSION}
         </div>
       </aside>
@@ -192,7 +192,7 @@ export function SideMenu() {
         <div
           style={{
             position: 'fixed',
-            bottom: 32,
+            bottom: 'max(32px, env(safe-area-inset-bottom))',
             left: '50%',
             transform: 'translateX(-50%)',
             background: '#333',

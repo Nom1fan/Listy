@@ -238,7 +238,7 @@ export function PhoneLogin() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '24px 16px',
+        padding: 'max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom))',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>

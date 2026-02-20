@@ -19,7 +19,7 @@ export function AppBar({ title, titleRight, backTo, right, showMenuButton = true
       style={{
         background: 'var(--color-bar)',
         color: '#1a1a1a',
-        padding: '12px 16px',
+        padding: 'max(12px, env(safe-area-inset-top)) 16px 12px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',

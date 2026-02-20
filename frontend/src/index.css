@@ -25,6 +25,7 @@ body {
 
 #root {
   min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 button {

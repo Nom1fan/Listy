@@ -96,6 +96,7 @@ const containerStyle: React.CSSProperties = {
   flexDirection: 'column',
   background: 'linear-gradient(160deg, #f8faf5 0%, #eef5e6 50%, #f5f5f5 100%)',
   zIndex: 9999,
+  paddingTop: 'env(safe-area-inset-top)',
 };
 
 const scrollerStyle: React.CSSProperties = {

@@ -615,7 +615,7 @@ export function ListDetail() {
             onClick={() => setNotification(null)}
             style={{
               position: 'fixed',
-              bottom: 24,
+              bottom: 'max(24px, env(safe-area-inset-bottom))',
               left: 16,
               right: 16,
               padding: '14px 40px 14px 14px',
