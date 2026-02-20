@@ -3,6 +3,7 @@ import { useAuthStore } from './store/authStore';
 import { useFcmRegistration } from './hooks/useFcmRegistration';
 import { useAuthFailureRedirect } from './hooks/useAuthFailureRedirect';
 import { SideMenu } from './components/SideMenu';
+import { OfflineBanner } from './components/OfflineBanner';
 import { Login } from './pages/Login';
 
 import { PhoneLogin } from './pages/PhoneLogin';
@@ -35,6 +36,7 @@ function AppShell() {
 
   return (
     <>
+      <OfflineBanner />
       <SideMenu />
       <Routes>
         <Route path="/welcome" element={<Welcome />} />
