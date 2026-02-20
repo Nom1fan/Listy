@@ -419,6 +419,99 @@ describe('ListDetail', () => {
     })
   })
 
+  describe('optimistic crossedOff toggle', () => {
+    it('updates checkbox immediately without waiting for server response', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      // Set up a PATCH that never resolves (simulates slow server)
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      let resolvePatch: ((v: unknown) => void) | undefined
+      fetchMock.mockImplementation((url: string, opts?: RequestInit) => {
+        if (opts?.method === 'PATCH') {
+          return new Promise((resolve) => { resolvePatch = resolve })
+        }
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItems) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+
+      const checkboxes = screen.getAllByRole('checkbox', { name: /סימן/i })
+      expect(checkboxes[0]).not.toBeChecked()
+
+      fireEvent.click(checkboxes[0])
+
+      // Checkbox should be checked immediately (optimistic update), even though PATCH hasn't resolved
+      await waitFor(() => {
+        expect(checkboxes[0]).toBeChecked()
+      })
+      expect(resolvePatch).toBeDefined()
+
+      // Resolve the PATCH to avoid dangling promises
+      await act(async () => {
+        resolvePatch!({ ok: true, status: 200, json: () => Promise.resolve({ ...mockItems[0], crossedOff: true, version: 1 }) })
+      })
+    })
+
+    it('rolls back checkbox on server error', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      let rejectPatch: ((v: unknown) => void) | undefined
+      fetchMock.mockImplementation((url: string, opts?: RequestInit) => {
+        if (opts?.method === 'PATCH') {
+          return new Promise((_resolve, reject) => { rejectPatch = reject })
+        }
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItems) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+
+      const checkboxes = screen.getAllByRole('checkbox', { name: /סימן/i })
+      expect(checkboxes[0]).not.toBeChecked()
+
+      fireEvent.click(checkboxes[0])
+
+      // Optimistic: checked immediately
+      await waitFor(() => {
+        expect(checkboxes[0]).toBeChecked()
+      })
+
+      // Now reject the PATCH to trigger rollback
+      await act(async () => {
+        rejectPatch!(new Error('Server error'))
+      })
+
+      // After error settles, should roll back
+      await waitFor(() => {
+        expect(checkboxes[0]).not.toBeChecked()
+      })
+    })
+  })
+
   describe('trash icon on items', () => {
     it('shows trash icon buttons instead of kebab menus', async () => {
       mockFetch()

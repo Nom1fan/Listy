@@ -259,11 +259,22 @@ export function ListDetail() {
       itemId: string;
       body: { crossedOff?: boolean; quantity?: number; unit?: string; note?: string; itemImageUrl?: string | null; iconId?: string | null; categoryId?: string; version?: number };
     }) => updateListItem(listId, itemId, body),
+    onMutate: async ({ itemId, body }) => {
+      await queryClient.cancelQueries({ queryKey: ['listItems', listId] });
+      const previous = queryClient.getQueryData<ListItemResponse[]>(['listItems', listId]);
+      queryClient.setQueryData<ListItemResponse[]>(['listItems', listId], (old) =>
+        old?.map((item) => (item.id === itemId ? { ...item, ...body } : item))
+      );
+      return { previous };
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
     },
-    onError: (err: Error) => {
+    onError: (err: Error, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['listItems', listId], context.previous);
+      }
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       showNotification(err.message || 'שגיאה בעדכון הפריט', true);
     },
