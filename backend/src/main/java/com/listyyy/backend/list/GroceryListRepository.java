@@ -1,6 +1,7 @@
 package com.listyyy.backend.list;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -20,4 +21,12 @@ public interface GroceryListRepository extends JpaRepository<GroceryList, UUID> 
     boolean existsByWorkspaceIdAndName(UUID workspaceId, String name);
 
     boolean existsByWorkspaceIdAndNameAndIdNot(UUID workspaceId, String name, UUID id);
+
+    @Modifying
+    @Query(value = "DELETE FROM list_categories WHERE category_id = :categoryId", nativeQuery = true)
+    void removeFilterCategoryEntriesByCategoryId(UUID categoryId);
+
+    @Modifying
+    @Query(value = "DELETE FROM list_categories WHERE list_id = :listId", nativeQuery = true)
+    void removeFilterCategoryEntriesByListId(UUID listId);
 }

@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -16,6 +17,8 @@ public class ListResponse {
     private String iconId;
     private String imageUrl;
     private int sortOrder;
+    private String categoryFilterMode;
+    private List<UUID> categoryIds;
     private Instant createdAt;
     private Instant updatedAt;
     /** Optimistic-locking version. */

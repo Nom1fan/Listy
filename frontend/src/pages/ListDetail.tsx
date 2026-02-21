@@ -36,7 +36,9 @@ import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import { ProductAutocomplete } from '../components/ProductAutocomplete';
-import type { ListItemResponse, ListEvent, WorkspaceEvent, ProductDto } from '../types';
+import { CategoryFilterConfig } from '../components/CategoryFilterConfig';
+import { getFilteredCategories, getFilteredProducts } from '../utils/categoryFilter';
+import type { CategoryFilterMode, ListItemResponse, ListEvent, WorkspaceEvent, ProductDto } from '../types';
 
 function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: string }) {
   return (
@@ -149,6 +151,8 @@ export function ListDetail() {
   const [editListDisplayImageType, setEditListDisplayImageType] = useState<DisplayImageType>('icon');
   const [editListIconId, setEditListIconId] = useState('');
   const [editListImageUrl, setEditListImageUrl] = useState('');
+  const [editListFilterMode, setEditListFilterMode] = useState<CategoryFilterMode>('NONE');
+  const [editListFilterCategoryIds, setEditListFilterCategoryIds] = useState<string[]>([]);
   const editListFileInputRef = useRef<HTMLInputElement>(null);
   const pendingListImageFileRef = useRef<File | null>(null);
 
@@ -176,6 +180,8 @@ export function ListDetail() {
     enabled: !!list?.workspaceId,
   });
 
+  const filteredCategories = getFilteredCategories(workspaceCategories, list);
+  const filteredProducts = getFilteredProducts(allProducts, list);
   const hasProductsInCategories = allProducts.length > 0;
   const hasCrossedOff = items.some(i => i.crossedOff);
 
@@ -312,7 +318,7 @@ export function ListDetail() {
   });
 
   const updateListMutation = useMutation({
-    mutationFn: async (payload: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number }) => {
+    mutationFn: async (payload: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number; categoryFilterMode?: string; categoryIds?: string[] }) => {
       const updated = await updateList(listId, payload);
       const file = pendingListImageFileRef.current;
       pendingListImageFileRef.current = null;
@@ -534,6 +540,8 @@ export function ListDetail() {
     setEditListDisplayImageType(list.imageUrl ? 'link' : 'icon');
     setEditListIconId(list.iconId ?? '');
     setEditListImageUrl(list.imageUrl ?? '');
+    setEditListFilterMode(list.categoryFilterMode ?? 'NONE');
+    setEditListFilterCategoryIds(list.categoryIds ?? []);
     setEditListOpen(true);
   }
 
@@ -543,11 +551,12 @@ export function ListDetail() {
     const name = editListName.trim() || list?.name;
     const iconId = editListDisplayImageType === 'icon' ? (editListIconId || '') : '';
     const imageUrl = editListDisplayImageType === 'link' || editListDisplayImageType === 'web' ? (editListImageUrl.trim() || '') : '';
+    const filterPayload = { categoryFilterMode: editListFilterMode, categoryIds: editListFilterCategoryIds };
     if (editListDisplayImageType === 'device' && pendingListImageFileRef.current) {
-      updateListMutation.mutate({ name, version: list?.version });
+      updateListMutation.mutate({ name, version: list?.version, ...filterPayload });
       return;
     }
-    updateListMutation.mutate({ name, iconId, imageUrl, version: list?.version });
+    updateListMutation.mutate({ name, iconId, imageUrl, version: list?.version, ...filterPayload });
   }
 
   return (
@@ -1110,7 +1119,7 @@ export function ListDetail() {
                   <ProductAutocomplete
                     value={quickAddName}
                     onChange={setQuickAddName}
-                    products={allProducts}
+                    products={filteredProducts}
                     placeholder="שם פריט"
                     required
                     style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
@@ -1229,7 +1238,7 @@ export function ListDetail() {
                     }}
                   >
                     <option value="">ללא קטגוריה (אחר)</option>
-                    {workspaceCategories.map((cat) => (
+                    {filteredCategories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.nameHe}
                       </option>
@@ -1394,7 +1403,7 @@ export function ListDetail() {
                     style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', resize: 'vertical', boxSizing: 'border-box' }}
                   />
                 </div>
-                {workspaceCategories.length > 0 && (
+                {filteredCategories.length > 0 && (
                   <div>
                     <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קטגוריה</label>
                     <select
@@ -1403,7 +1412,7 @@ export function ListDetail() {
                       style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', background: '#fff', fontSize: 14, boxSizing: 'border-box' }}
                     >
                       <option value="">ללא קטגוריה (אחר)</option>
-                      {workspaceCategories.map((cat) => (
+                      {filteredCategories.map((cat) => (
                         <option key={cat.id} value={cat.id}>
                           {cat.nameHe}
                         </option>
@@ -1607,6 +1616,15 @@ export function ListDetail() {
                     e.target.value = '';
                   }}
                 />
+                {workspaceCategories.length > 0 && (
+                  <CategoryFilterConfig
+                    mode={editListFilterMode}
+                    selectedIds={editListFilterCategoryIds}
+                    categories={workspaceCategories}
+                    onModeChange={setEditListFilterMode}
+                    onSelectedIdsChange={setEditListFilterCategoryIds}
+                  />
+                )}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     type="submit"

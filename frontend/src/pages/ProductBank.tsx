@@ -2,13 +2,14 @@ import { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, updateProduct } from '../api/products';
-import { addListItem } from '../api/lists';
+import { addListItem, getList } from '../api/lists';
 import { uploadFile } from '../api/client';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
+import { getFilteredCategories, getFilteredProducts } from '../utils/categoryFilter';
 import type { ProductDto } from '../types';
 
 export function ProductBank() {
@@ -41,15 +42,25 @@ export function ProductBank() {
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggeredRef = useRef(false);
 
-  const { data: categories = [] } = useQuery({
+  const { data: list } = useQuery({
+    queryKey: ['list', listId],
+    queryFn: () => getList(listId),
+    enabled: !!listId,
+  });
+
+  const { data: allCategories = [] } = useQuery({
     queryKey: ['categories', activeWorkspaceId],
     queryFn: () => getCategories(activeWorkspaceId || undefined),
   });
 
-  const { data: products = [] } = useQuery({
+  const categories = useMemo(() => getFilteredCategories(allCategories, list), [allCategories, list]);
+
+  const { data: allProducts = [] } = useQuery({
     queryKey: ['products', categoryFilter, search],
     queryFn: () => getProducts(categoryFilter || undefined, search || undefined),
   });
+
+  const products = useMemo(() => getFilteredProducts(allProducts, list), [allProducts, list]);
 
   const showGroupedByCategory = !categoryFilter && products.length > 0;
   const productsByCategory = useMemo(() => {

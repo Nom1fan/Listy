@@ -28,6 +28,8 @@ const mockList = {
   iconId: null,
   imageUrl: null,
   sortOrder: 0,
+  categoryFilterMode: 'NONE' as const,
+  categoryIds: [] as string[],
   createdAt: '2025-01-01',
   updatedAt: '2025-01-01',
   version: 0,
@@ -1294,6 +1296,83 @@ describe('ListDetail', () => {
       expect(screen.getByRole('listbox')).toBeInTheDocument()
 
       vi.useRealTimers()
+    })
+  })
+
+  describe('category filter on quick-add', () => {
+    const allCategories = [
+      { id: 'c1', nameHe: 'מוצרי חלב', iconId: 'dairy', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', addCount: 5, version: 1 },
+      { id: 'c2', nameHe: 'מאפים', iconId: 'bakery', imageUrl: null, sortOrder: 1, workspaceId: 'ws1', addCount: 3, version: 1 },
+      { id: 'c3', nameHe: 'ניקיון', iconId: 'clean', imageUrl: null, sortOrder: 2, workspaceId: 'ws1', addCount: 1, version: 1 },
+    ]
+    const allProducts = [
+      { id: 'p1', categoryId: 'c1', categoryNameHe: 'מוצרי חלב', categoryIconId: 'dairy', nameHe: 'חלב', defaultUnit: 'ליטר', imageUrl: null, note: null, addCount: 5, version: 0 },
+      { id: 'p2', categoryId: 'c2', categoryNameHe: 'מאפים', categoryIconId: 'bakery', nameHe: 'לחם', defaultUnit: 'יחידה', imageUrl: null, note: null, addCount: 3, version: 0 },
+      { id: 'p3', categoryId: 'c3', categoryNameHe: 'ניקיון', categoryIconId: 'clean', nameHe: 'סבון כלים', defaultUnit: 'יחידה', imageUrl: null, note: null, addCount: 1, version: 0 },
+    ]
+
+    function mockFilteredFetch(listOverride: Record<string, unknown> = {}) {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string) => {
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItems) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ...mockList, ...listOverride }) })
+        }
+        if (url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(allCategories) })
+        }
+        if (url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(allProducts) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+    }
+
+    it('shows all categories in dropdown when mode is NONE', async () => {
+      mockFilteredFetch()
+      render(<Wrapper><ListDetail /></Wrapper>)
+      await waitFor(() => { expect(screen.getByText('חלב')).toBeInTheDocument() })
+
+      fireEvent.click(screen.getByRole('button', { name: /הוסף פריט/i }))
+      await waitFor(() => { expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument() })
+
+      const categorySelect = screen.getByDisplayValue('ללא קטגוריה (אחר)')
+      const options = categorySelect.querySelectorAll('option')
+      // "ללא קטגוריה" + 3 categories
+      expect(options).toHaveLength(4)
+    })
+
+    it('shows only included categories in dropdown when mode is INCLUDE', async () => {
+      mockFilteredFetch({ categoryFilterMode: 'INCLUDE', categoryIds: ['c1'] })
+      render(<Wrapper><ListDetail /></Wrapper>)
+      await waitFor(() => { expect(screen.getByText('חלב')).toBeInTheDocument() })
+
+      fireEvent.click(screen.getByRole('button', { name: /הוסף פריט/i }))
+      await waitFor(() => { expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument() })
+
+      const categorySelect = screen.getByDisplayValue('ללא קטגוריה (אחר)')
+      const options = categorySelect.querySelectorAll('option')
+      // "ללא קטגוריה" + 1 included category
+      expect(options).toHaveLength(2)
+      expect(options[1].textContent).toBe('מוצרי חלב')
+    })
+
+    it('excludes categories in dropdown when mode is EXCLUDE', async () => {
+      mockFilteredFetch({ categoryFilterMode: 'EXCLUDE', categoryIds: ['c3'] })
+      render(<Wrapper><ListDetail /></Wrapper>)
+      await waitFor(() => { expect(screen.getByText('חלב')).toBeInTheDocument() })
+
+      fireEvent.click(screen.getByRole('button', { name: /הוסף פריט/i }))
+      await waitFor(() => { expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument() })
+
+      const categorySelect = screen.getByDisplayValue('ללא קטגוריה (אחר)')
+      const options = categorySelect.querySelectorAll('option')
+      // "ללא קטגוריה" + 2 categories (c3 excluded)
+      expect(options).toHaveLength(3)
+      const optionTexts = Array.from(options).map((o) => o.textContent)
+      expect(optionTexts).not.toContain('ניקיון')
     })
   })
 })

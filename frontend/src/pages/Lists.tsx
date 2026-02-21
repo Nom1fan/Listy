@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLists, createList, deleteList, reorderLists } from '../api/lists';
+import { getCategories } from '../api/products';
 import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace } from '../api/workspaces';
 import { uploadFile } from '../api/client';
 import { useAuthStore } from '../store/authStore';
@@ -9,11 +10,12 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { CategoryFilterConfig } from '../components/CategoryFilterConfig';
 import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
 import { getUserDisplayLabel } from '../utils/user';
 import { WorkspaceTabs, type TabKey } from '../components/WorkspaceTabs';
 import { Categories } from './Categories';
-import type { ListResponse, WorkspaceEvent } from '../types';
+import type { CategoryFilterMode, ListResponse, WorkspaceEvent } from '../types';
 
 export function Lists() {
   const [activeTab, setActiveTab] = useState<TabKey>('lists');
@@ -23,6 +25,8 @@ export function Lists() {
   const [createDisplayImageType, setCreateDisplayImageType] = useState<DisplayImageType>('icon');
   const [createIconId, setCreateIconId] = useState('');
   const [createImageUrl, setCreateImageUrl] = useState('');
+  const [createFilterMode, setCreateFilterMode] = useState<CategoryFilterMode>('NONE');
+  const [createFilterCategoryIds, setCreateFilterCategoryIds] = useState<string[]>([]);
   const createFileInputRef = useRef<HTMLInputElement>(null);
   const pendingCreateFileRef = useRef<File | null>(null);
   const queryClient = useQueryClient();
@@ -131,6 +135,8 @@ export function Lists() {
   const [editDisplayImageType, setEditDisplayImageType] = useState<DisplayImageType>('icon');
   const [editIconId, setEditIconId] = useState('');
   const [editImageUrl, setEditImageUrl] = useState('');
+  const [editFilterMode, setEditFilterMode] = useState<CategoryFilterMode>('NONE');
+  const [editFilterCategoryIds, setEditFilterCategoryIds] = useState<string[]>([]);
   const editFileInputRef = useRef<HTMLInputElement>(null);
   const pendingEditFileRef = useRef<File | null>(null);
 
@@ -144,11 +150,17 @@ export function Lists() {
     queryFn: () => getLists(activeWorkspaceId || undefined),
   });
 
+  const { data: workspaceCategories = [] } = useQuery({
+    queryKey: ['categories', activeWorkspaceId],
+    queryFn: () => getCategories(activeWorkspaceId || undefined),
+    enabled: !!activeWorkspaceId,
+  });
+
   const displayLists = orderedLists ?? lists;
   const workspaceById = Object.fromEntries(workspaces.map((w) => [w.id, w]));
 
   const createMutation = useMutation({
-    mutationFn: async (payload: { name: string; workspaceId: string; iconId?: string | null; imageUrl?: string | null }) => {
+    mutationFn: async (payload: { name: string; workspaceId: string; iconId?: string | null; imageUrl?: string | null; categoryFilterMode?: string; categoryIds?: string[] }) => {
       const list = await createList(payload);
       const file = pendingCreateFileRef.current;
       pendingCreateFileRef.current = null;
@@ -168,6 +180,8 @@ export function Lists() {
       setCreateDisplayImageType('icon');
       setCreateIconId('');
       setCreateImageUrl('');
+      setCreateFilterMode('NONE');
+      setCreateFilterCategoryIds([]);
     },
     onError: (err: Error) => {
       showToast(err.message || 'שגיאה ביצירת הרשימה', true);
@@ -183,7 +197,7 @@ export function Lists() {
   });
 
   const updateListMutation = useMutation({
-    mutationFn: async ({ listId, payload }: { listId: string; payload: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number } }) => {
+    mutationFn: async ({ listId, payload }: { listId: string; payload: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number; categoryFilterMode?: string; categoryIds?: string[] } }) => {
       const { updateList } = await import('../api/lists');
       const updated = await updateList(listId, payload);
       const file = pendingEditFileRef.current;
@@ -227,6 +241,8 @@ export function Lists() {
     setEditDisplayImageType(list.imageUrl ? 'link' : 'icon');
     setEditIconId(list.iconId ?? '');
     setEditImageUrl(list.imageUrl ?? '');
+    setEditFilterMode(list.categoryFilterMode ?? 'NONE');
+    setEditFilterCategoryIds(list.categoryIds ?? []);
   }
 
   function handleEditListSubmit(e: React.FormEvent) {
@@ -235,11 +251,12 @@ export function Lists() {
     const nameVal = editName.trim() || editList.name;
     const iconId = editDisplayImageType === 'icon' ? (editIconId || '') : '';
     const imageUrl = (editDisplayImageType === 'link' || editDisplayImageType === 'web') ? (editImageUrl.trim() || '') : '';
+    const filterPayload = { categoryFilterMode: editFilterMode, categoryIds: editFilterCategoryIds };
     if (editDisplayImageType === 'device' && pendingEditFileRef.current) {
-      updateListMutation.mutate({ listId: editList.id, payload: { name: nameVal, version: editList.version } });
+      updateListMutation.mutate({ listId: editList.id, payload: { name: nameVal, version: editList.version, ...filterPayload } });
       return;
     }
-    updateListMutation.mutate({ listId: editList.id, payload: { name: nameVal, iconId, imageUrl, version: editList.version } });
+    updateListMutation.mutate({ listId: editList.id, payload: { name: nameVal, iconId, imageUrl, version: editList.version, ...filterPayload } });
   }
 
   // Drag handlers
@@ -907,6 +924,15 @@ export function Lists() {
                 e.target.value = '';
               }}
             />
+            {workspaceCategories.length > 0 && (
+              <CategoryFilterConfig
+                mode={createFilterMode}
+                selectedIds={createFilterCategoryIds}
+                categories={workspaceCategories}
+                onModeChange={setCreateFilterMode}
+                onSelectedIdsChange={setCreateFilterCategoryIds}
+              />
+            )}
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button
                 onClick={() => {
@@ -918,6 +944,8 @@ export function Lists() {
                     workspaceId: activeWorkspaceId,
                     iconId: iconId || undefined,
                     imageUrl: imageUrl || undefined,
+                    categoryFilterMode: createFilterMode,
+                    categoryIds: createFilterCategoryIds.length > 0 ? createFilterCategoryIds : undefined,
                   });
                 }}
                 disabled={createMutation.isPending || !activeWorkspaceId || !name.trim()}
@@ -938,6 +966,8 @@ export function Lists() {
                   setCreateDisplayImageType('icon');
                   setCreateIconId('');
                   setCreateImageUrl('');
+                  setCreateFilterMode('NONE');
+                  setCreateFilterCategoryIds([]);
                 }}
                 style={{ padding: '10px 16px', background: '#eee' }}
               >
@@ -1086,6 +1116,15 @@ export function Lists() {
                     e.target.value = '';
                   }}
                 />
+                {workspaceCategories.length > 0 && (
+                  <CategoryFilterConfig
+                    mode={editFilterMode}
+                    selectedIds={editFilterCategoryIds}
+                    categories={workspaceCategories}
+                    onModeChange={setEditFilterMode}
+                    onSelectedIdsChange={setEditFilterCategoryIds}
+                  />
+                )}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     type="submit"

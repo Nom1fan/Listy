@@ -3,6 +3,7 @@ package com.listyyy.backend.productbank;
 import com.listyyy.backend.auth.User;
 import com.listyyy.backend.exception.AccessDeniedException;
 import com.listyyy.backend.exception.VersionCheck;
+import com.listyyy.backend.list.GroceryListRepository;
 import com.listyyy.backend.list.ListItemRepository;
 import com.listyyy.backend.websocket.WorkspaceEvent;
 import com.listyyy.backend.websocket.WorkspaceEventPublisher;
@@ -30,6 +31,7 @@ public class CategoryController {
     private final CategoryAccessService categoryAccessService;
     private final ProductRepository productRepository;
     private final ListItemRepository listItemRepository;
+    private final GroceryListRepository groceryListRepository;
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceAccessService workspaceAccessService;
     private final WorkspaceEventPublisher workspaceEventPublisher;
@@ -146,12 +148,12 @@ public class CategoryController {
         if (!categoryAccessService.isWorkspaceOwner(user, id)) {
             throw new AccessDeniedException("רק בעל המרחב יכול למחוק קטגוריה");
         }
-        // Explicitly remove list items and products before deleting the category,
-        // to avoid the ON DELETE SET NULL cascade violating the
-        // name_from_product_or_custom check constraint on list_items.
+        // Explicitly remove list items, products, and list-category filter entries
+        // before deleting the category, for H2 test compatibility (no ON DELETE CASCADE).
         listItemRepository.deleteByProductCategoryId(id);
         productRepository.findByCategoryIdOrderByNameHe(id)
                 .forEach(p -> productRepository.delete(p));
+        groceryListRepository.removeFilterCategoryEntriesByCategoryId(id);
         UUID wsId = c.getWorkspace().getId();
         String name = c.getNameHe();
         categoryRepository.delete(c);

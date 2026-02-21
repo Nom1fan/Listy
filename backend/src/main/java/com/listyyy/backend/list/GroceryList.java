@@ -1,5 +1,6 @@
 package com.listyyy.backend.list;
 
+import com.listyyy.backend.productbank.Category;
 import com.listyyy.backend.workspace.Workspace;
 import jakarta.persistence.*;
 import lombok.*;
@@ -7,6 +8,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -34,6 +37,20 @@ public class GroceryList {
     @Column(name = "sort_order", nullable = false)
     @Builder.Default
     private int sortOrder = 0;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category_filter_mode", nullable = false, length = 10)
+    @Builder.Default
+    private CategoryFilterMode categoryFilterMode = CategoryFilterMode.NONE;
+
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "list_categories",
+            joinColumns = @JoinColumn(name = "list_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    @Builder.Default
+    private Set<Category> filterCategories = new HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workspace_id", nullable = false)

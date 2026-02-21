@@ -13,6 +13,8 @@ export async function createList(body: {
   workspaceId: string;
   iconId?: string | null;
   imageUrl?: string | null;
+  categoryFilterMode?: string;
+  categoryIds?: string[];
 }): Promise<ListResponse> {
   return api<ListResponse>('/api/lists', {
     method: 'POST',
@@ -26,7 +28,14 @@ export async function getList(listId: string): Promise<ListResponse> {
 
 export async function updateList(
   listId: string,
-  body: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number }
+  body: {
+    name?: string;
+    iconId?: string | null;
+    imageUrl?: string | null;
+    version?: number;
+    categoryFilterMode?: string;
+    categoryIds?: string[];
+  }
 ): Promise<ListResponse> {
   return api<ListResponse>(`/api/lists/${listId}`, {
     method: 'PUT',

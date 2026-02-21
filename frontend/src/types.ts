@@ -8,6 +8,8 @@ export interface AuthResponse {
   locale: string;
 }
 
+export type CategoryFilterMode = 'NONE' | 'INCLUDE' | 'EXCLUDE';
+
 export interface ListResponse {
   id: string;
   name: string;
@@ -15,6 +17,8 @@ export interface ListResponse {
   iconId: string | null;
   imageUrl: string | null;
   sortOrder: number;
+  categoryFilterMode: CategoryFilterMode;
+  categoryIds: string[];
   createdAt: string;
   updatedAt: string;
   version: number;
