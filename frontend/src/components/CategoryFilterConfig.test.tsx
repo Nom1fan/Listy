@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { CategoryFilterConfig } from './CategoryFilterConfig'
-import type { CategoryDto, CategoryFilterMode } from '../types'
+import type { CategoryDto } from '../types'
 
 const categories: CategoryDto[] = [
   { id: 'c1', workspaceId: 'ws1', nameHe: 'מכולת', iconId: null, imageUrl: null, sortOrder: 0, addCount: 0, version: 0 },

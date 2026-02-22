@@ -1,4 +1,4 @@
-import type { CategoryDto, CategoryFilterMode, ListResponse, ProductDto } from '../types';
+import type { CategoryDto, ListResponse, ProductDto } from '../types';
 
 export function getFilteredCategories(
   allCategories: CategoryDto[],

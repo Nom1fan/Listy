@@ -46,6 +46,10 @@ backend/src/main/resources/static/
 listyyy-windows/
 listyyy-windows.zip
 
+# Android APK/AAB builds
+*.apk
+*.aab
+
 # Optional: uncomment if you don't want to track Cursor project skills
 # .cursor/
 
