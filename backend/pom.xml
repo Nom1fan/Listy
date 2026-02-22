@@ -10,7 +10,7 @@
     </parent>
     <groupId>com.listyyy</groupId>
     <artifactId>backend</artifactId>
-    <version>1.10.0-SNAPSHOT</version>
+    <version>1.12.0-SNAPSHOT</version>
     <name>backend</name>
     <description>Listyyy backend</description>
     <url/>
@@ -135,6 +135,15 @@
                 <filtering>true</filtering>
                 <excludes>
                     <exclude>application-local.properties</exclude>
+                    <exclude>**/*.woff2</exclude>
+                    <exclude>**/*.woff</exclude>
+                    <exclude>**/*.ttf</exclude>
+                    <exclude>**/*.eot</exclude>
+                    <exclude>**/*.ico</exclude>
+                    <exclude>**/*.png</exclude>
+                    <exclude>**/*.jpg</exclude>
+                    <exclude>**/*.gif</exclude>
+                    <exclude>**/*.svg</exclude>
                 </excludes>
             </resource>
             <resource>
@@ -142,6 +151,15 @@
                 <filtering>false</filtering>
                 <includes>
                     <include>application-local.properties</include>
+                    <include>**/*.woff2</include>
+                    <include>**/*.woff</include>
+                    <include>**/*.ttf</include>
+                    <include>**/*.eot</include>
+                    <include>**/*.ico</include>
+                    <include>**/*.png</include>
+                    <include>**/*.jpg</include>
+                    <include>**/*.gif</include>
+                    <include>**/*.svg</include>
                 </includes>
             </resource>
         </resources>
