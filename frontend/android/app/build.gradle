@@ -50,6 +50,23 @@ android {
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
+            ndk {
+                debugSymbolLevel 'SYMBOL_TABLE'
+            }
+        }
+    }
+}
+
+tasks.configureEach { task ->
+    if (task.name == 'bundleRelease') {
+        task.doLast {
+            def bundleDir = file("${project.buildDir}/outputs/bundle/release")
+            def original = new File(bundleDir, "app-release.aab")
+            def renamed = new File(bundleDir, "app-release-${appVersionName}.aab")
+            if (original.exists()) {
+                original.renameTo(renamed)
+                println "Renamed AAB → ${renamed.name}"
+            }
         }
     }
 }
