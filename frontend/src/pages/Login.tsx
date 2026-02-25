@@ -102,7 +102,9 @@ export function Login() {
       try {
         const res = await verifyEmailOtp(email, otpCode, displayName);
         setAuth(res);
-        navigate('/lists', { replace: true });
+        // Defer navigation so auth state (store + localStorage) is fully committed
+        // before Lists mounts and makes API/WebSocket requests
+        queueMicrotask(() => navigate('/lists', { replace: true }));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'שגיאה');
       } finally {

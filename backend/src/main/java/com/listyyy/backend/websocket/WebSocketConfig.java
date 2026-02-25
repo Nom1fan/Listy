@@ -19,13 +19,18 @@ import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.http.server.ServerHttpRequest;
+import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.http.server.ServletServerHttpRequest;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.server.HandshakeInterceptor;
 
 import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -52,6 +57,23 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns(corsAllowedOrigins.split(",\\s*"))
+                .addInterceptors(new HandshakeInterceptor() {
+                    @Override
+                    public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
+                            org.springframework.web.socket.WebSocketHandler wsHandler, Map<String, Object> attributes) {
+                        if (request instanceof ServletServerHttpRequest servletReq) {
+                            String token = servletReq.getServletRequest().getParameter("access_token");
+                            if (token != null && !token.isBlank()) {
+                                attributes.put("access_token", token);
+                            }
+                        }
+                        return true;
+                    }
+
+                    @Override
+                    public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response,
+                            org.springframework.web.socket.WebSocketHandler wsHandler, Exception ex) {}
+                })
                 .withSockJS();
     }
 
@@ -70,17 +92,22 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (accessor == null) return message;
 
                 if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+                    String token = null;
                     String auth = accessor.getFirstNativeHeader("Authorization");
                     if (auth != null && auth.startsWith("Bearer ")) {
-                        String token = auth.substring(7);
-                        if (jwtService.validateToken(token)) {
-                            try {
-                                UUID userId = jwtService.getUserIdFromToken(token);
-                                userRepository.findById(userId).ifPresent(user -> {
-                                    accessor.setUser(new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList()));
-                                });
-                            } catch (Exception ignored) {
-                            }
+                        token = auth.substring(7);
+                    }
+                    if (token == null && accessor.getSessionAttributes() != null) {
+                        Object attr = accessor.getSessionAttributes().get("access_token");
+                        if (attr instanceof String s) token = s;
+                    }
+                    if (token != null && jwtService.validateToken(token)) {
+                        try {
+                            UUID userId = jwtService.getUserIdFromToken(token);
+                            userRepository.findById(userId).ifPresent(user -> {
+                                accessor.setUser(new UsernamePasswordAuthenticationToken(user, null, Collections.emptyList()));
+                            });
+                        } catch (Exception ignored) {
                         }
                     }
                 }

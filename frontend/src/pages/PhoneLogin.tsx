@@ -181,7 +181,7 @@ export function PhoneLogin() {
       try {
         const res = await verifyPhoneOtp(fullPhone, otpCode, displayName);
         setAuth(res);
-        navigate('/lists', { replace: true });
+        queueMicrotask(() => navigate('/lists', { replace: true }));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'שגיאה');
       } finally {

@@ -176,3 +176,10 @@ export function getWsUrl(): string {
   const path = base ? new URL(base).pathname.replace(/\/$/, '') : '';
   return `${proto}//${host}${path}/ws`;
 }
+
+/** Returns WebSocket URL with token as query param (fallback when CONNECT headers fail in some transports). */
+export function getWsUrlWithToken(token: string): string {
+  const base = getWsUrl();
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}access_token=${encodeURIComponent(token)}`;
+}

@@ -1,25 +1,31 @@
 import { useEffect, useRef } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
-import { getWsUrl } from '../api/client';
+import { getWsUrlWithToken } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import type { ListEvent } from '../types';
+
+/** Get token from store or localStorage (fallback for post-login race) */
+function getTokenForWs(): string | null {
+  return useAuthStore.getState().token ?? localStorage.getItem('listyyy_token');
+}
 
 export function useListEvents(
   listId: string | null,
   onEvent: (event: ListEvent) => void
 ) {
-  const token = useAuthStore((s) => s.token);
+  const token = useAuthStore((s) => s.token) ?? localStorage.getItem('listyyy_token');
   const clientRef = useRef<Client | null>(null);
 
   useEffect(() => {
-    if (!listId || !token) return;
+    const effectiveToken = token ?? getTokenForWs();
+    if (!listId || !effectiveToken) return;
 
-    const wsUrl = getWsUrl();
+    const wsUrl = getWsUrlWithToken(effectiveToken);
     const sock = new SockJS(wsUrl);
     const client = new Client({
       webSocketFactory: () => sock as unknown as WebSocket,
-      connectHeaders: { Authorization: `Bearer ${token}` },
+      connectHeaders: { Authorization: `Bearer ${effectiveToken}` },
       reconnectDelay: 3000,
       onConnect: () => {
         client.subscribe(`/topic/lists/${listId}`, (msg) => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { api, ApiError, getWsUrl } from './client'
+import { api, ApiError, getWsUrl, getWsUrlWithToken } from './client'
 
 describe('api', () => {
   const originalFetch = globalThis.fetch
@@ -95,5 +95,17 @@ describe('getWsUrl', () => {
     expect(url).toMatch(/^https?:\/\//)
     expect(url).toContain('/ws')
     expect(url).not.toMatch(/^ws:/)
+  })
+})
+
+describe('getWsUrlWithToken', () => {
+  it('appends access_token query param', () => {
+    const url = getWsUrlWithToken('my-jwt-token')
+    expect(url).toContain('/ws')
+    expect(url).toContain('access_token=my-jwt-token')
+  })
+  it('encodes token in URL', () => {
+    const url = getWsUrlWithToken('token/with=special')
+    expect(url).toContain('access_token=token%2Fwith%3Dspecial')
   })
 })
