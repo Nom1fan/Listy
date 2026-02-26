@@ -97,7 +97,7 @@ function SearchWebIcon() {
 
 type DialogView = 'choice' | 'link' | 'web';
 
-const choiceOptions: { type: DisplayImageType; label: string; Icon: () => JSX.Element }[] = [
+const choiceOptions: { type: DisplayImageType; label: string; Icon: () => React.ReactElement }[] = [
   { type: 'icon', label: 'אייקון', Icon: EmojiIcon },
   { type: 'device', label: 'בחר מהמכשיר', Icon: DeviceIcon },
   { type: 'link', label: 'קישור לתמונה', Icon: LinkIcon },

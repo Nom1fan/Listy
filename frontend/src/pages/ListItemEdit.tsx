@@ -16,7 +16,7 @@ import { ImageSourceDialog } from '../components/ImageSourceDialog';
 import { EmojiPickerDialog } from '../components/EmojiPicker';
 import { createPortal } from 'react-dom';
 import { getFilteredCategories } from '../utils/categoryFilter';
-import type { ListItemResponse, ProductDto } from '../types';
+import type { ProductDto } from '../types';
 
 function getImageUrl(url: string | null): string {
   if (!url) return '';

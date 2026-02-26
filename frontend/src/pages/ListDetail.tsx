@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -32,7 +32,7 @@ import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
-import { getFilteredCategories, getFilteredProducts } from '../utils/categoryFilter';
+import { getFilteredProducts } from '../utils/categoryFilter';
 import type { ListItemResponse, ListEvent, WorkspaceEvent, ProductDto } from '../types';
 
 function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: string }) {
@@ -151,9 +151,7 @@ export function ListDetail() {
     enabled: !!list?.workspaceId,
   });
 
-  const filteredCategories = getFilteredCategories(workspaceCategories, list);
   const filteredProducts = getFilteredProducts(allProducts, list);
-  const hasProductsInCategories = allProducts.length > 0;
   const hasCrossedOff = items.some(i => i.crossedOff);
 
   function showNotification(msg: string, isError = false) {

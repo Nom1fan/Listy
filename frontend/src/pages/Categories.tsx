@@ -7,8 +7,6 @@ import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { uploadFile } from '../api/client';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm } from '../components/DisplayImageForm';
-import { EmojiPicker } from '../components/EmojiPicker';
-import { ImageSearchPicker } from '../components/ImageSearchPicker';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import { ProductAutocomplete } from '../components/ProductAutocomplete';
 import type { CategoryDto, ProductDto, WorkspaceEvent } from '../types';
@@ -43,8 +41,6 @@ export function Categories() {
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const [viewMode, setViewMode] = useViewMode('categories');
   const [nameHe, setNameHe] = useState('');
-  const createCategoryFileInputRef = useRef<HTMLInputElement>(null);
-  const pendingCreateFileRef = useRef<File | null>(null);
   const [addProductCategoryId, setAddProductCategoryId] = useState<string | null>(null);
   const [newProductName, setNewProductName] = useState('');
   const [newProductUnit, setNewProductUnit] = useState('יחידה');
@@ -98,7 +94,7 @@ export function Categories() {
     }
   }, [queryClient]));
 
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [, setCreateError] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: (body: { nameHe: string; workspaceId: string; sortOrder?: number }) =>
