@@ -52,6 +52,8 @@ export async function devLogin(): Promise<AuthResponse> {
 export async function updateProfile(body: {
   displayName?: string | null;
   profileImageUrl?: string | null;
+  phone?: string;
+  email?: string;
 }): Promise<AuthResponse> {
   return api<AuthResponse>('/api/auth/me', {
     method: 'PATCH',

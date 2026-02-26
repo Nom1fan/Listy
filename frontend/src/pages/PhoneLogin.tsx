@@ -278,7 +278,7 @@ export function PhoneLogin() {
                 </label>
                 <input
                   type="text"
-                  autoComplete="name"
+                  autoComplete="off"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   required

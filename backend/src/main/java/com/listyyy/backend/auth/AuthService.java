@@ -113,6 +113,10 @@ public class AuthService {
                     .build();
             return userRepository.save(newUser);
         });
+        if (!isNew[0] && req.getDisplayName() != null && !req.getDisplayName().isBlank()) {
+            user.setDisplayName(req.getDisplayName().trim());
+            user = userRepository.save(user);
+        }
         if (isNew[0]) {
             workspaceService.createDefaultWorkspace(user);
         }
@@ -165,6 +169,10 @@ public class AuthService {
                     .build();
             return userRepository.save(newUser);
         });
+        if (!isNewEmail[0] && req.getDisplayName() != null && !req.getDisplayName().isBlank()) {
+            user.setDisplayName(req.getDisplayName().trim());
+            user = userRepository.save(user);
+        }
         if (isNewEmail[0]) {
             workspaceService.createDefaultWorkspace(user);
         }
@@ -197,9 +205,37 @@ public class AuthService {
             }
             user.setProfileImageUrl(url.isEmpty() ? null : url);
         }
-        user = userRepository.save(user);
-        String token = jwtService.generateToken(user);
-        return toAuthResponse(user, token);
+        if (req.getPhone() != null) {
+            String phone = PhoneNormalizer.normalize(req.getPhone());
+            if (phone.isEmpty()) {
+                throw new IllegalArgumentException("מספר טלפון לא תקין");
+            }
+            if (user.getPhone() == null || !user.getPhone().equals(phone)) {
+                UUID userId = user.getId();
+                Optional<User> conflict = userRepository.findByPhone(phone);
+                if (conflict.isPresent() && !conflict.get().getId().equals(userId)) {
+                    throw new IllegalArgumentException("מספר הטלפון כבר משויך לחשבון אחר");
+                }
+                user.setPhone(phone);
+            }
+        }
+        if (req.getEmail() != null) {
+            String email = req.getEmail().trim().toLowerCase();
+            if (email.isEmpty() || !email.contains("@")) {
+                throw new IllegalArgumentException("כתובת אימייל לא תקינה");
+            }
+            if (user.getEmail() == null || !user.getEmail().equals(email)) {
+                UUID userId = user.getId();
+                Optional<User> conflict = userRepository.findByEmail(email);
+                if (conflict.isPresent() && !conflict.get().getId().equals(userId)) {
+                    throw new IllegalArgumentException("האימייל כבר משויך לחשבון אחר");
+                }
+                user.setEmail(email);
+            }
+        }
+        User saved = userRepository.save(user);
+        String token = jwtService.generateToken(saved);
+        return toAuthResponse(saved, token);
     }
 
     /**

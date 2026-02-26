@@ -13,6 +13,8 @@ export function Profile() {
 
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [imageUrl, setImageUrl] = useState(user?.profileImageUrl ?? '');
+  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [email, setEmail] = useState(user?.email ?? '');
   const [linkInput, setLinkInput] = useState('');
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -54,11 +56,18 @@ export function Profile() {
     setError('');
     setSaving(true);
     try {
-      const body: { displayName?: string | null; profileImageUrl?: string | null } = {};
+      const body: { displayName?: string | null; profileImageUrl?: string | null; phone?: string; email?: string } = {};
       const trimmedName = displayName.trim();
       if (trimmedName) body.displayName = trimmedName;
-      // Always send profileImageUrl so it can be cleared or updated
       body.profileImageUrl = imageUrl || '';
+      const trimmedPhone = phone.trim();
+      if (trimmedPhone && trimmedPhone !== (user?.phone ?? '')) {
+        body.phone = trimmedPhone;
+      }
+      const trimmedEmail = email.trim().toLowerCase();
+      if (trimmedEmail && trimmedEmail !== (user?.email ?? '')) {
+        body.email = trimmedEmail;
+      }
       const res = await updateProfile(body);
       setAuth(res);
       navigate('/lists', { replace: true });
@@ -244,6 +253,40 @@ export function Profile() {
             <p style={{ margin: '4px 0 0', fontSize: 12, color: '#666' }}>
               אם ריק, יוצגו אימייל או טלפון.
             </p>
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: 4 }}>טלפון</label>
+            <input
+              type="tel"
+              dir="ltr"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+972541234567"
+              maxLength={20}
+              style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
+            />
+            {!user?.phone && (
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#e65100' }}>
+                הוסיפו טלפון כדי להתחבר גם עם הטלפון.
+              </p>
+            )}
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: 4 }}>אימייל</label>
+            <input
+              type="email"
+              dir="ltr"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              maxLength={255}
+              style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
+            />
+            {!user?.email && (
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#e65100' }}>
+                הוסיפו אימייל כדי להתחבר גם עם האימייל.
+              </p>
+            )}
           </div>
           {error && <p style={{ color: 'var(--color-strike)', margin: 0 }}>{error}</p>}
           <button

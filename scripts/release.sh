@@ -110,6 +110,7 @@ echo ""
 
 # ── 2. Export DB ─────────────────────────────────────────────
 echo "=== 2. Export DB ==="
+export PGPASSWORD="${DB_PASSWORD:-}"
 if "$SCRIPT_DIR/export-db.sh"; then
   echo "DB exported to db/listyyy-db.sql"
 else

@@ -114,6 +114,29 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void phone_verify_updates_displayName_for_existing_user() throws Exception {
+        String phone = "+972501234571";
+        userRepository.save(com.listyyy.backend.auth.User.builder()
+                .phone(phone)
+                .displayName("Old Name")
+                .locale("he")
+                .build());
+
+        String code = "111111";
+        phoneOtpRepository.save(PhoneOtp.builder()
+                .phone(phone)
+                .code(code)
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build());
+
+        mvc.perform(post("/api/auth/phone/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("phone", phone, "code", code, "displayName", "New Name"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("New Name"));
+    }
+
     // ---- Email OTP tests ----
 
     @Test
@@ -140,6 +163,29 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").exists())
                 .andExpect(jsonPath("$.displayName").value("New Email User"));
+    }
+
+    @Test
+    void email_verify_updates_displayName_for_existing_user() throws Exception {
+        String email = "updatename@example.com";
+        userRepository.save(com.listyyy.backend.auth.User.builder()
+                .email(email)
+                .displayName("Old Email Name")
+                .locale("he")
+                .build());
+
+        String code = "222222";
+        emailOtpRepository.save(EmailOtp.builder()
+                .email(email)
+                .code(code)
+                .expiresAt(Instant.now().plusSeconds(3600))
+                .build());
+
+        mvc.perform(post("/api/auth/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", email, "code", code, "displayName", "New Email Name"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("New Email Name"));
     }
 
     @Test
@@ -349,5 +395,98 @@ class AuthIntegrationTest extends AbstractIntegrationTest {
 
         mvc.perform(multipart("/api/upload/profile").file(file))
                 .andExpect(status().is4xxClientError());
+    }
+
+    // ---- Phone/email linking tests ----
+
+    @Test
+    void update_profile_links_phone_to_email_user() throws Exception {
+        mvc.perform(patch("/api/auth/me")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("phone", "+972541234567"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.phone").value("+972541234567"))
+                .andExpect(jsonPath("$.email").value("test@example.com"));
+    }
+
+    @Test
+    void update_profile_links_email_to_phone_user() throws Exception {
+        com.listyyy.backend.auth.User phoneUser = com.listyyy.backend.auth.User.builder()
+                .phone("+972509876543")
+                .displayName("Phone User")
+                .locale("he")
+                .build();
+        phoneUser = userRepository.save(phoneUser);
+        var ws = workspaceRepository.save(com.listyyy.backend.workspace.Workspace.builder().name("ws").build());
+        workspaceMemberRepository.save(com.listyyy.backend.workspace.WorkspaceMember.builder()
+                .workspaceId(ws.getId()).userId(phoneUser.getId()).workspace(ws).user(phoneUser).role("owner").build());
+
+        String phoneCode = "111222";
+        phoneOtpRepository.save(PhoneOtp.builder()
+                .phone("+972509876543").code(phoneCode)
+                .expiresAt(Instant.now().plusSeconds(3600)).build());
+        String body = mvc.perform(post("/api/auth/phone/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "phone", "+972509876543", "code", phoneCode))))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String phoneToken = objectMapper.readTree(body).get("token").asText();
+
+        mvc.perform(patch("/api/auth/me")
+                        .header("Authorization", "Bearer " + phoneToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "linked@example.com"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value("linked@example.com"))
+                .andExpect(jsonPath("$.phone").value("+972509876543"));
+    }
+
+    @Test
+    void update_profile_rejects_phone_already_taken() throws Exception {
+        userRepository.save(com.listyyy.backend.auth.User.builder()
+                .phone("+972507777777").displayName("Other").locale("he").build());
+
+        mvc.perform(patch("/api/auth/me")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("phone", "+972507777777"))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void update_profile_rejects_email_already_taken() throws Exception {
+        userRepository.save(com.listyyy.backend.auth.User.builder()
+                .email("taken@example.com").displayName("Other").locale("he").build());
+
+        mvc.perform(patch("/api/auth/me")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "taken@example.com"))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void phone_login_finds_user_after_phone_linked_to_email_account() throws Exception {
+        mvc.perform(patch("/api/auth/me")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("phone", "+972545555555"))))
+                .andExpect(status().isOk());
+
+        String code = "789012";
+        phoneOtpRepository.save(PhoneOtp.builder()
+                .phone("+972545555555").code(code)
+                .expiresAt(Instant.now().plusSeconds(3600)).build());
+
+        mvc.perform(post("/api/auth/phone/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "phone", "+972545555555", "code", code, "displayName", "ignored"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(testUser.getId().toString()))
+                .andExpect(jsonPath("$.email").value("test@example.com"))
+                .andExpect(jsonPath("$.phone").value("+972545555555"));
     }
 }
