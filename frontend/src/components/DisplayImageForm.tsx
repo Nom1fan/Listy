@@ -14,6 +14,8 @@ export interface DisplayImageFormProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   /** Optional label override for the main dropdown */
   label?: string;
+  /** When true, open the emoji picker dialog immediately (e.g. after choosing "Icon" from image source dialog) */
+  openEmojiPickerInitially?: boolean;
 }
 
 export function DisplayImageForm({
@@ -25,6 +27,7 @@ export function DisplayImageForm({
   onImageUrlChange,
   fileInputRef,
   label = 'תמונת תצוגה',
+  openEmojiPickerInitially = false,
 }: DisplayImageFormProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -54,6 +57,7 @@ export function DisplayImageForm({
           label="בחירת אייקון"
           value={iconId}
           onChange={onIconIdChange}
+          openImmediately={openEmojiPickerInitially}
         />
       )}
       {displayType === 'device' && (

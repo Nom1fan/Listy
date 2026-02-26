@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
@@ -27,7 +27,7 @@ import {
   deleteList,
   reorderListItems,
 } from '../api/lists';
-import { getCategories, getProducts, updateProduct } from '../api/products';
+import { getCategories, getProducts } from '../api/products';
 import { uploadFile } from '../api/client';
 import { useListEvents } from '../hooks/useListEvents';
 import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
@@ -35,7 +35,6 @@ import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
-import { ProductAutocomplete } from '../components/ProductAutocomplete';
 import { CategoryFilterConfig } from '../components/CategoryFilterConfig';
 import { getFilteredCategories, getFilteredProducts } from '../utils/categoryFilter';
 import type { CategoryFilterMode, ListItemResponse, ListEvent, WorkspaceEvent, ProductDto } from '../types';
@@ -80,6 +79,15 @@ function SearchIcon({ size = 18, color = '#999' }: { size?: number; color?: stri
   );
 }
 
+function PencilIcon({ size = 18, color = '#666' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  );
+}
+
 function SortableItem({ id, children }: {
   id: string;
   children: (props: { handleProps: React.HTMLAttributes<HTMLElement> }) => React.ReactNode;
@@ -117,34 +125,10 @@ export function ListDetail() {
   const [notification, setNotification] = useState<string | null>(null);
   const [notificationIsError, setNotificationIsError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  // Old standalone image editing state removed - image editing now in main edit modal
-  const [quickAddOpen, setQuickAddOpen] = useState(false);
-  const [quickAddName, setQuickAddName] = useState('');
-  const [quickAddQuantity, setQuickAddQuantity] = useState('1');
-  const [quickAddUnit, setQuickAddUnit] = useState('');
-  const [quickAddNote, setQuickAddNote] = useState('');
-  const [quickAddImageType, setQuickAddImageType] = useState<DisplayImageType>('icon');
-  const [quickAddIconId, setQuickAddIconId] = useState('');
-  const [quickAddImageUrl, setQuickAddImageUrl] = useState('');
-  const [quickAddImageFile, setQuickAddImageFile] = useState<File | null>(null);
-  const [quickAddSubmitting, setQuickAddSubmitting] = useState(false);
-  const [quickAddCategoryId, setQuickAddCategoryId] = useState('');
-  const quickAddFileInputRef = useRef<HTMLInputElement>(null);
   const [viewMode, setViewMode] = useViewMode(`list-${listId}`);
   const [hideCrossedOff, setHideCrossedOff] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddSuggestion, setShowAddSuggestion] = useState(false);
-  const [editItem, setEditItem] = useState<ListItemResponse | null>(null);
-  const [editItemName, setEditItemName] = useState('');
-  const [editItemQuantity, setEditItemQuantity] = useState('1');
-  const [editItemUnit, setEditItemUnit] = useState('');
-  const [editItemNote, setEditItemNote] = useState('');
-  const [editItemCategoryId, setEditItemCategoryId] = useState('');
-  const [editItemDisplayImageType, setEditItemDisplayImageType] = useState<DisplayImageType>('icon');
-  const [editItemIconId, setEditItemIconId] = useState('');
-  const [editItemImageUrl, setEditItemImageUrl] = useState('');
-  const editItemFileInputRef = useRef<HTMLInputElement>(null);
-  // itemMenuOpenId removed - items now use single-click edit + trash icon
   const [listDetailMenuOpen, setListDetailMenuOpen] = useState(false);
   const [editListOpen, setEditListOpen] = useState(false);
   const [editListName, setEditListName] = useState('');
@@ -286,20 +270,6 @@ export function ListDetail() {
     },
   });
 
-  const updateProductMutation = useMutation({
-    mutationFn: ({ productId, imageUrl, iconId, version }: { productId: string; imageUrl: string | null; iconId: string; version?: number }) =>
-      updateProduct(productId, { imageUrl, iconId, version }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
-    },
-    onError: (err: Error) => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
-      showNotification(err.message || 'שגיאה בעדכון הפריט', true);
-    },
-  });
-
   const removeMutation = useMutation({
     mutationFn: (itemId: string) => removeListItem(listId, itemId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['listItems', listId] }),
@@ -310,7 +280,6 @@ export function ListDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      closeQuickAddModal();
     },
     onError: (err: Error) => {
       showNotification(err.message || 'שגיאה בהוספת הפריט', true);
@@ -349,68 +318,6 @@ export function ListDetail() {
     },
   });
 
-  function closeQuickAddModal() {
-    setQuickAddOpen(false);
-    setQuickAddName('');
-    setQuickAddQuantity('1');
-    setQuickAddUnit('');
-    setQuickAddNote('');
-    setQuickAddImageType('icon');
-    setQuickAddIconId('');
-    setQuickAddImageUrl('');
-    setQuickAddImageFile(null);
-    setQuickAddSubmitting(false);
-    setQuickAddCategoryId('');
-  }
-
-  async function handleQuickAddSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const name = quickAddName.trim();
-    if (!name || addItemMutation.isPending || quickAddSubmitting || !listId) return;
-
-    const body: Parameters<typeof addListItem>[1] = {
-      customNameHe: name,
-      ...(quickAddUnit ? { quantity: parseFloat(quickAddQuantity) || 1, unit: quickAddUnit } : {}),
-      note: quickAddNote.trim() || undefined,
-      categoryId: quickAddCategoryId || undefined,
-    };
-    if (quickAddImageType === 'icon' && quickAddIconId) {
-      body.iconId = quickAddIconId;
-    }
-    if ((quickAddImageType === 'link' || quickAddImageType === 'web') && quickAddImageUrl.trim()) {
-      body.itemImageUrl = quickAddImageUrl.trim();
-    }
-
-    if (quickAddImageType === 'device' && quickAddImageFile) {
-      setQuickAddSubmitting(true);
-      try {
-        const created = await addListItem(listId, body);
-        const { url } = await uploadFile(`/api/upload/lists/${listId}/items/${created.id}`, quickAddImageFile);
-        // Also set the image on the auto-created product so it shows in Categories
-        if (created.productId && url) {
-          await updateProduct(created.productId, { imageUrl: url });
-        }
-        queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
-        queryClient.invalidateQueries({ queryKey: ['products'] });
-        closeQuickAddModal();
-      } catch (err) {
-        showNotification(err instanceof Error ? err.message : 'שגיאה בהוספת הפריט', true);
-      } finally {
-        setQuickAddSubmitting(false);
-      }
-      return;
-    }
-
-    addItemMutation.mutate(body);
-  }
-
-  function handleQuickAddImageFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    setQuickAddImageFile(file || null);
-    if (file) setQuickAddImageUrl('');
-  }
-
   const filteredItems = searchQuery.trim()
     ? items.filter(i => {
         const q = searchQuery.trim().toLowerCase();
@@ -432,14 +339,115 @@ export function ListDetail() {
     return () => clearTimeout(timer);
   }, [searchQuery, hasExactMatch]);
 
+  const productMatches = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q.length < 1) return [];
+    const out: ProductDto[] = [];
+    for (const p of filteredProducts) {
+      if (p.nameHe.toLowerCase().includes(q)) {
+        out.push(p);
+        if (out.length >= 7) break;
+      }
+    }
+    return out;
+  }, [searchQuery, filteredProducts]);
+
   function handleAddFromSearch() {
     const name = searchQuery.trim();
     if (!name) return;
     setSearchQuery('');
     setShowAddSuggestion(false);
-    setQuickAddName(name);
-    setQuickAddOpen(true);
+    addItemMutation.mutate({
+      customNameHe: name,
+      quantity: 1,
+      unit: 'יחידה',
+    });
   }
+
+  function handleAddProduct(p: ProductDto) {
+    setSearchQuery('');
+    setShowAddSuggestion(false);
+    addItemMutation.mutate({
+      productId: p.id,
+      quantity: 1,
+      unit: p.defaultUnit || 'יחידה',
+      categoryId: p.categoryId || undefined,
+      iconId: p.iconId || undefined,
+    });
+  }
+
+  const showAddSearchDropdown = searchQuery.trim() && (productMatches.length > 0 || showAddSuggestion);
+  const addSearchDropdown = showAddSearchDropdown ? (
+    <div
+      role="listbox"
+      style={{
+        position: 'absolute',
+        top: '100%',
+        left: 0,
+        right: 0,
+        marginTop: 4,
+        background: '#fff',
+        borderRadius: 10,
+        boxShadow: '0 4px 16px rgba(0,0,0,0.13)',
+        border: '1px solid #e0e0e0',
+        zIndex: 10,
+        overflow: 'hidden',
+      }}
+    >
+      {productMatches.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          role="option"
+          onMouseDown={(e) => { e.preventDefault(); handleAddProduct(p); }}
+          style={{
+            width: '100%',
+            padding: '10px 14px',
+            background: 'none',
+            border: 'none',
+            borderBottom: '1px solid #f0f0f0',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 15,
+            color: '#333',
+            textAlign: 'right',
+          }}
+        >
+          <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={24} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div>{p.nameHe}</div>
+            {p.categoryNameHe && <div style={{ fontSize: 12, color: '#888' }}>{p.categoryNameHe}</div>}
+          </div>
+        </button>
+      ))}
+      {showAddSuggestion && (
+        <button
+          type="button"
+          role="option"
+          onMouseDown={(e) => { e.preventDefault(); handleAddFromSearch(); }}
+          style={{
+            width: '100%',
+            padding: '10px 14px',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 15,
+            color: 'var(--color-primary-dark)',
+            fontWeight: 500,
+            textAlign: 'right',
+          }}
+        >
+          <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
+          <span>הוסף &quot;{searchQuery.trim()}&quot; לרשימה</span>
+        </button>
+      )}
+    </div>
+  ) : null;
 
   const grouped = filteredItems.reduce<Record<string, ListItemResponse[]>>((acc, item) => {
     const key = item.categoryNameHe || 'אחר';
@@ -461,78 +469,6 @@ export function ListDetail() {
     const category = workspaceCategories.find((c) => c.id === first.categoryId);
     return category?.imageUrl ?? null;
   }
-
-  function openEditItem(item: ListItemResponse) {
-    setEditItem(item);
-    setEditItemName(item.displayName);
-    setEditItemQuantity(String(item.quantity));
-    setEditItemUnit(item.unit || '');
-    setEditItemNote(item.note || '');
-    setEditItemCategoryId(item.categoryId || '');
-    setEditItemDisplayImageType(item.itemImageUrl || item.productImageUrl ? 'link' : 'icon');
-    setEditItemIconId(item.iconId ?? item.categoryIconId ?? '');
-    setEditItemImageUrl(item.itemImageUrl || item.productImageUrl || '');
-  }
-
-  function closeEditItem() {
-    setEditItem(null);
-    setEditItemName('');
-    setEditItemQuantity('1');
-    setEditItemUnit('');
-    setEditItemNote('');
-    setEditItemCategoryId('');
-    setEditItemDisplayImageType('icon');
-    setEditItemIconId('');
-    setEditItemImageUrl('');
-  }
-
-  useEffect(() => {
-    if (!editItem) return;
-    const fresh = items.find((i) => i.id === editItem.id);
-    if (fresh && fresh.version !== editItem.version) {
-      setEditItem((prev) => prev ? { ...prev, version: fresh.version } : prev);
-    }
-  }, [items, editItem]);
-
-  function handleEditItemSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editItem || !listId) return;
-    const body: Record<string, unknown> = {
-      version: editItem.version,
-    };
-    const newQty = parseFloat(editItemQuantity);
-    if (!isNaN(newQty) && newQty !== editItem.quantity) body.quantity = newQty;
-    if (editItemUnit !== (editItem.unit || '')) body.unit = editItemUnit;
-    if (editItemNote !== (editItem.note || '')) body.note = editItemNote;
-    if (editItemCategoryId && editItemCategoryId !== (editItem.categoryId || '')) {
-      body.categoryId = editItemCategoryId;
-    }
-    // Image
-    const newImageUrl = editItemDisplayImageType === 'icon' ? '' : (editItemImageUrl.trim() || '');
-    const origImageUrl = editItem.itemImageUrl || '';
-    if (newImageUrl !== origImageUrl) body.itemImageUrl = newImageUrl;
-    const newIconId = editItemDisplayImageType === 'icon' ? (editItemIconId || '') : '';
-    const origIconId = editItem.iconId ?? '';
-    if (newIconId !== origIconId) body.iconId = newIconId;
-    // Also sync product icon when changing icon from list
-    const productId = editItem.productId;
-    if (productId && editItemDisplayImageType === 'icon' && newIconId !== origIconId) {
-      const product = allProducts.find((p) => p.id === productId);
-      updateProductMutation.mutate({
-        productId,
-        imageUrl: '',
-        iconId: newIconId,
-        version: product?.version,
-      });
-    }
-    updateMutation.mutate({
-      itemId: editItem.id,
-      body: body as { version?: number; quantity?: number; unit?: string; note?: string; categoryId?: string; itemImageUrl?: string | null; iconId?: string | null },
-    });
-    closeEditItem();
-  }
-
-  // Old standalone image modal functions removed - image editing now in main edit modal
 
   function openEditList() {
     if (!list) return;
@@ -683,59 +619,6 @@ export function ListDetail() {
 
         {!isLoading && (
           <>
-            <div style={{ marginBottom: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => setQuickAddOpen(true)}
-                style={{
-                  padding: '12px 20px',
-                  background: 'var(--color-primary)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 12,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                }}
-              >
-                <span>➕</span>
-                <span>הוסף פריט</span>
-              </button>
-            </div>
-            {workspaceCategories.length > 0 && hasProductsInCategories && (
-              <div style={{ marginBottom: 20 }}>
-                <Link
-                  to={`/lists/${listId}/bank`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: 16,
-                    background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
-                    borderRadius: 12,
-                    color: '#1b5e20',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                  }}
-                >
-                  <span style={{ fontSize: 28 }}>🛒</span>
-                  <span>הוסף מקטגוריות</span>
-                </Link>
-              </div>
-            )}
-            {items.length === 0 && (
-              <p style={{ fontSize: 14, color: '#999', margin: '8px 0 12px', textAlign: 'center' }}>
-                הרשימה ריקה — הוסיפו פריטים לרשימה
-              </p>
-            )}
-          </>
-        )}
-
-        {!isLoading && items.length > 0 && (
-          <>
             <div style={{ position: 'relative', marginBottom: 12 }}>
               <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
                 <SearchIcon size={18} color="#999" />
@@ -745,7 +628,7 @@ export function ListDetail() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onBlur={() => setTimeout(() => setShowAddSuggestion(false), 150)}
-                placeholder="חיפוש ברשימה..."
+                placeholder="הוסף / חפש פריט"
                 style={{
                   width: '100%',
                   padding: '10px 40px 10px 36px',
@@ -761,7 +644,7 @@ export function ListDetail() {
                 <button
                   type="button"
                   onClick={() => { setSearchQuery(''); setShowAddSuggestion(false); }}
-                  aria-label="נקה חיפוש"
+                  aria-label="נקה"
                   style={{
                     position: 'absolute',
                     left: 8,
@@ -779,48 +662,14 @@ export function ListDetail() {
                   ✕
                 </button>
               )}
-              {showAddSuggestion && searchQuery.trim() && (
-                <div
-                  role="listbox"
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    marginTop: 4,
-                    background: '#fff',
-                    borderRadius: 10,
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.13)',
-                    border: '1px solid #e0e0e0',
-                    zIndex: 10,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <button
-                    type="button"
-                    role="option"
-                    onMouseDown={handleAddFromSearch}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      fontSize: 15,
-                      color: 'var(--color-primary-dark)',
-                      fontWeight: 500,
-                      textAlign: 'right',
-                    }}
-                  >
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
-                    <span>הוסף &quot;{searchQuery.trim()}&quot; לרשימה</span>
-                  </button>
-                </div>
-              )}
+              {addSearchDropdown}
             </div>
+            {items.length === 0 && !searchQuery.trim() && (
+              <p style={{ fontSize: 14, color: '#999', margin: '8px 0 12px', textAlign: 'center' }}>
+                הרשימה ריקה — הוסיפו פריטים או חפשו
+              </p>
+            )}
+            {items.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               {hasCrossedOff && (
                 <button
@@ -844,6 +693,7 @@ export function ListDetail() {
               )}
               <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
             </div>
+            )}
           </>
         )}
 
@@ -920,13 +770,21 @@ export function ListDetail() {
                           size={48}
                         />
                       )}
-                      <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => openEditItem(item)}>
+                      <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)}>
                         <div style={{ textDecoration: item.crossedOff ? 'line-through' : 'none', color: item.crossedOff ? 'var(--color-strike)' : 'inherit' }}>{item.displayName}</div>
                         <div style={{ fontSize: 14, color: '#666' }}>
                           {item.quantity} {item.unit}
                           {item.note && ` · ${item.note}`}
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)}
+                        aria-label="ערוך פריט"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                      >
+                        <PencilIcon />
+                      </button>
                       <button
                         type="button"
                         onClick={() => removeMutation.mutate(item.id)}
@@ -970,7 +828,7 @@ export function ListDetail() {
                         aria-label={item.crossedOff ? 'בטל סימון' : 'סימן'}
                       />
                       <span
-                        onClick={() => openEditItem(item)}
+                        onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)}
                         style={{
                         flex: 1,
                         fontSize: 14,
@@ -991,6 +849,14 @@ export function ListDetail() {
                           {item.note}
                         </span>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)}
+                        aria-label="ערוך פריט"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', lineHeight: 1, borderRadius: 4, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                      >
+                        <PencilIcon size={14} />
+                      </button>
                       <button
                         type="button"
                         onClick={() => removeMutation.mutate(item.id)}
@@ -1040,6 +906,14 @@ export function ListDetail() {
                         <span {...handleProps} style={{ cursor: 'grab', touchAction: 'none', color: '#bbb', fontSize: 16, lineHeight: 1 }} aria-label="גרור לשינוי סדר">⠿</span>
                         <button
                           type="button"
+                          onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)}
+                          aria-label="ערוך פריט"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                        >
+                          <PencilIcon size={14} />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => removeMutation.mutate(item.id)}
                           aria-label="הסר פריט"
                           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
@@ -1047,7 +921,7 @@ export function ListDetail() {
                           <TrashIcon size={14} />
                         </button>
                       </div>
-                      <div onClick={() => openEditItem(item)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
+                      <div onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
                       {(item.itemImageUrl || item.productImageUrl) ? (
                         <img
                           src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
@@ -1084,403 +958,6 @@ export function ListDetail() {
           })}
           </DndContext>
           </>
-        )}
-
-        {quickAddOpen && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-              padding: 24,
-            }}
-            onClick={closeQuickAddModal}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: '#fff',
-                borderRadius: 16,
-                padding: 24,
-                maxWidth: 400,
-                width: '100%',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-              }}
-            >
-              <h3 style={{ margin: '0 0 16px' }}>הוסף פריט לרשימה</h3>
-              <form onSubmit={handleQuickAddSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: 4, fontWeight: 600 }}>שם הפריט <span style={{ color: '#c00' }}>*</span></label>
-                  <ProductAutocomplete
-                    value={quickAddName}
-                    onChange={setQuickAddName}
-                    products={filteredProducts}
-                    placeholder="שם פריט"
-                    required
-                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-                    onSelectProduct={(p: ProductDto) => {
-                      setQuickAddName(p.nameHe);
-                      if (p.defaultUnit && p.defaultUnit !== 'יחידה') {
-                        setQuickAddUnit(p.defaultUnit);
-                        if (!quickAddQuantity || quickAddQuantity === '1') setQuickAddQuantity('1');
-                      }
-                      if (p.categoryId) setQuickAddCategoryId(p.categoryId);
-                      if (p.iconId) {
-                        setQuickAddImageType('icon');
-                        setQuickAddIconId(p.iconId);
-                      } else if (p.imageUrl) {
-                        setQuickAddImageType('link');
-                        setQuickAddImageUrl(p.imageUrl);
-                      }
-                    }}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                  <div style={{ flex: '1 1 120px' }}>
-                    <label htmlFor="quick-add-unit" style={{ display: 'block', marginBottom: 4 }}>יחידה</label>
-                    <select
-                      id="quick-add-unit"
-                      value={quickAddUnit}
-                      onChange={(e) => {
-                        setQuickAddUnit(e.target.value);
-                        if (e.target.value && !quickAddUnit) setQuickAddQuantity('1');
-                      }}
-                      style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', background: '#fff' }}
-                    >
-                      <option value="">ללא</option>
-                      <option value="יחידה">יחידה</option>
-                      <option value={'ק"ג'}>ק&quot;ג</option>
-                      <option value="גרם">גרם</option>
-                      <option value="ליטר">ליטר</option>
-                      <option value={'מ"ל'}>מ&quot;ל</option>
-                      <option value="חבילה">חבילה</option>
-                      <option value="קופסה">קופסה</option>
-                    </select>
-                  </div>
-                  {quickAddUnit && (
-                    <div style={{ flex: '0 0 auto' }}>
-                      <label htmlFor="quick-add-qty" style={{ display: 'block', marginBottom: 4 }}>כמות</label>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const n = parseFloat(quickAddQuantity) || 1;
-                            if (n > 1) setQuickAddQuantity(String(n - 1));
-                          }}
-                          style={{
-                            width: 36, height: 40, border: '1px solid #ccc', borderRadius: '8px 0 0 8px',
-                            background: '#f5f5f5', cursor: 'pointer', fontSize: 18, display: 'flex',
-                            alignItems: 'center', justifyContent: 'center',
-                          }}
-                        >
-                          −
-                        </button>
-                        <input
-                          id="quick-add-qty"
-                          type="text"
-                          inputMode="decimal"
-                          value={quickAddQuantity}
-                          onChange={(e) => setQuickAddQuantity(e.target.value)}
-                          onBlur={() => {
-                            const n = parseFloat(quickAddQuantity);
-                            if (isNaN(n) || n <= 0) setQuickAddQuantity('1');
-                          }}
-                          style={{
-                            width: 56, height: 40, border: '1px solid #ccc', borderLeft: 'none', borderRight: 'none',
-                            textAlign: 'center', fontSize: 16, padding: 0, boxSizing: 'border-box',
-                          }}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const n = parseFloat(quickAddQuantity) || 0;
-                            setQuickAddQuantity(String(n + 1));
-                          }}
-                          style={{
-                            width: 36, height: 40, border: '1px solid #ccc', borderRadius: '0 8px 8px 0',
-                            background: '#f5f5f5', cursor: 'pointer', fontSize: 18, display: 'flex',
-                            alignItems: 'center', justifyContent: 'center',
-                          }}
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: 4 }}>הערה</label>
-                  <textarea
-                    value={quickAddNote}
-                    onChange={(e) => setQuickAddNote(e.target.value)}
-                    rows={2}
-                    placeholder="אופציונלי"
-                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', resize: 'vertical' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: 4 }}>קטגוריה</label>
-                  <select
-                    value={quickAddCategoryId}
-                    onChange={(e) => setQuickAddCategoryId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: 10,
-                      borderRadius: 8,
-                      border: '1px solid #ccc',
-                      background: '#fff',
-                      fontSize: 14,
-                    }}
-                  >
-                    <option value="">ללא קטגוריה (אחר)</option>
-                    {filteredCategories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.nameHe}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <DisplayImageForm
-                  label="תמונה / אייקון"
-                  displayType={quickAddImageType}
-                  iconId={quickAddIconId}
-                  imageUrl={quickAddImageUrl}
-                  onDisplayTypeChange={(t) => { setQuickAddImageType(t); setQuickAddImageFile(null); }}
-                  onIconIdChange={setQuickAddIconId}
-                  onImageUrlChange={setQuickAddImageUrl}
-                  fileInputRef={quickAddFileInputRef}
-                />
-                {quickAddImageType === 'device' && quickAddImageFile && (
-                  <p style={{ margin: 0, fontSize: 13, color: '#2e7d32' }}>נבחר קובץ: {quickAddImageFile.name}</p>
-                )}
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    type="submit"
-                    disabled={!quickAddName.trim() || addItemMutation.isPending || quickAddSubmitting}
-                    style={{
-                      flex: 1,
-                      padding: 12,
-                      background: !quickAddName.trim() || addItemMutation.isPending || quickAddSubmitting ? '#ccc' : 'var(--color-primary)',
-                      color: !quickAddName.trim() || addItemMutation.isPending || quickAddSubmitting ? '#666' : '#fff',
-                      fontWeight: 600,
-                      borderRadius: 8,
-                      border: 'none',
-                      cursor: !quickAddName.trim() || addItemMutation.isPending || quickAddSubmitting ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {addItemMutation.isPending || quickAddSubmitting ? 'מוסיף...' : 'הוסף לרשימה'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeQuickAddModal}
-                    style={{ padding: 12, background: '#eee', borderRadius: 8 }}
-                  >
-                    ביטול
-                  </button>
-                </div>
-              </form>
-              <input
-                ref={quickAddFileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handleQuickAddImageFile}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Old standalone image modal removed - image editing is now in the main edit modal */}
-
-        {editItem && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1000,
-              padding: 24,
-            }}
-            onClick={closeEditItem}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: '#fff',
-                borderRadius: 16,
-                padding: 24,
-                maxWidth: 400,
-                width: '100%',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-              }}
-            >
-              <h3 style={{ margin: '0 0 16px' }}>עריכת פריט</h3>
-              <form onSubmit={handleEditItemSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>שם פריט</label>
-                  <input
-                    type="text"
-                    value={editItemName}
-                    onChange={(e) => setEditItemName(e.target.value)}
-                    disabled={!!editItem.productId}
-                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box', background: editItem.productId ? '#f5f5f5' : '#fff' }}
-                  />
-                </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>יחידת מידה</label>
-                    <input
-                      type="text"
-                      value={editItemUnit}
-                      onChange={(e) => setEditItemUnit(e.target.value)}
-                      style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                  <div style={{ flex: '0 0 auto' }}>
-                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>כמות</label>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const n = parseFloat(editItemQuantity) || 1;
-                          if (n > 1) setEditItemQuantity(String(n - 1));
-                        }}
-                        style={{
-                          width: 36, height: 40, border: '1px solid #ccc', borderRadius: '8px 0 0 8px',
-                          background: '#f5f5f5', cursor: 'pointer', fontSize: 18, display: 'flex',
-                          alignItems: 'center', justifyContent: 'center',
-                        }}
-                      >
-                        −
-                      </button>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={editItemQuantity}
-                        onChange={(e) => setEditItemQuantity(e.target.value)}
-                        onBlur={() => {
-                          const n = parseFloat(editItemQuantity);
-                          if (isNaN(n) || n <= 0) setEditItemQuantity('1');
-                        }}
-                        style={{
-                          width: 56, height: 40, border: '1px solid #ccc', borderLeft: 'none', borderRight: 'none',
-                          textAlign: 'center', fontSize: 16, padding: 0, boxSizing: 'border-box',
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const n = parseFloat(editItemQuantity) || 0;
-                          setEditItemQuantity(String(n + 1));
-                        }}
-                        style={{
-                          width: 36, height: 40, border: '1px solid #ccc', borderRadius: '0 8px 8px 0',
-                          background: '#f5f5f5', cursor: 'pointer', fontSize: 18, display: 'flex',
-                          alignItems: 'center', justifyContent: 'center',
-                        }}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>הערה</label>
-                  <textarea
-                    value={editItemNote}
-                    onChange={(e) => setEditItemNote(e.target.value)}
-                    rows={2}
-                    placeholder="אופציונלי"
-                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', resize: 'vertical', boxSizing: 'border-box' }}
-                  />
-                </div>
-                {filteredCategories.length > 0 && (
-                  <div>
-                    <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קטגוריה</label>
-                    <select
-                      value={editItemCategoryId}
-                      onChange={(e) => setEditItemCategoryId(e.target.value)}
-                      style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', background: '#fff', fontSize: 14, boxSizing: 'border-box' }}
-                    >
-                      <option value="">ללא קטגוריה (אחר)</option>
-                      {filteredCategories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>
-                          {cat.nameHe}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-                <DisplayImageForm
-                  label="תמונה / אייקון"
-                  displayType={editItemDisplayImageType}
-                  iconId={editItemIconId}
-                  imageUrl={editItemImageUrl}
-                  onDisplayTypeChange={(v) => {
-                    setEditItemDisplayImageType(v);
-                    if (v === 'icon') setEditItemImageUrl('');
-                    if (v === 'link' || v === 'web') { setEditItemImageUrl(''); }
-                    if (v === 'device') setTimeout(() => editItemFileInputRef.current?.click(), 0);
-                  }}
-                  onIconIdChange={setEditItemIconId}
-                  onImageUrlChange={setEditItemImageUrl}
-                  fileInputRef={editItemFileInputRef}
-                />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    type="submit"
-                    disabled={updateMutation.isPending}
-                    style={{
-                      flex: 1,
-                      padding: 12,
-                      background: updateMutation.isPending ? '#ccc' : 'var(--color-primary)',
-                      color: updateMutation.isPending ? '#666' : '#fff',
-                      fontWeight: 600,
-                      borderRadius: 8,
-                      border: 'none',
-                      cursor: updateMutation.isPending ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    {updateMutation.isPending ? 'שומר...' : 'שמור'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={closeEditItem}
-                    style={{ padding: 12, background: '#eee', borderRadius: 8, border: 'none', cursor: 'pointer' }}
-                  >
-                    ביטול
-                  </button>
-                </div>
-              </form>
-              <input
-                ref={editItemFileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file || !editItem || !listId) return;
-                  e.target.value = '';
-                  try {
-                    const { url } = await uploadFile(`/api/upload/lists/${listId}/items/${editItem.id}`, file);
-                    setEditItemImageUrl(url);
-                    queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
-                  } catch (err) {
-                    console.error(err);
-                  }
-                }}
-              />
-            </div>
-          </div>
         )}
 
         {/* Delete confirmation dialog */}

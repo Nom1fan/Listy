@@ -122,7 +122,7 @@ public class ListItemService {
         if (req.getUnit() != null) item.setUnit(req.getUnit());
         if (req.getNote() != null) item.setNote(req.getNote());
         if (req.getCrossedOff() != null) item.setCrossedOff(req.getCrossedOff());
-        if (req.getCustomNameHe() != null && item.getProduct() == null) item.setCustomNameHe(req.getCustomNameHe());
+        if (req.getCustomNameHe() != null) item.setCustomNameHe(req.getCustomNameHe().isBlank() ? null : req.getCustomNameHe());
         if (req.getItemImageUrl() != null) item.setItemImageUrl(req.getItemImageUrl().isBlank() ? null : req.getItemImageUrl());
         if (req.getIconId() != null) item.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
         // Move item to a different category

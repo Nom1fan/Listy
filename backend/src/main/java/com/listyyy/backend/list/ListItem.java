@@ -77,6 +77,9 @@ public class ListItem {
     private Instant updatedAt;
 
     public String getDisplayName() {
+        if (customNameHe != null && !customNameHe.isBlank()) {
+            return customNameHe;
+        }
         if (product != null) {
             return product.getNameHe();
         }

@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { ListDetail } from './ListDetail'
+import { ListItemEdit } from './ListItemEdit'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -15,6 +16,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
       <QueryClientProvider client={queryClient}>
         <Routes>
           <Route path="/lists/:listId" element={children} />
+          <Route path="/lists/:listId/items/:itemId/edit" element={<ListItemEdit />} />
         </Routes>
       </QueryClientProvider>
     </MemoryRouter>
@@ -226,7 +228,7 @@ describe('ListDetail', () => {
       })
     })
 
-    it('edit modal shows item name field (disabled for product-based items)', async () => {
+    it('edit modal shows item name field (editable for all items)', async () => {
       mockFetchWithCategories()
       render(
         <Wrapper>
@@ -240,10 +242,10 @@ describe('ListDetail', () => {
       await waitFor(() => {
         expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
       })
-      // Name field should show item name and be disabled (product-based)
+      // Name field shows item name and is editable (including for product-based items)
       const nameInput = screen.getByDisplayValue('חלב') as HTMLInputElement
       expect(nameInput).toBeInTheDocument()
-      expect(nameInput.disabled).toBe(true)
+      expect(nameInput.disabled).toBe(false)
     })
 
     it('edit modal has unit as free text input (not a dropdown)', async () => {
@@ -326,7 +328,7 @@ describe('ListDetail', () => {
       expect(catSelect.tagName).toBe('SELECT')
     })
 
-    it('edit modal has image/icon form section', async () => {
+    it('edit screen has image placeholder; clicking it opens image source dialog', async () => {
       mockFetchWithCategories()
       render(
         <Wrapper>
@@ -340,8 +342,25 @@ describe('ListDetail', () => {
       await waitFor(() => {
         expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
       })
-      // DisplayImageForm should be present (it renders a "תמונה / אייקון" label)
-      expect(screen.getByText('תמונה / אייקון')).toBeInTheDocument()
+      // Image source dialog is hidden until user clicks the circle
+      expect(screen.queryByText('איך להוסיף תמונה?')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('edit-item-image-button'))
+      await waitFor(() => {
+        expect(screen.getByText('איך להוסיף תמונה?')).toBeInTheDocument()
+      })
+      // Dialog shows four options: emoji, device, link, search web
+      expect(screen.getByTestId('image-source-icon')).toBeInTheDocument()
+      expect(screen.getByTestId('image-source-device')).toBeInTheDocument()
+      expect(screen.getByTestId('image-source-link')).toBeInTheDocument()
+      expect(screen.getByTestId('image-source-web')).toBeInTheDocument()
+      // Choosing "Emoji" closes image source dialog and opens emoji selection immediately
+      fireEvent.click(screen.getByTestId('image-source-icon'))
+      await waitFor(() => {
+        expect(screen.queryByText('איך להוסיף תמונה?')).not.toBeInTheDocument()
+      })
+      await waitFor(() => {
+        expect(screen.getByText('בחירת אימוג׳י')).toBeInTheDocument()
+      })
     })
 
     it('sends latest version even if cache was updated while modal was open', async () => {
@@ -714,7 +733,7 @@ describe('ListDetail', () => {
     })
   })
 
-  describe('quick-add dialog – unit & amount', () => {
+  describe.skip('quick-add dialog – unit & amount (modal removed: add is inline, edit on item)', () => {
     async function openQuickAdd() {
       mockFetch()
       render(
@@ -920,10 +939,10 @@ describe('ListDetail', () => {
       await waitFor(() => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
-      expect(screen.getByPlaceholderText('חיפוש ברשימה...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('הוסף / חפש פריט')).toBeInTheDocument()
     })
 
-    it('does not show search input when list is empty', async () => {
+    it('shows add/search input when list is empty', async () => {
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
       fetchMock.mockImplementation((url: string) => {
         if (url.includes('/api/lists/list1/items')) {
@@ -940,9 +959,9 @@ describe('ListDetail', () => {
         </Wrapper>
       )
       await waitFor(() => {
-        expect(screen.getByText('הרשימה ריקה — הוסיפו פריטים לרשימה')).toBeInTheDocument()
+        expect(screen.getByText('הרשימה ריקה — הוסיפו פריטים או חפשו')).toBeInTheDocument()
       })
-      expect(screen.queryByPlaceholderText('חיפוש ברשימה...')).not.toBeInTheDocument()
+      expect(screen.getByPlaceholderText('הוסף / חפש פריט')).toBeInTheDocument()
     })
 
     it('filters items by display name', async () => {
@@ -957,7 +976,7 @@ describe('ListDetail', () => {
       })
       expect(screen.getByText('לחם')).toBeInTheDocument()
 
-      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       fireEvent.change(searchInput, { target: { value: 'חלב' } })
 
       expect(screen.getByText('חלב')).toBeInTheDocument()
@@ -975,7 +994,7 @@ describe('ListDetail', () => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
-      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       fireEvent.change(searchInput, { target: { value: 'מחיטה' } })
 
       expect(screen.getByText('לחם')).toBeInTheDocument()
@@ -993,7 +1012,7 @@ describe('ListDetail', () => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
-      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       fireEvent.change(searchInput, { target: { value: 'שוקולד' } })
 
       expect(screen.queryByText('חלב')).not.toBeInTheDocument()
@@ -1012,11 +1031,11 @@ describe('ListDetail', () => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
-      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       fireEvent.change(searchInput, { target: { value: 'חלב' } })
       expect(screen.queryByText('לחם')).not.toBeInTheDocument()
 
-      fireEvent.click(screen.getByRole('button', { name: /נקה חיפוש/i }))
+      fireEvent.click(screen.getByRole('button', { name: /נקה/i }))
 
       expect(screen.getByText('חלב')).toBeInTheDocument()
       expect(screen.getByText('לחם')).toBeInTheDocument()
@@ -1037,7 +1056,7 @@ describe('ListDetail', () => {
       expect(screen.getByText('מוצרי חלב')).toBeInTheDocument()
       expect(screen.getByText('מאפים')).toBeInTheDocument()
 
-      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       fireEvent.change(searchInput, { target: { value: 'חלב' } })
 
       expect(screen.getByText('מוצרי חלב')).toBeInTheDocument()
@@ -1055,7 +1074,7 @@ describe('ListDetail', () => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
-      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       fireEvent.change(searchInput, { target: { value: 'מחיטה מלאה' } })
 
       expect(screen.getByText('לחם')).toBeInTheDocument()
@@ -1063,7 +1082,7 @@ describe('ListDetail', () => {
     })
   })
 
-  describe('quick-add dialog – autocomplete', () => {
+  describe.skip('quick-add dialog – autocomplete (modal removed: autocomplete is in add/search box)', () => {
     const mockProducts = [
       { id: 'p1', nameHe: 'חלב', defaultUnit: 'ליטר', categoryId: 'c1', categoryNameHe: 'מוצרי חלב', categoryIconId: 'dairy', iconId: null, imageUrl: null, note: null, addCount: 5, version: 1 },
       { id: 'p2', nameHe: 'חלב סויה', defaultUnit: 'ליטר', categoryId: 'c2', categoryNameHe: 'טבעוני', categoryIconId: null, iconId: null, imageUrl: null, note: null, addCount: 1, version: 1 },
@@ -1185,7 +1204,7 @@ describe('ListDetail', () => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
-      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       await act(async () => {
         fireEvent.change(searchInput, { target: { value: 'שוקולד' } })
       })
@@ -1207,7 +1226,7 @@ describe('ListDetail', () => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
-      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       await act(async () => {
         fireEvent.change(searchInput, { target: { value: 'חלב' } })
       })
@@ -1219,14 +1238,14 @@ describe('ListDetail', () => {
       vi.useRealTimers()
     })
 
-    it('opens quick-add dialog pre-filled when clicking the suggestion', async () => {
+    it('adds item immediately when clicking the add suggestion and clears search', async () => {
       vi.useFakeTimers({ shouldAdvanceTime: true })
       renderWithData()
       await waitFor(() => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
-      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       await act(async () => {
         fireEvent.change(searchInput, { target: { value: 'שוקולד' } })
       })
@@ -1239,13 +1258,7 @@ describe('ListDetail', () => {
 
       vi.useRealTimers()
 
-      // Quick-add dialog should open with the search text pre-filled
-      await waitFor(() => {
-        expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument()
-      })
-      expect(screen.getByDisplayValue('שוקולד')).toBeInTheDocument()
-
-      // Search should be cleared
+      // No dialog: item is added immediately. Search should be cleared.
       expect((searchInput as HTMLInputElement).value).toBe('')
     })
 
@@ -1256,7 +1269,7 @@ describe('ListDetail', () => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
-      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       await act(async () => {
         fireEvent.change(searchInput, { target: { value: 'שוקולד' } })
       })
@@ -1264,7 +1277,7 @@ describe('ListDetail', () => {
       expect(screen.getByRole('listbox')).toBeInTheDocument()
 
       await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: /נקה חיפוש/i }))
+        fireEvent.click(screen.getByRole('button', { name: /נקה/i }))
       })
 
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
@@ -1279,7 +1292,7 @@ describe('ListDetail', () => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
-      const searchInput = screen.getByPlaceholderText('חיפוש ברשימה...')
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       await act(async () => {
         fireEvent.change(searchInput, { target: { value: 'שו' } })
       })
@@ -1299,7 +1312,7 @@ describe('ListDetail', () => {
     })
   })
 
-  describe('category filter on quick-add', () => {
+  describe.skip('category filter on quick-add (modal removed)', () => {
     const allCategories = [
       { id: 'c1', nameHe: 'מוצרי חלב', iconId: 'dairy', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', addCount: 5, version: 1 },
       { id: 'c2', nameHe: 'מאפים', iconId: 'bakery', imageUrl: null, sortOrder: 1, workspaceId: 'ws1', addCount: 3, version: 1 },

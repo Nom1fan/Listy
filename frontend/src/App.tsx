@@ -10,6 +10,7 @@ import { PhoneLogin } from './pages/PhoneLogin';
 import { Welcome } from './pages/Welcome';
 import { Lists } from './pages/Lists';
 import { ListDetail } from './pages/ListDetail';
+import { ListItemEdit } from './pages/ListItemEdit';
 import { ProductBank } from './pages/ProductBank';
 import { ShareWorkspace } from './pages/ShareWorkspace';
 import { Profile } from './pages/Profile';
@@ -53,10 +54,10 @@ function AppShell() {
           }
         />
         <Route
-          path="/lists/:listId"
+          path="/lists/:listId/items/:itemId/edit"
           element={
             <PrivateRoute>
-              <ListDetail />
+              <ListItemEdit />
             </PrivateRoute>
           }
         />
@@ -65,6 +66,14 @@ function AppShell() {
           element={
             <PrivateRoute>
               <ProductBank />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/lists/:listId"
+          element={
+            <PrivateRoute>
+              <ListDetail />
             </PrivateRoute>
           }
         />

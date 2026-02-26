@@ -7,13 +7,13 @@ import type { EmojiItem } from './emojiData';
 /*  EmojiPickerDialog – WhatsApp-style picker with categories & search */
 /* ------------------------------------------------------------------ */
 
-interface EmojiPickerDialogProps {
+export interface EmojiPickerDialogProps {
   selectedEmoji: string;
   onSelect: (emoji: string) => void;
   onClose: () => void;
 }
 
-function EmojiPickerDialog({ selectedEmoji, onSelect, onClose }: EmojiPickerDialogProps) {
+export function EmojiPickerDialog({ selectedEmoji, onSelect, onClose }: EmojiPickerDialogProps) {
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState(EMOJI_CATEGORIES[0].id);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -334,10 +334,16 @@ export interface EmojiPickerProps {
   onChange: (emoji: string) => void;
   /** Optional label shown above the button */
   label?: string;
+  /** When true, open the emoji selection dialog immediately on mount */
+  openImmediately?: boolean;
 }
 
-export function EmojiPicker({ value, onChange, label }: EmojiPickerProps) {
+export function EmojiPicker({ value, onChange, label, openImmediately }: EmojiPickerProps) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (openImmediately) setOpen(true);
+  }, [openImmediately]);
 
   // Resolve display: if value is a legacy ID, show the mapped emoji
   const displayEmoji = value ? (LEGACY_ICON_MAP[value] ?? value) : '';
