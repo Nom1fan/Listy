@@ -17,6 +17,8 @@ public class JwtProperties {
     private long refreshExpirationMs = 2592000000L; // 30 days (refresh token)
     private String refreshCookieName = "listyyy_refresh";
     private boolean refreshCookieSecure = true;     // false for local HTTP dev
+    /** SameSite for refresh cookie: Lax (default, same-origin only) or None (required for Capacitor app cross-origin to API). */
+    private String refreshCookieSameSite = "Lax";
 
     @PostConstruct
     void validateSecret() {

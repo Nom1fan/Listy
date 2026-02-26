@@ -53,7 +53,7 @@ public class DevAuthController {
         cookie.setSecure(jwtProperties.isRefreshCookieSecure());
         cookie.setPath("/api/auth");
         cookie.setMaxAge((int) (jwtProperties.getRefreshExpirationMs() / 1000));
-        cookie.setAttribute("SameSite", "Lax");
+        cookie.setAttribute("SameSite", jwtProperties.getRefreshCookieSameSite());
         response.addCookie(cookie);
     }
 }

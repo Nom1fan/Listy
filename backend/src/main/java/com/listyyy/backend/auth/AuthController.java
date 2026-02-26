@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +15,7 @@ import java.util.Arrays;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class AuthController {
 
     private final AuthService authService;
@@ -68,6 +70,7 @@ public class AuthController {
                                                  HttpServletResponse response) {
         String refreshToken = extractRefreshToken(request);
         if (refreshToken == null) {
+            log.warn("Refresh called without cookie (e.g. cross-origin from app; ensure refresh cookie has SameSite=None in production)");
             return ResponseEntity.status(401).build();
         }
         try {
@@ -75,6 +78,7 @@ public class AuthController {
             setRefreshCookie(response, result.refreshToken());
             return ResponseEntity.ok(result.authResponse());
         } catch (IllegalArgumentException e) {
+            log.warn("Refresh failed: invalid or expired refresh token");
             clearRefreshCookie(response);
             return ResponseEntity.status(401).build();
         }
@@ -108,7 +112,7 @@ public class AuthController {
         cookie.setSecure(jwtProperties.isRefreshCookieSecure());
         cookie.setPath("/api/auth");
         cookie.setMaxAge((int) (jwtProperties.getRefreshExpirationMs() / 1000));
-        cookie.setAttribute("SameSite", "Lax");
+        cookie.setAttribute("SameSite", jwtProperties.getRefreshCookieSameSite());
         response.addCookie(cookie);
     }
 
@@ -118,7 +122,7 @@ public class AuthController {
         cookie.setSecure(jwtProperties.isRefreshCookieSecure());
         cookie.setPath("/api/auth");
         cookie.setMaxAge(0);
-        cookie.setAttribute("SameSite", "Lax");
+        cookie.setAttribute("SameSite", jwtProperties.getRefreshCookieSameSite());
         response.addCookie(cookie);
     }
 
