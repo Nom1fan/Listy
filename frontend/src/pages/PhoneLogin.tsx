@@ -353,7 +353,7 @@ export function PhoneLogin() {
                           autoComplete={i === 0 ? 'tel-national' : 'off'}
                           value={segmentValues[i] ?? ''}
                           onChange={(e) => setSegment(i, e.target.value)}
-                          placeholder={country.example[i]}
+                          placeholder=""
                           maxLength={len}
                           required
                           style={{
