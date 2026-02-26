@@ -180,6 +180,7 @@ This runs the full pipeline:
 |------|--------|
 | `--db` | Include DB dump in deployment (SCP to EC2 + import) |
 | `--windows` | Also build the Windows package and zip |
+| `--aab` | Also build the Android App Bundle (.aab) |
 | `--skip-deploy` | Skip EC2 deployment (build and push only) |
 
 Examples:
@@ -187,6 +188,7 @@ Examples:
 ```bash
 ./scripts/release.sh --db              # release + deploy + sync DB
 ./scripts/release.sh --windows         # also build the Windows package
+./scripts/release.sh --aab             # also build the Android App Bundle
 ./scripts/release.sh --skip-deploy     # build and push only, no EC2
 ```
 
@@ -208,10 +210,11 @@ The deploy script:
 
 ## Android build
 
-1. **Frontend** – Build and sync:
+1. **Frontend** – Build and sync (or use `./scripts/build-aab.sh` for a full release AAB):
    ```bash
    cd frontend && npm run build && npx cap sync android
    ```
+   To build the release AAB as part of a release: `./scripts/release.sh --aab`.
 2. **Open in Android Studio**:
    ```bash
    npx cap open android

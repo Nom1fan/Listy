@@ -20,6 +20,7 @@ Run from the **project root**:
 | `--patch` | Bump **patch** instead (e.g. 0.10.0 -> 0.10.1) |
 | `--db` | Also SCP the DB dump to EC2 and import it |
 | `--windows` | Also build the Windows package and zip |
+| `--aab` | Also build the Android App Bundle (.aab) |
 | `--skip-deploy` | Build and push only, skip EC2 deployment |
 | `--skip-tests` | Skip running tests before the release (not recommended) |
 
@@ -30,7 +31,8 @@ Run from the **project root**:
 - "hotfix", "bugfix", "patch" → `--patch`.
 - User mentions deploying the database → add `--db`.
 - "don't deploy" or "build only" → `--skip-deploy`.
-- If ambiguous, ask about `--db`, `--windows`, or `--skip-deploy`.
+- User wants Android / Play Store build → add `--aab`.
+- If ambiguous, ask about `--db`, `--windows`, `--aab`, or `--skip-deploy`.
 
 ## Prerequisites
 

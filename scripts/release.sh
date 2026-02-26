@@ -2,7 +2,7 @@
 # Full release: bump version, export DB, optionally build Windows package,
 # build/push Docker image, git commit + tag + push, deploy to EC2.
 #
-# Usage: ./scripts/release.sh [--major|--patch] [--db] [--windows] [--skip-deploy] [--skip-tests]
+# Usage: ./scripts/release.sh [--major|--patch] [--db] [--windows] [--aab] [--skip-deploy] [--skip-tests]
 #
 # Flags:
 #   --major           Bump major version (e.g. 0.10.0 -> 1.0.0)
@@ -10,6 +10,7 @@
 #   (default)         Bump minor version (e.g. 0.10.0 -> 0.11.0)
 #   --db              Include DB dump in EC2 deployment (SCP + import)
 #   --windows         Also build the Windows package and zip
+#   --aab             Also build the Android App Bundle (.aab)
 #   --skip-deploy     Skip EC2 deployment (build and push only)
 #   --skip-tests      Skip running tests before release
 #
@@ -28,6 +29,7 @@ VERSION_FILE="$REPO_ROOT/VERSION"
 # ── Parse flags ──────────────────────────────────────────────
 DEPLOY_DB=false
 BUILD_WINDOWS=false
+BUILD_AAB=false
 SKIP_DEPLOY=false
 SKIP_TESTS=false
 BUMP_TYPE=minor
@@ -37,6 +39,7 @@ while [[ $# -gt 0 ]]; do
     --patch)         BUMP_TYPE=patch; shift ;;
     --db)            DEPLOY_DB=true; shift ;;
     --windows)       BUILD_WINDOWS=true; shift ;;
+    --aab)           BUILD_AAB=true; shift ;;
     --skip-deploy)   SKIP_DEPLOY=true; shift ;;
     --skip-tests)    SKIP_TESTS=true; shift ;;
     *)               echo "Unknown option: $1"; exit 1 ;;
@@ -134,6 +137,15 @@ else
 fi
 echo ""
 
+# ── 3c. Build Android App Bundle ────────────────────────────
+if $BUILD_AAB; then
+  echo "=== 3c. Build Android App Bundle (.aab) ==="
+  "$SCRIPT_DIR/build-aab.sh"
+else
+  echo "=== 3c. Build Android App Bundle (SKIPPED -- pass --aab to include) ==="
+fi
+echo ""
+
 # ── 4. Build and push Docker image ──────────────────────────
 if [ -n "${LISTYYY_IMAGE:-}" ]; then
   echo "=== 4. Build and push Docker image ==="
@@ -176,6 +188,9 @@ echo "========================================================"
 echo "  Release $new_version complete!"
 if $BUILD_WINDOWS; then
   echo "  Windows:  listyyy-windows.zip ready"
+fi
+if $BUILD_AAB; then
+  echo "  Android:  frontend/android/app/build/outputs/bundle/release/app-release-${new_version}.aab"
 fi
 if [ -n "${LISTYYY_IMAGE:-}" ]; then
   echo "  Docker:   ${LISTYYY_IMAGE}:${new_version} pushed"
