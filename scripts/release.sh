@@ -154,7 +154,7 @@ git add VERSION backend/pom.xml frontend/package.json
 if [ -f db/listyyy-db.sql ]; then git add db/listyyy-db.sql; fi
 git commit -m "Release $new_version"
 git tag "v$new_version"
-git push && git push --tags
+git push && git push origin "v$new_version"
 echo "Committed and tagged v$new_version"
 echo ""
 
