@@ -1,18 +1,25 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { useWorkspaceStore } from '../store/workspaceStore'
 import { Categories } from './Categories'
+import { CategoryEdit } from './CategoryEdit'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 })
 
-function Wrapper({ children }: { children: React.ReactNode }) {
+function Wrapper({ children, initialEntries = ['/lists'] }: { children: React.ReactNode; initialEntries?: string[] }) {
   return (
-    <MemoryRouter>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <MemoryRouter initialEntries={initialEntries}>
+      <QueryClientProvider client={queryClient}>
+        <Routes>
+          <Route path="/lists" element={children} />
+          <Route path="/categories/:categoryId/edit" element={<CategoryEdit />} />
+        </Routes>
+      </QueryClientProvider>
     </MemoryRouter>
   )
 }
@@ -41,10 +48,12 @@ describe('Categories', () => {
       profileImageUrl: null,
       locale: 'he',
     })
+    useWorkspaceStore.getState().setActiveWorkspace('ws1')
   })
 
   afterEach(() => {
     globalThis.fetch = originalFetch
+    useWorkspaceStore.getState().clearActiveWorkspace()
   })
 
   function mockFetchWithProducts() {
@@ -94,6 +103,64 @@ describe('Categories', () => {
     )
     await waitFor(() => {
       expect(screen.getByRole('button', { name: /הוסף קטגוריה/i })).toBeInTheDocument()
+    })
+  })
+
+  it('clicking FAB shows inline input for category name', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) }))
+    render(
+      <Wrapper>
+        <Categories />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /הוסף קטגוריה/i })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /הוסף קטגוריה/i }))
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('שם קטגוריה')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /צור קטגוריה/i })).toBeInTheDocument()
+      expect(screen.getByText('ביטול')).toBeInTheDocument()
+    })
+  })
+
+  it('category row kebab has edit and delete; edit navigates to category edit page', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/api/categories/') && !url.includes('?')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ ...mockCategories[0], addCount: 0 }),
+        })
+      }
+      if (typeof url === 'string' && url.includes('/api/categories')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategories) })
+      }
+      if (typeof url === 'string' && url.includes('/api/products')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockProducts) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+    })
+    render(
+      <Wrapper>
+        <Categories />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText('מכולת')).toBeInTheDocument()
+    })
+    const kebabs = screen.getAllByRole('button', { name: /תפריט קטגוריה/i })
+    fireEvent.click(kebabs[0])
+    await waitFor(() => {
+      expect(screen.getByText('ערוך')).toBeInTheDocument()
+      expect(screen.getByText('מחק')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('ערוך'))
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'ערוך קטגוריה' })).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('שם קטגוריה')).toHaveValue('מכולת')
     })
   })
 

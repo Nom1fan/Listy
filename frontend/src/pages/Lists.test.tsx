@@ -1,19 +1,25 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import { Lists } from './Lists'
+import { ListEdit } from './ListEdit'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 })
 
-function Wrapper({ children }: { children: React.ReactNode }) {
+function Wrapper({ children, initialEntries = ['/lists'] }: { children: React.ReactNode; initialEntries?: string[] }) {
   return (
-    <MemoryRouter>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <MemoryRouter initialEntries={initialEntries}>
+      <QueryClientProvider client={queryClient}>
+        <Routes>
+          <Route path="/lists" element={children} />
+          <Route path="/lists/:listId/edit" element={<ListEdit />} />
+        </Routes>
+      </QueryClientProvider>
     </MemoryRouter>
   )
 }
@@ -88,5 +94,87 @@ describe('Lists', () => {
       expect(screen.getByText('קטגוריות')).toBeInTheDocument()
     })
     expect(screen.getByRole('button', { name: 'קטגוריות' })).toBeInTheDocument()
+  })
+
+  it('clicking FAB shows inline input for list name', async () => {
+    const fn = globalThis.fetch as ReturnType<typeof vi.fn>
+    fn.mockImplementation((url: string) => {
+      if (url.includes('/api/workspaces')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(workspaceData) })
+      }
+      if (url.includes('/api/lists')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+    })
+    render(
+      <Wrapper>
+        <Lists />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /הוסף רשימה/i })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /הוסף רשימה/i }))
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('שם הרשימה')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /צור רשימה/i })).toBeInTheDocument()
+      expect(screen.getByText('ביטול')).toBeInTheDocument()
+    })
+  })
+
+  it('list row kebab has edit and delete; edit navigates to list edit page', async () => {
+    const singleList = {
+      id: 'list1',
+      name: 'רשימה אחת',
+      workspaceId: 'ws1',
+      iconId: null,
+      imageUrl: null,
+      sortOrder: 0,
+      categoryFilterMode: 'NONE' as const,
+      categoryIds: [] as string[],
+      createdAt: '',
+      updatedAt: '',
+      version: 0,
+    }
+    const fn = globalThis.fetch as ReturnType<typeof vi.fn>
+    fn.mockImplementation((url: string) => {
+      if (url.includes('/api/workspaces')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(workspaceData) })
+      }
+      if (url.includes('/api/lists/list1') && !url.includes('/api/lists/list1/')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(singleList) })
+      }
+      if (url.includes('/api/lists')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve([singleList]),
+        })
+      }
+      if (url.includes('/api/categories')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+    })
+    render(
+      <Wrapper>
+        <Lists />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText('רשימה אחת')).toBeInTheDocument()
+    })
+    const kebab = screen.getByRole('button', { name: /תפריט רשימה/i })
+    fireEvent.click(kebab)
+    await waitFor(() => {
+      expect(screen.getByText('ערוך')).toBeInTheDocument()
+      expect(screen.getByText('מחק')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('ערוך'))
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'ערוך רשימה' })).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('שם הרשימה')).toHaveValue('רשימה אחת')
+    })
   })
 })

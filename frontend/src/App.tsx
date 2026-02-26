@@ -11,6 +11,8 @@ import { Welcome } from './pages/Welcome';
 import { Lists } from './pages/Lists';
 import { ListDetail } from './pages/ListDetail';
 import { ListItemEdit } from './pages/ListItemEdit';
+import { ListEdit } from './pages/ListEdit';
+import { CategoryEdit } from './pages/CategoryEdit';
 import { ProductBank } from './pages/ProductBank';
 import { ShareWorkspace } from './pages/ShareWorkspace';
 import { Profile } from './pages/Profile';
@@ -62,6 +64,14 @@ function AppShell() {
           }
         />
         <Route
+          path="/lists/:listId/edit"
+          element={
+            <PrivateRoute>
+              <ListEdit />
+            </PrivateRoute>
+          }
+        />
+        <Route
           path="/lists/:listId/bank"
           element={
             <PrivateRoute>
@@ -74,6 +84,14 @@ function AppShell() {
           element={
             <PrivateRoute>
               <ListDetail />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/categories/:categoryId/edit"
+          element={
+            <PrivateRoute>
+              <CategoryEdit />
             </PrivateRoute>
           }
         />

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCategories, getProducts, createCategory, createProduct, updateCategory, updateProduct, deleteCategory, deleteProduct, reorderCategories } from '../api/products';
+import { getCategories, getProducts, createCategory, createProduct, updateProduct, deleteCategory, deleteProduct, reorderCategories } from '../api/products';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { uploadFile } from '../api/client';
@@ -27,21 +28,21 @@ function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: strin
   );
 }
 
+function PencilIcon({ size = 18, color = '#666' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  );
+}
+
 export function Categories() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
   const [viewMode, setViewMode] = useViewMode('categories');
   const [nameHe, setNameHe] = useState('');
-  const [displayImageType, setDisplayImageType] = useState<DisplayImageType>('icon');
-  const [iconId, setIconId] = useState<string>('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [pendingCategoryFile, setPendingCategoryFile] = useState<File | null>(null);
-  const [editing, setEditing] = useState<CategoryDto | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editDisplayImageType, setEditDisplayImageType] = useState<DisplayImageType>('icon');
-  const [editIconId, setEditIconId] = useState('');
-  const [editImageUrl, setEditImageUrl] = useState('');
-  const categoryImageInputRef = useRef<HTMLInputElement>(null);
   const createCategoryFileInputRef = useRef<HTMLInputElement>(null);
   const pendingCreateFileRef = useRef<File | null>(null);
   const [addProductCategoryId, setAddProductCategoryId] = useState<string | null>(null);
@@ -100,40 +101,15 @@ export function Categories() {
   const [createError, setCreateError] = useState<string | null>(null);
 
   const createMutation = useMutation({
-    mutationFn: (body: { nameHe: string; iconId?: string | null; imageUrl?: string | null; sortOrder?: number; workspaceId: string }) =>
-      createCategory(body),
-    onSuccess: async (data) => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      closeCreateModal();
-      const file = pendingCreateFileRef.current;
-      pendingCreateFileRef.current = null;
-      if (file && data?.id) {
-        try {
-          await uploadFile(`/api/upload/category/${data.id}`, file);
-          queryClient.invalidateQueries({ queryKey: ['categories'] });
-        } catch (err) {
-          console.error(err);
-        }
-      }
-    },
-    onError: (err: Error) => {
-      setCreateError(err.message || 'שגיאה בהוספת קטגוריה');
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: { nameHe?: string; iconId?: string | null; imageUrl?: string | null; version?: number } }) =>
-      updateCategory(id, body),
+    mutationFn: (body: { nameHe: string; workspaceId: string; sortOrder?: number }) =>
+      createCategory({ nameHe: body.nameHe, workspaceId: body.workspaceId, sortOrder: body.sortOrder }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      setEditing(null);
+      closeCreateModal();
     },
     onError: (err: Error) => {
-      queryClient.invalidateQueries({ queryKey: ['categories'] });
-      setProductImageToast({ message: err.message || 'שגיאה בעדכון קטגוריה', isError: true });
-      setTimeout(() => setProductImageToast(null), 5000);
+      setCreateError(err.message || 'שגיאה בהוספת קטגוריה');
     },
   });
 
@@ -237,44 +213,8 @@ export function Categories() {
   function closeCreateModal() {
     setShowCreateModal(false);
     setNameHe('');
-    setDisplayImageType('icon');
-    setIconId('');
-    setImageUrl('');
-    setPendingCategoryFile(null);
     setCreateError(null);
   }
-
-  function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setCreateError(null);
-    if (!nameHe.trim()) return;
-    if (displayImageType === 'device' && !pendingCategoryFile) return;
-    if (displayImageType === 'link' && !imageUrl.trim()) return;
-    pendingCreateFileRef.current = displayImageType === 'device' ? pendingCategoryFile : null;
-    createMutation.mutate({
-      nameHe: nameHe.trim(),
-      iconId: displayImageType === 'icon' ? (iconId || '') : '',
-      imageUrl: (displayImageType === 'link' || displayImageType === 'web') ? (imageUrl.trim() || '') : '',
-      sortOrder: categories.length,
-      workspaceId: activeWorkspaceId!,
-    });
-  }
-
-  function startEdit(c: CategoryDto) {
-    setEditing(c);
-    setEditName(c.nameHe);
-    setEditDisplayImageType(c.imageUrl ? 'link' : 'icon');
-    setEditIconId(c.iconId || '');
-    setEditImageUrl(c.imageUrl || '');
-  }
-
-  useEffect(() => {
-    if (!editing) return;
-    const fresh = categories.find((c) => c.id === editing.id);
-    if (fresh && fresh.version !== editing.version) {
-      setEditing((prev) => prev ? { ...prev, version: fresh.version } : prev);
-    }
-  }, [categories, editing]);
 
   useEffect(() => {
     if (!editProduct) return;
@@ -283,20 +223,6 @@ export function Categories() {
       setEditProduct((prev) => prev ? { ...prev, version: fresh.version } : prev);
     }
   }, [allProducts, editProduct]);
-
-  function handleUpdate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editing) return;
-    updateMutation.mutate({
-      id: editing.id,
-      body: {
-        nameHe: editName.trim(),
-        iconId: editDisplayImageType === 'icon' ? (editIconId || '') : '',
-        imageUrl: editDisplayImageType !== 'icon' ? (editImageUrl.trim() || '') : '',
-        version: editing.version,
-      },
-    });
-  }
 
   function handleAddProduct(e: React.FormEvent, categoryId: string) {
     e.preventDefault();
@@ -319,7 +245,6 @@ export function Categories() {
   }
 
   function openEditProduct(p: ProductDto) {
-    setEditing(null);
     setEditProduct(p);
     setEditProductName(p.nameHe);
     setEditProductUnit(p.defaultUnit);
@@ -372,28 +297,99 @@ export function Categories() {
           {productImageToast.isError ? '✕ ' : '✓ '}{productImageToast.message}
         </div>
       )}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          disabled={!activeWorkspaceId}
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            background: activeWorkspaceId ? 'var(--color-primary)' : '#ccc',
-            color: '#fff',
-            fontSize: 24,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-            cursor: activeWorkspaceId ? 'pointer' : 'not-allowed',
-            border: 'none',
-          }}
-          aria-label="הוסף קטגוריה"
-        >
-          +
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        {showCreateModal ? (
+          <>
+            <input
+              type="text"
+              value={nameHe}
+              onChange={(e) => setNameHe(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (activeWorkspaceId && nameHe.trim()) {
+                    createMutation.mutate({ nameHe: nameHe.trim(), workspaceId: activeWorkspaceId, sortOrder: categories.length });
+                  }
+                }
+                if (e.key === 'Escape') {
+                  closeCreateModal();
+                }
+              }}
+              placeholder="שם קטגוריה"
+              autoFocus
+              style={{
+                flex: 1,
+                minWidth: 140,
+                padding: '12px 16px',
+                borderRadius: 10,
+                border: '1px solid #ddd',
+                fontSize: 15,
+                boxSizing: 'border-box',
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (activeWorkspaceId && nameHe.trim()) {
+                  createMutation.mutate({ nameHe: nameHe.trim(), workspaceId: activeWorkspaceId, sortOrder: categories.length });
+                }
+              }}
+              disabled={!activeWorkspaceId || !nameHe.trim() || createMutation.isPending}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: '50%',
+                background: activeWorkspaceId && nameHe.trim() && !createMutation.isPending ? 'var(--color-primary)' : '#ccc',
+                color: '#fff',
+                fontSize: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: 'none',
+                cursor: activeWorkspaceId && nameHe.trim() && !createMutation.isPending ? 'pointer' : 'not-allowed',
+              }}
+              aria-label="צור קטגוריה"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={closeCreateModal}
+              style={{
+                padding: '10px 14px',
+                background: '#eee',
+                borderRadius: 8,
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 14,
+              }}
+            >
+              ביטול
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            disabled={!activeWorkspaceId}
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: activeWorkspaceId ? 'var(--color-primary)' : '#ccc',
+              color: '#fff',
+              fontSize: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              cursor: activeWorkspaceId ? 'pointer' : 'not-allowed',
+              border: 'none',
+            }}
+            aria-label="הוסף קטגוריה"
+          >
+            +
+          </button>
+        )}
         <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
       </div>
 
@@ -447,192 +443,93 @@ export function Categories() {
                   ⠿
                 </span>
                 <CategoryIcon iconId={c.iconId} imageUrl={c.imageUrl} size={32} />
-                {editing?.id === c.id ? (
-                <form
-                  onSubmit={handleUpdate}
-                  style={{ flex: 1, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
-                >
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', minWidth: 120 }}
-                  />
-                  <div>
-                    <label style={{ fontSize: 12, marginBottom: 2, display: 'block' }}>תמונת קטגוריה (ברירת מחדל)</label>
-                    <select
-                      value={editDisplayImageType}
-                      onChange={(e) => {
-                        const v = e.target.value as DisplayImageType;
-                        setEditDisplayImageType(v);
-                        if (v === 'icon') setEditImageUrl('');
-                        if (v === 'device') setTimeout(() => categoryImageInputRef.current?.click(), 0);
-                      }}
-                      style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc' }}
-                    >
-                      <option value="icon">אייקון</option>
-                      <option value="device">בחר מהמכשיר...</option>
-                      <option value="link">קישור לתמונה</option>
-                      <option value="web">חיפוש באינטרנט</option>
-                    </select>
-                  </div>
-                  {editDisplayImageType === 'icon' && (
-                    <EmojiPicker
-                      value={editIconId}
-                      onChange={setEditIconId}
-                    />
-                  )}
-                  {editDisplayImageType === 'device' && (
-                    <div>
-                      <input
-                        ref={categoryImageInputRef}
-                        type="file"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file || !editing) return;
-                          e.target.value = '';
-                          try {
-                            const { url } = await uploadFile(`/api/upload/category/${editing.id}`, file);
-                            queryClient.invalidateQueries({ queryKey: ['categories'] });
-                            setEditImageUrl(url);
-                          } catch (err) {
-                            console.error(err);
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => categoryImageInputRef.current?.click()}
-                        style={{ padding: '8px 12px', background: '#eee', border: '1px solid #ccc', borderRadius: 8 }}
-                      >
-                        {editImageUrl ? 'התמונה הועלתה' : 'בחר מהמכשיר...'}
-                      </button>
-                    </div>
-                  )}
-                  {editDisplayImageType === 'link' && (
-                    <div>
-                      <label style={{ fontSize: 12, marginBottom: 2, display: 'block' }}>קישור לתמונה</label>
-                      <input
-                        type="url"
-                        value={editImageUrl}
-                        onChange={(e) => setEditImageUrl(e.target.value)}
-                        placeholder="https://..."
-                        style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', minWidth: 140 }}
-                      />
-                    </div>
-                  )}
-                  {editDisplayImageType === 'web' && (
-                    <div style={{ minWidth: 180 }}>
-                      <label style={{ fontSize: 12, marginBottom: 2, display: 'block' }}>חיפוש תמונה באינטרנט</label>
-                      <ImageSearchPicker
-                        onSelect={(url) => setEditImageUrl(url)}
-                        placeholder="חיפוש תמונה..."
-                      />
-                      {editImageUrl && <p style={{ marginTop: 6, fontSize: 12, color: '#2e7d32' }}>נבחרה תמונה ✓</p>}
-                    </div>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={updateMutation.isPending}
-                    style={{ padding: '8px 12px', background: 'var(--color-primary)', color: '#fff', borderRadius: 8 }}
-                  >
-                    שמור
-                  </button>
+                <span style={{ flex: 1, fontWeight: 500 }}>{c.nameHe}</span>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
                   <button
                     type="button"
-                    onClick={() => setEditing(null)}
-                    style={{ padding: '8px 12px', background: '#eee', borderRadius: 8 }}
+                    onClick={() => setCategoryMenuOpenId((prev) => prev === c.id ? null : c.id)}
+                    aria-label="תפריט קטגוריה"
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: 20,
+                      padding: '4px 8px',
+                      lineHeight: 1,
+                      color: '#555',
+                      borderRadius: 6,
+                    }}
                   >
-                    ביטול
+                    &#8942;
                   </button>
-                </form>
-              ) : (
-                <>
-                  <span style={{ flex: 1, fontWeight: 500 }}>{c.nameHe}</span>
-                  <div style={{ position: 'relative', flexShrink: 0 }}>
-                    <button
-                      type="button"
-                      onClick={() => setCategoryMenuOpenId((prev) => prev === c.id ? null : c.id)}
-                      aria-label="תפריט קטגוריה"
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: 20,
-                        padding: '4px 8px',
-                        lineHeight: 1,
-                        color: '#555',
-                        borderRadius: 6,
-                      }}
-                    >
-                      &#8942;
-                    </button>
-                    {categoryMenuOpenId === c.id && (
-                      <>
-                        <div
-                          style={{ position: 'fixed', inset: 0, zIndex: 999 }}
-                          onClick={() => setCategoryMenuOpenId(null)}
-                        />
-                        <div
+                  {categoryMenuOpenId === c.id && (
+                    <>
+                      <div
+                        style={{ position: 'fixed', inset: 0, zIndex: 999 }}
+                        onClick={() => setCategoryMenuOpenId(null)}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          marginTop: 4,
+                          background: '#fff',
+                          borderRadius: 10,
+                          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+                          zIndex: 1000,
+                          minWidth: 140,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => { setCategoryMenuOpenId(null); navigate(`/categories/${c.id}/edit`); }}
                           style={{
-                            position: 'absolute',
-                            top: '100%',
-                            left: 0,
-                            marginTop: 4,
-                            background: '#fff',
-                            borderRadius: 10,
-                            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-                            zIndex: 1000,
-                            minWidth: 120,
-                            overflow: 'hidden',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: 8,
+                            width: '100%',
+                            padding: '10px 16px',
+                            background: 'none',
+                            border: 'none',
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            borderBottom: '1px solid #f0f0f0',
+                            color: '#333',
                           }}
                         >
-                          <button
-                            type="button"
-                            onClick={() => { setCategoryMenuOpenId(null); startEdit(c); }}
-                            style={{
-                              display: 'block',
-                              width: '100%',
-                              padding: '10px 16px',
-                              background: 'none',
-                              border: 'none',
-                              textAlign: 'right',
-                              fontSize: 14,
-                              cursor: 'pointer',
-                              borderBottom: '1px solid #f0f0f0',
-                            }}
-                          >
-                            ערוך
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setCategoryMenuOpenId(null); setConfirmDeleteCategory(c); }}
-                            style={{
-                              display: 'block',
-                              width: '100%',
-                              padding: '10px 16px',
-                              background: 'none',
-                              border: 'none',
-                              textAlign: 'right',
-                              fontSize: 14,
-                              cursor: 'pointer',
-                              color: '#c00',
-                            }}
-                          >
-                            מחק
-                          </button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
+                          ערוך
+                          <PencilIcon size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setCategoryMenuOpenId(null); setConfirmDeleteCategory(c); }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            gap: 8,
+                            width: '100%',
+                            padding: '10px 16px',
+                            background: 'none',
+                            border: 'none',
+                            fontSize: 14,
+                            cursor: 'pointer',
+                            color: '#c00',
+                          }}
+                        >
+                          מחק
+                          <TrashIcon size={16} color="#c00" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
 
-              {editing?.id !== c.id && (
-                <div style={{ padding: '0 12px 12px 12px', borderTop: '1px solid #eee', marginTop: 0 }}>
+              <div style={{ padding: '0 12px 12px 12px', borderTop: '1px solid #eee', marginTop: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, marginTop: 8 }}>פריטים בקטגוריה</div>
                   {!(productsByCategory[c.id]?.length) && addProductCategoryId !== c.id && (
                     <p style={{ fontSize: 14, color: '#999', margin: '8px 0 12px', textAlign: 'center' }}>
@@ -825,7 +722,6 @@ export function Categories() {
                     </button>
                   )}
                 </div>
-              )}
             </li>
           ))}
         </ul>
@@ -1036,163 +932,6 @@ export function Categories() {
         </div>
       )}
 
-      {showCreateModal && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1001,
-            padding: 24,
-          }}
-          onClick={closeCreateModal}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: '#fff',
-              borderRadius: 16,
-              padding: 24,
-              maxWidth: 400,
-              width: '100%',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-            }}
-          >
-            <h3 style={{ margin: '0 0 16px' }}>הוסף קטגוריה</h3>
-            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 14, fontWeight: 600 }}>שם קטגוריה <span style={{ color: '#c00' }}>*</span></label>
-                <input
-                  type="text"
-                  value={nameHe}
-                  onChange={(e) => setNameHe(e.target.value)}
-                  placeholder="שם קטגוריה"
-                  autoFocus
-                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>תמונת תצוגה</label>
-                <select
-                  value={displayImageType}
-                  onChange={(e) => {
-                    const v = e.target.value as DisplayImageType;
-                    setDisplayImageType(v);
-                    if (v === 'icon') { setImageUrl(''); setPendingCategoryFile(null); }
-                    if (v === 'device') {
-                      setImageUrl('');
-                      setTimeout(() => createCategoryFileInputRef.current?.click(), 0);
-                    }
-                    if (v === 'link' || v === 'web') { setPendingCategoryFile(null); }
-                  }}
-                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
-                >
-                  <option value="icon">אייקון</option>
-                  <option value="device">בחר מהמכשיר...</option>
-                  <option value="link">קישור לתמונה</option>
-                  <option value="web">חיפוש באינטרנט</option>
-                </select>
-              </div>
-              {displayImageType === 'icon' && (
-                <EmojiPicker
-                  label="בחירת אייקון"
-                  value={iconId}
-                  onChange={setIconId}
-                />
-              )}
-              {displayImageType === 'device' && (
-                <div>
-                  <input
-                    ref={createCategoryFileInputRef}
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) setPendingCategoryFile(file);
-                      e.target.value = '';
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => createCategoryFileInputRef.current?.click()}
-                    style={{ padding: 10, borderRadius: 8, border: '1px solid #ccc', background: '#fff' }}
-                  >
-                    {pendingCategoryFile ? pendingCategoryFile.name : 'בחר מהמכשיר...'}
-                  </button>
-                </div>
-              )}
-              {displayImageType === 'link' && (
-                <div>
-                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קישור לתמונה</label>
-                  <input
-                    type="url"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    placeholder="https://..."
-                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
-                  />
-                </div>
-              )}
-              {displayImageType === 'web' && (
-                <div>
-                  <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>חיפוש תמונה באינטרנט</label>
-                  <ImageSearchPicker onSelect={(url) => setImageUrl(url)} placeholder="חיפוש תמונה..." />
-                  {imageUrl && (
-                    <p style={{ marginTop: 8, fontSize: 12, color: '#2e7d32' }}>נבחרה תמונה ✓</p>
-                  )}
-                </div>
-              )}
-              {createError && (
-                <p style={{ color: '#c00', fontSize: 14, margin: 0 }} role="alert">
-                  {createError}
-                </p>
-              )}
-              <div style={{ display: 'flex', gap: 8 }}>
-                {(() => {
-                  const hasName = !!nameHe.trim();
-                  const imageReady =
-                    displayImageType === 'icon' ||
-                    (displayImageType === 'device' && !!pendingCategoryFile) ||
-                    (displayImageType === 'link' && !!imageUrl.trim()) ||
-                    (displayImageType === 'web' && !!imageUrl.trim());
-                  const canSubmit = !!activeWorkspaceId && hasName && imageReady && !createMutation.isPending;
-                  return (
-                    <button
-                      type="submit"
-                      disabled={!canSubmit}
-                      style={{
-                        flex: 1,
-                        padding: 12,
-                        fontWeight: 600,
-                        borderRadius: 8,
-                        background: canSubmit ? 'var(--color-primary)' : '#ccc',
-                        color: canSubmit ? '#fff' : '#666',
-                        cursor: canSubmit ? 'pointer' : 'not-allowed',
-                        border: 'none',
-                        fontSize: 15,
-                      }}
-                    >
-                      {createMutation.isPending ? 'מוסיף...' : 'הוסף קטגוריה'}
-                    </button>
-                  );
-                })()}
-                <button
-                  type="button"
-                  onClick={closeCreateModal}
-                  style={{ padding: 12, background: '#eee', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 15 }}
-                >
-                  ביטול
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 }

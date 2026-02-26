@@ -2,33 +2,44 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLists, createList, deleteList, reorderLists } from '../api/lists';
-import { getCategories } from '../api/products';
 import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace } from '../api/workspaces';
-import { uploadFile } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { CategoryFilterConfig } from '../components/CategoryFilterConfig';
-import { DisplayImageForm, type DisplayImageType } from '../components/DisplayImageForm';
 import { getUserDisplayLabel } from '../utils/user';
 import { WorkspaceTabs, type TabKey } from '../components/WorkspaceTabs';
 import { Categories } from './Categories';
-import type { CategoryFilterMode, ListResponse, WorkspaceEvent } from '../types';
+import type { ListResponse, WorkspaceEvent } from '../types';
+
+function PencilIcon({ size = 18, color = '#666' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  );
+}
+
+function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z" fill={color} />
+      <path d="M3 6a1 1 0 0 1 1-1h16a1 1 0 1 1 0 2H4a1 1 0 0 1-1-1Z" fill={color} />
+      <path d="M5 8h14l-1.2 13a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8L5 8Z" fill={color} />
+      <rect x="9.5" y="11" width="1.2" height="8" rx="0.6" fill="#fff" />
+      <rect x="11.4" y="11" width="1.2" height="8" rx="0.6" fill="#fff" />
+      <rect x="13.3" y="11" width="1.2" height="8" rx="0.6" fill="#fff" />
+    </svg>
+  );
+}
 
 export function Lists() {
   const [activeTab, setActiveTab] = useState<TabKey>('lists');
   const [name, setName] = useState('');
   const [showNew, setShowNew] = useState(false);
   const [toast, setToast] = useState<{ message: string; isError: boolean } | null>(null);
-  const [createDisplayImageType, setCreateDisplayImageType] = useState<DisplayImageType>('icon');
-  const [createIconId, setCreateIconId] = useState('');
-  const [createImageUrl, setCreateImageUrl] = useState('');
-  const [createFilterMode, setCreateFilterMode] = useState<CategoryFilterMode>('NONE');
-  const [createFilterCategoryIds, setCreateFilterCategoryIds] = useState<string[]>([]);
-  const createFileInputRef = useRef<HTMLInputElement>(null);
-  const pendingCreateFileRef = useRef<File | null>(null);
   const queryClient = useQueryClient();
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
@@ -129,17 +140,6 @@ export function Lists() {
   // Delete confirmation
   const [confirmDeleteList, setConfirmDeleteList] = useState<ListResponse | null>(null);
 
-  // Edit modal
-  const [editList, setEditList] = useState<ListResponse | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editDisplayImageType, setEditDisplayImageType] = useState<DisplayImageType>('icon');
-  const [editIconId, setEditIconId] = useState('');
-  const [editImageUrl, setEditImageUrl] = useState('');
-  const [editFilterMode, setEditFilterMode] = useState<CategoryFilterMode>('NONE');
-  const [editFilterCategoryIds, setEditFilterCategoryIds] = useState<string[]>([]);
-  const editFileInputRef = useRef<HTMLInputElement>(null);
-  const pendingEditFileRef = useRef<File | null>(null);
-
   // Drag reorder
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
@@ -150,38 +150,15 @@ export function Lists() {
     queryFn: () => getLists(activeWorkspaceId || undefined),
   });
 
-  const { data: workspaceCategories = [] } = useQuery({
-    queryKey: ['categories', activeWorkspaceId],
-    queryFn: () => getCategories(activeWorkspaceId || undefined),
-    enabled: !!activeWorkspaceId,
-  });
-
   const displayLists = orderedLists ?? lists;
   const workspaceById = Object.fromEntries(workspaces.map((w) => [w.id, w]));
 
   const createMutation = useMutation({
-    mutationFn: async (payload: { name: string; workspaceId: string; iconId?: string | null; imageUrl?: string | null; categoryFilterMode?: string; categoryIds?: string[] }) => {
-      const list = await createList(payload);
-      const file = pendingCreateFileRef.current;
-      pendingCreateFileRef.current = null;
-      if (file && list?.id) {
-        await uploadFile(`/api/upload/list/${list.id}`, file);
-        queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] });
-        const updated = await getLists(activeWorkspaceId || undefined);
-        const created = updated.find((l) => l.id === list.id);
-        if (created) return created;
-      }
-      return list;
-    },
+    mutationFn: (payload: { name: string; workspaceId: string }) => createList(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] });
       setShowNew(false);
       setName('');
-      setCreateDisplayImageType('icon');
-      setCreateIconId('');
-      setCreateImageUrl('');
-      setCreateFilterMode('NONE');
-      setCreateFilterCategoryIds([]);
     },
     onError: (err: Error) => {
       showToast(err.message || 'שגיאה ביצירת הרשימה', true);
@@ -196,29 +173,6 @@ export function Lists() {
     },
   });
 
-  const updateListMutation = useMutation({
-    mutationFn: async ({ listId, payload }: { listId: string; payload: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number; categoryFilterMode?: string; categoryIds?: string[] } }) => {
-      const { updateList } = await import('../api/lists');
-      const updated = await updateList(listId, payload);
-      const file = pendingEditFileRef.current;
-      pendingEditFileRef.current = null;
-      if (file) {
-        await uploadFile(`/api/upload/list/${listId}`, file);
-        queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] });
-        return updated;
-      }
-      return updated;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] });
-      setEditList(null);
-    },
-    onError: (err: Error) => {
-      queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] });
-      showToast(err.message || 'שגיאה בעדכון הרשימה', true);
-    },
-  });
-
   const reorderMutation = useMutation({
     mutationFn: (listIds: string[]) => reorderLists(listIds),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] }),
@@ -226,38 +180,6 @@ export function Lists() {
       showToast(err.message || 'שגיאה בשינוי הסדר', true);
     },
   });
-
-  useEffect(() => {
-    if (!editList) return;
-    const fresh = lists.find((l) => l.id === editList.id);
-    if (fresh && fresh.version !== editList.version) {
-      setEditList((prev) => prev ? { ...prev, version: fresh.version } : prev);
-    }
-  }, [lists, editList]);
-
-  function openEditList(list: ListResponse) {
-    setEditList(list);
-    setEditName(list.name);
-    setEditDisplayImageType(list.imageUrl ? 'link' : 'icon');
-    setEditIconId(list.iconId ?? '');
-    setEditImageUrl(list.imageUrl ?? '');
-    setEditFilterMode(list.categoryFilterMode ?? 'NONE');
-    setEditFilterCategoryIds(list.categoryIds ?? []);
-  }
-
-  function handleEditListSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editList) return;
-    const nameVal = editName.trim() || editList.name;
-    const iconId = editDisplayImageType === 'icon' ? (editIconId || '') : '';
-    const imageUrl = (editDisplayImageType === 'link' || editDisplayImageType === 'web') ? (editImageUrl.trim() || '') : '';
-    const filterPayload = { categoryFilterMode: editFilterMode, categoryIds: editFilterCategoryIds };
-    if (editDisplayImageType === 'device' && pendingEditFileRef.current) {
-      updateListMutation.mutate({ listId: editList.id, payload: { name: nameVal, version: editList.version, ...filterPayload } });
-      return;
-    }
-    updateListMutation.mutate({ listId: editList.id, payload: { name: nameVal, iconId, imageUrl, version: editList.version, ...filterPayload } });
-  }
 
   // Drag handlers
   const handleDragStart = useCallback((index: number) => {
@@ -659,8 +581,77 @@ export function Lists() {
         <div style={{ padding: 16 }}>
         {activeTab === 'lists' ? (
           <>
-        {!showNew && (
-          <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          {showNew ? (
+            <>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (activeWorkspaceId && name.trim()) {
+                      createMutation.mutate({ name: name.trim(), workspaceId: activeWorkspaceId });
+                    }
+                  }
+                  if (e.key === 'Escape') {
+                    setShowNew(false);
+                    setName('');
+                  }
+                }}
+                placeholder="שם הרשימה"
+                autoFocus
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  borderRadius: 10,
+                  border: '1px solid #ddd',
+                  fontSize: 15,
+                  boxSizing: 'border-box',
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (activeWorkspaceId && name.trim()) {
+                    createMutation.mutate({ name: name.trim(), workspaceId: activeWorkspaceId });
+                  }
+                }}
+                disabled={!activeWorkspaceId || !name.trim() || createMutation.isPending}
+                style={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: '50%',
+                  background: activeWorkspaceId && name.trim() && !createMutation.isPending ? 'var(--color-primary)' : '#ccc',
+                  color: '#fff',
+                  fontSize: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: 'none',
+                  cursor: activeWorkspaceId && name.trim() && !createMutation.isPending ? 'pointer' : 'not-allowed',
+                }}
+                aria-label="צור רשימה"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowNew(false); setName(''); }}
+                style={{
+                  padding: '10px 14px',
+                  background: '#eee',
+                  borderRadius: 8,
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                }}
+              >
+                ביטול
+              </button>
+            </>
+          ) : (
             <button
               onClick={() => setShowNew(true)}
               disabled={!activeWorkspaceId}
@@ -682,8 +673,8 @@ export function Lists() {
             >
               +
             </button>
-          </div>
-        )}
+          )}
+        </div>
         {isLoading ? (
           <p>טוען...</p>
         ) : displayLists.length === 0 ? (
@@ -820,43 +811,25 @@ export function Lists() {
                               e.preventDefault();
                               e.stopPropagation();
                               setListMenuOpenId(null);
-                              openEditList(list);
+                              navigate(`/lists/${list.id}/edit`);
                             }}
                             style={{
-                              display: 'block',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'flex-end',
+                              gap: 8,
                               width: '100%',
                               padding: '10px 16px',
                               background: 'none',
                               border: 'none',
-                              textAlign: 'right',
                               fontSize: 14,
                               cursor: 'pointer',
                               borderBottom: '1px solid #f0f0f0',
+                              color: '#333',
                             }}
                           >
                             ערוך
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setListMenuOpenId(null);
-                              navigate(`/workspaces/${list.workspaceId}/share`);
-                            }}
-                            style={{
-                              display: 'block',
-                              width: '100%',
-                              padding: '10px 16px',
-                              background: 'none',
-                              border: 'none',
-                              textAlign: 'right',
-                              fontSize: 14,
-                              cursor: 'pointer',
-                              borderBottom: '1px solid #f0f0f0',
-                            }}
-                          >
-                            שיתוף
+                            <PencilIcon size={16} />
                           </button>
                           <button
                             type="button"
@@ -867,18 +840,21 @@ export function Lists() {
                               setConfirmDeleteList(list);
                             }}
                             style={{
-                              display: 'block',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'flex-end',
+                              gap: 8,
                               width: '100%',
                               padding: '10px 16px',
                               background: 'none',
                               border: 'none',
-                              textAlign: 'right',
                               fontSize: 14,
                               cursor: 'pointer',
                               color: '#c00',
                             }}
                           >
                             מחק
+                            <TrashIcon size={16} color="#c00" />
                           </button>
                         </div>
                       </>
@@ -890,92 +866,6 @@ export function Lists() {
           </ul>
         )}
 
-        {showNew && (
-          <div style={{ marginBottom: 16, padding: 16, background: '#fff', borderRadius: 12, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ display: 'block', marginBottom: 4, fontWeight: 600 }}>שם הרשימה <span style={{ color: '#c00' }}>*</span></label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="שם הרשימה"
-                autoFocus
-                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-              />
-            </div>
-            <DisplayImageForm
-              label="אייקון לרשימה"
-              displayType={createDisplayImageType}
-              iconId={createIconId}
-              imageUrl={createImageUrl}
-              onDisplayTypeChange={setCreateDisplayImageType}
-              onIconIdChange={setCreateIconId}
-              onImageUrlChange={setCreateImageUrl}
-              fileInputRef={createFileInputRef}
-            />
-            <input
-              ref={createFileInputRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) pendingCreateFileRef.current = file;
-                e.target.value = '';
-              }}
-            />
-            {workspaceCategories.length > 0 && (
-              <CategoryFilterConfig
-                mode={createFilterMode}
-                selectedIds={createFilterCategoryIds}
-                categories={workspaceCategories}
-                onModeChange={setCreateFilterMode}
-                onSelectedIdsChange={setCreateFilterCategoryIds}
-              />
-            )}
-            <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-              <button
-                onClick={() => {
-                  if (!activeWorkspaceId || !name.trim()) return;
-                  const iconId = createDisplayImageType === 'icon' ? createIconId || '' : '';
-                  const imageUrl = createDisplayImageType === 'link' || createDisplayImageType === 'web' ? createImageUrl || '' : '';
-                  createMutation.mutate({
-                    name: name.trim(),
-                    workspaceId: activeWorkspaceId,
-                    iconId: iconId || undefined,
-                    imageUrl: imageUrl || undefined,
-                    categoryFilterMode: createFilterMode,
-                    categoryIds: createFilterCategoryIds.length > 0 ? createFilterCategoryIds : undefined,
-                  });
-                }}
-                disabled={createMutation.isPending || !activeWorkspaceId || !name.trim()}
-                style={{
-                  padding: '10px 16px',
-                  background: createMutation.isPending || !activeWorkspaceId || !name.trim() ? '#ccc' : 'var(--color-primary)',
-                  color: createMutation.isPending || !activeWorkspaceId || !name.trim() ? '#666' : '#fff',
-                  fontWeight: 600,
-                  cursor: createMutation.isPending || !activeWorkspaceId || !name.trim() ? 'not-allowed' : 'pointer',
-                }}
-              >
-                {createMutation.isPending ? 'יוצר...' : 'צור רשימה'}
-              </button>
-              <button
-                onClick={() => {
-                  setShowNew(false);
-                  setName('');
-                  setCreateDisplayImageType('icon');
-                  setCreateIconId('');
-                  setCreateImageUrl('');
-                  setCreateFilterMode('NONE');
-                  setCreateFilterCategoryIds([]);
-                }}
-                style={{ padding: '10px 16px', background: '#eee' }}
-              >
-                ביטול
-              </button>
-            </div>
-          </div>
-        )}
           </>
         ) : (
           <Categories />
@@ -1054,97 +944,6 @@ export function Lists() {
         )}
 
         {/* Edit list modal */}
-        {editList && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 1001,
-              padding: 24,
-            }}
-            onClick={() => setEditList(null)}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: '#fff',
-                borderRadius: 16,
-                padding: 24,
-                maxWidth: 400,
-                width: '100%',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-              }}
-            >
-              <h3 style={{ margin: '0 0 16px' }}>ערוך רשימה</h3>
-              <form onSubmit={handleEditListSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div>
-                  <label style={{ display: 'block', marginBottom: 4 }}>שם הרשימה</label>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="שם הרשימה"
-                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc' }}
-                  />
-                </div>
-                <DisplayImageForm
-                  label="אייקון לרשימה"
-                  displayType={editDisplayImageType}
-                  iconId={editIconId}
-                  imageUrl={editImageUrl}
-                  onDisplayTypeChange={setEditDisplayImageType}
-                  onIconIdChange={setEditIconId}
-                  onImageUrlChange={setEditImageUrl}
-                  fileInputRef={editFileInputRef}
-                />
-                {editDisplayImageType === 'device' && (
-                  <p style={{ margin: 0, fontSize: 13, color: '#666' }}>בחר קובץ מהמכשיר ואז שמור</p>
-                )}
-                <input
-                  ref={editFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) pendingEditFileRef.current = file;
-                    e.target.value = '';
-                  }}
-                />
-                {workspaceCategories.length > 0 && (
-                  <CategoryFilterConfig
-                    mode={editFilterMode}
-                    selectedIds={editFilterCategoryIds}
-                    categories={workspaceCategories}
-                    onModeChange={setEditFilterMode}
-                    onSelectedIdsChange={setEditFilterCategoryIds}
-                  />
-                )}
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    type="submit"
-                    disabled={updateListMutation.isPending}
-                    style={{ flex: 1, padding: 12, background: 'var(--color-primary)', color: '#fff', fontWeight: 600, borderRadius: 8, border: 'none', cursor: 'pointer' }}
-                  >
-                    {updateListMutation.isPending ? 'שומר...' : 'שמור'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditList(null)}
-                    style={{ padding: 12, background: '#eee', borderRadius: 8, border: 'none', cursor: 'pointer' }}
-                  >
-                    ביטול
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
         {/* Delete workspace confirmation */}
         {confirmDeleteWorkspace && activeWorkspace && (
           <div

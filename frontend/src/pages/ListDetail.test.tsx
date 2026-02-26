@@ -5,6 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { ListDetail } from './ListDetail'
 import { ListItemEdit } from './ListItemEdit'
+import { ListEdit } from './ListEdit'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -17,6 +18,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
         <Routes>
           <Route path="/lists/:listId" element={children} />
           <Route path="/lists/:listId/items/:itemId/edit" element={<ListItemEdit />} />
+          <Route path="/lists/:listId/edit" element={<ListEdit />} />
         </Routes>
       </QueryClientProvider>
     </MemoryRouter>
@@ -185,6 +187,29 @@ describe('ListDetail', () => {
 
     const gridBtn = screen.getByRole('button', { name: /תצוגת כרטיסיות/i })
     expect(gridBtn).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('list header kebab has edit and delete; edit navigates to list edit page', async () => {
+    mockFetch()
+    render(
+      <Wrapper>
+        <ListDetail />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText('חלב')).toBeInTheDocument()
+    })
+    const kebab = screen.getByRole('button', { name: /תפריט רשימה/i })
+    fireEvent.click(kebab)
+    await waitFor(() => {
+      expect(screen.getByText('ערוך')).toBeInTheDocument()
+      expect(screen.getByText('מחק')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('ערוך'))
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'ערוך רשימה' })).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('שם הרשימה')).toHaveValue('קניות')
+    })
   })
 
   describe('edit item dialog (single-click)', () => {
