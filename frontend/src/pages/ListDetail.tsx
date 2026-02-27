@@ -300,18 +300,37 @@ export function ListDetail() {
     return () => clearTimeout(timer);
   }, [searchQuery, hasExactMatch]);
 
+  const listItemMatches = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q.length < 1) return [];
+    const out: ListItemResponse[] = [];
+    for (const i of items) {
+      if (
+        i.displayName.toLowerCase().includes(q) ||
+        (i.note && i.note.toLowerCase().includes(q))
+      ) {
+        out.push(i);
+        if (out.length >= 5) break;
+      }
+    }
+    return out;
+  }, [searchQuery, items]);
+
   const productMatches = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (q.length < 1) return [];
     const out: ProductDto[] = [];
     for (const p of filteredProducts) {
-      if (p.nameHe.toLowerCase().includes(q)) {
-        out.push(p);
-        if (out.length >= 7) break;
-      }
+      if (!p.nameHe.toLowerCase().includes(q)) continue;
+      const alreadyInList =
+        items.some((i) => i.productId === p.id) ||
+        items.some((i) => i.displayName.toLowerCase() === p.nameHe.toLowerCase());
+      if (alreadyInList) continue;
+      out.push(p);
+      if (out.length >= 7) break;
     }
     return out;
-  }, [searchQuery, filteredProducts]);
+  }, [searchQuery, filteredProducts, items]);
 
   function handleAddFromSearch() {
     const name = searchQuery.trim();
@@ -337,7 +356,7 @@ export function ListDetail() {
     });
   }
 
-  const showAddSearchDropdown = searchQuery.trim() && (productMatches.length > 0 || showAddSuggestion);
+  const showAddSearchDropdown = searchQuery.trim() && (listItemMatches.length > 0 || productMatches.length > 0 || showAddSuggestion);
   const addSearchDropdown = showAddSearchDropdown ? (
     <div
       role="listbox"
@@ -355,6 +374,43 @@ export function ListDetail() {
         overflow: 'hidden',
       }}
     >
+      {listItemMatches.length > 0 && (
+        <>
+          <div style={{ padding: '6px 14px', fontSize: 12, color: '#666', fontWeight: 600, background: '#f8f8f8', borderBottom: '1px solid #eee' }}>
+            כבר ברשימה
+          </div>
+          {listItemMatches.map((item) => (
+            <div
+              key={item.id}
+              role="option"
+              aria-selected={false}
+              style={{
+                width: '100%',
+                padding: '10px 14px',
+                borderBottom: '1px solid #f0f0f0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 15,
+                color: '#888',
+                textAlign: 'right',
+                background: '#fafafa',
+              }}
+            >
+              <CategoryIcon
+                iconId={item.iconId ?? item.categoryIconId ?? null}
+                imageUrl={item.itemImageUrl ?? item.productImageUrl ?? null}
+                size={24}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div>{item.displayName}</div>
+                {item.categoryNameHe && <div style={{ fontSize: 12, color: '#aaa' }}>{item.categoryNameHe}</div>}
+              </div>
+              <span style={{ fontSize: 12, color: '#999', whiteSpace: 'nowrap' }}>כבר ברשימה</span>
+            </div>
+          ))}
+        </>
+      )}
       {productMatches.map((p) => (
         <button
           key={p.id}

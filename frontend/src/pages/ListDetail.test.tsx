@@ -1004,7 +1004,7 @@ describe('ListDetail', () => {
       const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       fireEvent.change(searchInput, { target: { value: 'חלב' } })
 
-      expect(screen.getByText('חלב')).toBeInTheDocument()
+      expect(screen.getAllByText('חלב').length).toBeGreaterThanOrEqual(1)
       expect(screen.queryByText('לחם')).not.toBeInTheDocument()
     })
 
@@ -1022,8 +1022,72 @@ describe('ListDetail', () => {
       const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       fireEvent.change(searchInput, { target: { value: 'מחיטה' } })
 
-      expect(screen.getByText('לחם')).toBeInTheDocument()
+      expect(screen.getAllByText('לחם').length).toBeGreaterThanOrEqual(1)
       expect(screen.queryByText('חלב')).not.toBeInTheDocument()
+    })
+
+    it('shows matching list items in search dropdown with "already in list" indicator', async () => {
+      mockFetch()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
+      fireEvent.change(searchInput, { target: { value: 'חלב' } })
+
+      await waitFor(() => {
+        const alreadyInListLabels = screen.getAllByText('כבר ברשימה')
+        expect(alreadyInListLabels.length).toBeGreaterThanOrEqual(1)
+      })
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+    })
+
+    it('does not show category product in dropdown when already on list', async () => {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      const productsWithChalav = [
+        { id: 'p1', nameHe: 'חלב', defaultUnit: 'ליטר', categoryId: 'c1', categoryNameHe: 'מוצרי חלב', categoryIconId: 'dairy', iconId: null, imageUrl: null, note: null, addCount: 5, version: 1 },
+        { id: 'p2', nameHe: 'חלב סויה', defaultUnit: 'ליטר', categoryId: 'c2', categoryNameHe: 'טבעוני', categoryIconId: null, iconId: null, imageUrl: null, note: null, addCount: 1, version: 1 },
+      ]
+      fetchMock.mockImplementation((url: string) => {
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItems) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        if (url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(productsWithChalav) })
+        }
+        if (url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
+      fireEvent.change(searchInput, { target: { value: 'חלב' } })
+
+      await waitFor(() => {
+        const listbox = screen.getByRole('listbox')
+        expect(listbox).toBeInTheDocument()
+        // List has חלב (p1); category also has חלב (p1). We must not show p1 as addable — only one "חלב" row (already in list).
+        const chalavExact = screen.getAllByText('חלב', { exact: true })
+        const inListbox = chalavExact.filter((el) => listbox.contains(el))
+        expect(inListbox.length).toBe(1)
+      })
     })
 
     it('shows no-results message when nothing matches', async () => {
@@ -1084,7 +1148,7 @@ describe('ListDetail', () => {
       const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       fireEvent.change(searchInput, { target: { value: 'חלב' } })
 
-      expect(screen.getByText('מוצרי חלב')).toBeInTheDocument()
+      expect(screen.getAllByText('מוצרי חלב').length).toBeGreaterThanOrEqual(1)
       expect(screen.queryByText('מאפים')).not.toBeInTheDocument()
     })
 
@@ -1102,7 +1166,7 @@ describe('ListDetail', () => {
       const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       fireEvent.change(searchInput, { target: { value: 'מחיטה מלאה' } })
 
-      expect(screen.getByText('לחם')).toBeInTheDocument()
+      expect(screen.getAllByText('לחם').length).toBeGreaterThanOrEqual(1)
       expect(screen.queryByText('חלב')).not.toBeInTheDocument()
     })
   })
@@ -1258,7 +1322,8 @@ describe('ListDetail', () => {
 
       await act(async () => { vi.advanceTimersByTime(500) })
 
-      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+      // Dropdown may show "already in list" for the exact match, but we must not show "add as custom"
+      expect(screen.queryByText(/הוסף "חלב" לרשימה/)).not.toBeInTheDocument()
 
       vi.useRealTimers()
     })
