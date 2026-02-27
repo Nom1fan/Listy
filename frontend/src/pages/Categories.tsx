@@ -35,6 +35,38 @@ function PencilIcon({ size = 18, color = '#666' }: { size?: number; color?: stri
   );
 }
 
+function ExpandAllIcon({ size = 20, color = '#555' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 10l5 5 5-5M7 4l5 5 5-5" />
+    </svg>
+  );
+}
+
+function CollapseAllIcon({ size = 20, color = '#555' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 14l5-5 5 5M7 20l5-5 5 5" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ size = 20, color = '#555' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ size = 20, color = '#555' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
 export function Categories() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -59,6 +91,7 @@ export function Categories() {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const [orderedCategories, setOrderedCategories] = useState<CategoryDto[] | null>(null);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set());
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', activeWorkspaceId],
@@ -237,9 +270,9 @@ export function Categories() {
           {productImageToast.isError ? '✕ ' : '✓ '}{productImageToast.message}
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         {showCreateModal ? (
-          <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <input
               type="text"
               value={nameHe}
@@ -258,7 +291,6 @@ export function Categories() {
               placeholder="שם קטגוריה"
               autoFocus
               style={{
-                flex: 1,
                 minWidth: 140,
                 padding: '12px 16px',
                 borderRadius: 10,
@@ -306,7 +338,7 @@ export function Categories() {
             >
               ביטול
             </button>
-          </>
+          </div>
         ) : (
           <button
             onClick={() => setShowCreateModal(true)}
@@ -326,11 +358,53 @@ export function Categories() {
               border: 'none',
             }}
             aria-label="הוסף קטגוריה"
-          >
-            +
-          </button>
+            >
+              +
+            </button>
         )}
-        <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {displayCategories.length > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setCollapsedCategories(new Set())}
+                title="פתח את כל הקטגוריות"
+                aria-label="פתח את כל הקטגוריות"
+                style={{
+                  padding: '8px 10px',
+                  background: '#fff',
+                  border: '1px solid #ccc',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ExpandAllIcon size={20} color="#555" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCollapsedCategories(new Set(displayCategories.map((c) => c.id)))}
+                title="סגור את כל הקטגוריות"
+                aria-label="סגור את כל הקטגוריות"
+                style={{
+                  padding: '8px 10px',
+                  background: '#fff',
+                  border: '1px solid #ccc',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CollapseAllIcon size={20} color="#555" />
+              </button>
+            </>
+          )}
+          <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
+        </div>
       </div>
 
         {displayCategories.length === 0 && (
@@ -383,7 +457,57 @@ export function Categories() {
                   ⠿
                 </span>
                 <CategoryIcon iconId={c.iconId} imageUrl={c.imageUrl} size={32} />
-                <span style={{ flex: 1, fontWeight: 500 }}>{c.nameHe}</span>
+                <button
+                  type="button"
+                  onClick={() => setCollapsedCategories((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(c.id)) next.delete(c.id);
+                    else next.add(c.id);
+                    return next;
+                  })}
+                  aria-expanded={!collapsedCategories.has(c.id)}
+                  aria-label={collapsedCategories.has(c.id) ? `פתח קטגוריה ${c.nameHe}` : `סגור קטגוריה ${c.nameHe}`}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    font: 'inherit',
+                    fontWeight: 500,
+                    textAlign: 'right',
+                  }}
+                >
+                  <span>{c.nameHe}</span>
+                  <span style={{ fontSize: 13, fontWeight: 400, color: '#666', opacity: 0.9 }}>{(productsByCategory[c.id] || []).length}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollapsedCategories((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(c.id)) next.delete(c.id);
+                    else next.add(c.id);
+                    return next;
+                  })}
+                  aria-expanded={!collapsedCategories.has(c.id)}
+                  aria-label={collapsedCategories.has(c.id) ? `פתח קטגוריה ${c.nameHe}` : `סגור קטגוריה ${c.nameHe}`}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '4px 6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 6,
+                    color: '#555',
+                  }}
+                >
+                  {collapsedCategories.has(c.id) ? <ChevronRightIcon size={22} color="#555" /> : <ChevronDownIcon size={22} color="#555" />}
+                </button>
                 <div style={{ position: 'relative', flexShrink: 0 }}>
                   <button
                     type="button"
@@ -469,6 +593,7 @@ export function Categories() {
                 </div>
               </div>
 
+              {!collapsedCategories.has(c.id) && (
               <div style={{ padding: '0 12px 12px 12px', borderTop: '1px solid #eee', marginTop: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, marginTop: 8 }}>פריטים בקטגוריה</div>
                   {!(productsByCategory[c.id]?.length) && addProductCategoryId !== c.id && (
@@ -666,6 +791,7 @@ export function Categories() {
                     </button>
                   )}
                 </div>
+              )}
             </li>
           ))}
         </ul>

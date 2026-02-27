@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import com.listyyy.backend.productbank.Category;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -31,7 +32,11 @@ public class ListController {
         } else {
             lists = listService.listsForUser(user);
         }
-        List<ListResponse> body = lists.stream().map(this::toListResponse).toList();
+        List<UUID> listIds = lists.stream().map(GroceryList::getId).toList();
+        Map<UUID, Long> itemCounts = listItemService.getItemCountsByListIds(listIds);
+        List<ListResponse> body = lists.stream()
+                .map(l -> toListResponse(l, itemCounts.getOrDefault(l.getId(), 0L)))
+                .toList();
         return ResponseEntity.ok(body);
     }
 
@@ -44,7 +49,8 @@ public class ListController {
         if (req.getWorkspaceId() == null) throw new IllegalArgumentException("חובה לציין מרחב");
         GroceryList list = listService.create(user, req.getWorkspaceId(), req.getName(), req.getIconId(), req.getImageUrl(),
                 req.getCategoryFilterMode(), req.getCategoryIds());
-        return ResponseEntity.ok(toListResponse(list));
+        long count = listItemService.getItemCountsByListIds(List.of(list.getId())).getOrDefault(list.getId(), 0L);
+        return ResponseEntity.ok(toListResponse(list, count));
     }
 
     @GetMapping("/{listId}")
@@ -54,7 +60,8 @@ public class ListController {
     ) {
         if (user == null) return ResponseEntity.status(401).build();
         GroceryList list = listService.get(listId, user);
-        return ResponseEntity.ok(toListResponse(list));
+        long count = listItemService.getItemCountsByListIds(List.of(list.getId())).getOrDefault(list.getId(), 0L);
+        return ResponseEntity.ok(toListResponse(list, count));
     }
 
     @PutMapping("/{listId}")
@@ -66,7 +73,8 @@ public class ListController {
         if (user == null) return ResponseEntity.status(401).build();
         GroceryList list = listService.update(listId, user, req.getName(), req.getIconId(), req.getImageUrl(), req.getVersion(),
                 req.getCategoryFilterMode(), req.getCategoryIds());
-        return ResponseEntity.ok(toListResponse(list));
+        long count = listItemService.getItemCountsByListIds(List.of(list.getId())).getOrDefault(list.getId(), 0L);
+        return ResponseEntity.ok(toListResponse(list, count));
     }
 
     @DeleteMapping("/{listId}")
@@ -145,7 +153,7 @@ public class ListController {
         return ResponseEntity.noContent().build();
     }
 
-    private ListResponse toListResponse(GroceryList list) {
+    private ListResponse toListResponse(GroceryList list, long itemCount) {
         List<UUID> categoryIds = list.getFilterCategories().stream()
                 .map(Category::getId)
                 .toList();
@@ -161,6 +169,7 @@ public class ListController {
                 .createdAt(list.getCreatedAt())
                 .updatedAt(list.getUpdatedAt())
                 .version(list.getVersion())
+                .itemCount((int) itemCount)
                 .build();
     }
 

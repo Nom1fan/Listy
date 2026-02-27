@@ -23,4 +23,6 @@ public class ListResponse {
     private Instant updatedAt;
     /** Optimistic-locking version. */
     private Long version;
+    /** Number of items on the list (included when listing lists). */
+    private Integer itemCount;
 }

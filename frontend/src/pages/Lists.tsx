@@ -761,6 +761,9 @@ export function Lists() {
                   >
                     <CategoryIcon iconId={list.iconId} imageUrl={list.imageUrl} size={28} />
                     <span style={{ fontWeight: 500 }}>{list.name}</span>
+                    {typeof list.itemCount === 'number' && (
+                      <span style={{ fontSize: 13, fontWeight: 400, color: '#666', opacity: 0.9 }}>{list.itemCount}</span>
+                    )}
                     {workspaceById[list.workspaceId]?.memberCount > 1 && (
                       <span
                         style={{

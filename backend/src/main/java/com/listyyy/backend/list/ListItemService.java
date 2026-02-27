@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -197,5 +199,16 @@ public class ListItemService {
         ListItem item = listItemRepository.findById(itemId).orElseThrow(() -> new ResourceNotFoundException("הפריט לא נמצא"));
         if (!item.getList().getId().equals(listId)) throw new IllegalArgumentException("הפריט לא שייך לרשימה");
         return item;
+    }
+
+    /** Returns map of listId -> item count for the given list IDs. */
+    public Map<UUID, Long> getItemCountsByListIds(List<UUID> listIds) {
+        if (listIds == null || listIds.isEmpty()) return new HashMap<>();
+        List<Object[]> rows = listItemRepository.countByListIds(listIds);
+        Map<UUID, Long> map = new HashMap<>();
+        for (Object[] row : rows) {
+            map.put((UUID) row[0], ((Number) row[1]).longValue());
+        }
+        return map;
     }
 }

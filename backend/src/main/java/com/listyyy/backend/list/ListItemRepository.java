@@ -3,11 +3,17 @@ package com.listyyy.backend.list;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.UUID;
 
 public interface ListItemRepository extends JpaRepository<ListItem, UUID> {
+
+    long countByListId(UUID listId);
+
+    @Query("SELECT i.list.id, COUNT(i) FROM ListItem i WHERE i.list.id IN :listIds GROUP BY i.list.id")
+    List<Object[]> countByListIds(@Param("listIds") List<UUID> listIds);
 
     @Query("SELECT i FROM ListItem i LEFT JOIN FETCH i.product p LEFT JOIN FETCH p.category LEFT JOIN FETCH i.category WHERE i.list.id = :listId ORDER BY i.sortOrder, i.createdAt")
     List<ListItem> findByListIdWithProductAndCategory(UUID listId);

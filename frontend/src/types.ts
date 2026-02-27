@@ -22,6 +22,8 @@ export interface ListResponse {
   createdAt: string;
   updatedAt: string;
   version: number;
+  /** Number of items on the list (included when listing lists). */
+  itemCount?: number;
 }
 
 export interface ListItemResponse {

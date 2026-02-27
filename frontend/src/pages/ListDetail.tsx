@@ -93,6 +93,42 @@ function PencilIcon({ size = 18, color = '#666' }: { size?: number; color?: stri
   );
 }
 
+/** Expand-all: chevrons down – expand all sections */
+function ExpandAllIcon({ size = 20, color = '#555' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 10l5 5 5-5M7 4l5 5 5-5" />
+    </svg>
+  );
+}
+
+/** Collapse-all: chevrons up – collapse all sections */
+function CollapseAllIcon({ size = 20, color = '#555' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 14l5-5 5 5M7 20l5-5 5 5" />
+    </svg>
+  );
+}
+
+/** Chevron down – category expanded */
+function ChevronDownIcon({ size = 20, color = '#555' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
+/** Chevron right – category collapsed */
+function ChevronRightIcon({ size = 20, color = '#555' }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
 function SortableItem({ id, children }: {
   id: string;
   children: (props: { handleProps: React.HTMLAttributes<HTMLElement> }) => React.ReactNode;
@@ -135,6 +171,7 @@ export function ListDetail() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddSuggestion, setShowAddSuggestion] = useState(false);
   const [listDetailMenuOpen, setListDetailMenuOpen] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set());
 
   const { data: list } = useQuery({
     queryKey: ['list', listId],
@@ -664,7 +701,7 @@ export function ListDetail() {
               </p>
             )}
             {items.length > 0 && (
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               {hasCrossedOff && (
                 <button
                   type="button"
@@ -685,6 +722,42 @@ export function ListDetail() {
                   {hideCrossedOff ? <EyeOffIcon size={18} color={hideCrossedOff ? '#fff' : '#666'} /> : <EyeIcon size={18} color="#666" />}
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => setCollapsedCategories(new Set())}
+                title="פתח את כל הקטגוריות"
+                aria-label="פתח את כל הקטגוריות"
+                style={{
+                  padding: '6px 8px',
+                  background: '#fff',
+                  border: '1px solid #ccc',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ExpandAllIcon size={20} color="#555" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCollapsedCategories(new Set(categories))}
+                title="סגור את כל הקטגוריות"
+                aria-label="סגור את כל הקטגוריות"
+                style={{
+                  padding: '6px 8px',
+                  background: '#fff',
+                  border: '1px solid #ccc',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CollapseAllIcon size={20} color="#555" />
+              </button>
               <ViewModeToggle viewMode={viewMode} onChange={setViewMode} />
             </div>
             )}
@@ -715,11 +788,62 @@ export function ListDetail() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
+                  textAlign: 'right',
                 }}
               >
-                <CategoryIcon iconId={getCategoryIconId(cat)} imageUrl={getCategoryImageUrl(cat)} size={24} />
-                <span style={{ fontWeight: 600 }}>{cat}</span>
+                <button
+                  type="button"
+                  onClick={() => setCollapsedCategories((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(cat)) next.delete(cat);
+                    else next.add(cat);
+                    return next;
+                  })}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    font: 'inherit',
+                    textAlign: 'right',
+                  }}
+                  aria-expanded={!collapsedCategories.has(cat)}
+                  aria-label={collapsedCategories.has(cat) ? `פתח קטגוריה ${cat}` : `סגור קטגוריה ${cat}`}
+                >
+                  <CategoryIcon iconId={getCategoryIconId(cat)} imageUrl={getCategoryImageUrl(cat)} size={24} />
+                  <span style={{ fontWeight: 600 }}>{cat}</span>
+                  <span style={{ fontSize: 13, fontWeight: 400, color: '#666', opacity: 0.9 }}>{visibleItems.length}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollapsedCategories((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(cat)) next.delete(cat);
+                    else next.add(cat);
+                    return next;
+                  })}
+                  aria-expanded={!collapsedCategories.has(cat)}
+                  aria-label={collapsedCategories.has(cat) ? `פתח קטגוריה ${cat}` : `סגור קטגוריה ${cat}`}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '4px 6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 6,
+                    color: '#555',
+                  }}
+                >
+                  {collapsedCategories.has(cat) ? <ChevronRightIcon size={22} color="#555" /> : <ChevronDownIcon size={22} color="#555" />}
+                </button>
               </div>
+              {!collapsedCategories.has(cat) && (
               <SortableContext items={visibleItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
               {viewMode === 'list' ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -954,6 +1078,7 @@ export function ListDetail() {
               </div>
               )}
               </SortableContext>
+              )}
             </section>
             );
           })}

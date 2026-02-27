@@ -89,7 +89,7 @@ describe('Categories', () => {
       </Wrapper>
     )
     await waitFor(() => {
-      expect(screen.getByText('מכולת')).toBeInTheDocument()
+      expect(screen.getByText(/מכולת/)).toBeInTheDocument()
     })
   })
 
@@ -151,7 +151,7 @@ describe('Categories', () => {
       </Wrapper>
     )
     await waitFor(() => {
-      expect(screen.getByText('מכולת')).toBeInTheDocument()
+      expect(screen.getByText(/מכולת/)).toBeInTheDocument()
     })
     const kebabs = screen.getAllByRole('button', { name: /תפריט קטגוריה/i })
     fireEvent.click(kebabs[0])
@@ -275,7 +275,7 @@ describe('Categories', () => {
         </Wrapper>
       )
       await waitFor(() => {
-        expect(screen.getByText(categoryName)).toBeInTheDocument()
+        expect(screen.getByText(new RegExp(categoryName))).toBeInTheDocument()
       })
       // Click the "add product" button for the target category
       const addButtons = screen.getAllByText('+ הוסף פריט לקטגוריה')

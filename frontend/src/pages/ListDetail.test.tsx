@@ -811,14 +811,14 @@ describe('ListDetail', () => {
       })
 
       // Both category headers visible initially
-      expect(screen.getByText('מוצרי חלב')).toBeInTheDocument()
-      expect(screen.getByText('מאפים')).toBeInTheDocument()
+      expect(screen.getByText(/מוצרי חלב/)).toBeInTheDocument()
+      expect(screen.getByText(/מאפים/)).toBeInTheDocument()
 
       // Hide crossed-off items — "לחם" is the only item in "מאפים" and it's crossed off
       fireEvent.click(screen.getByRole('button', { name: /הסתר פריטים מסומנים/i }))
 
       // "מוצרי חלב" category should still show (has non-crossed-off "חלב")
-      expect(screen.getByText('מוצרי חלב')).toBeInTheDocument()
+      expect(screen.getByText(/מוצרי חלב/)).toBeInTheDocument()
       // "מאפים" category should be hidden (all items crossed off)
       expect(screen.queryByText('מאפים')).not.toBeInTheDocument()
     })
@@ -1208,8 +1208,8 @@ describe('ListDetail', () => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
-      expect(screen.getByText('מוצרי חלב')).toBeInTheDocument()
-      expect(screen.getByText('מאפים')).toBeInTheDocument()
+      expect(screen.getByText(/מוצרי חלב/)).toBeInTheDocument()
+      expect(screen.getByText(/מאפים/)).toBeInTheDocument()
 
       const searchInput = screen.getByPlaceholderText('הוסף / חפש פריט')
       fireEvent.change(searchInput, { target: { value: 'חלב' } })
