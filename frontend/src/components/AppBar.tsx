@@ -6,12 +6,14 @@ interface AppBarProps {
   /** Rendered to the right of the title (e.g. list icon) */
   titleRight?: React.ReactNode;
   backTo?: string;
+  /** Optional state to pass when navigating back (e.g. { tab: 'categories' } to restore tab) */
+  backToState?: object;
   right?: React.ReactNode;
   /** Show the right-side accordion menu trigger (default true when right is not provided) */
   showMenuButton?: boolean;
 }
 
-export function AppBar({ title, titleRight, backTo, right, showMenuButton = true }: AppBarProps) {
+export function AppBar({ title, titleRight, backTo, backToState, right, showMenuButton = true }: AppBarProps) {
   const toggleMenu = useSideMenuStore((s) => s.toggle);
 
   return (
@@ -38,7 +40,7 @@ export function AppBar({ title, titleRight, backTo, right, showMenuButton = true
           </button>
         )}
         {backTo && (
-          <Link to={backTo} style={{ fontSize: 24, lineHeight: 1 }} aria-label="חזרה">
+          <Link to={backTo} state={backToState} style={{ fontSize: 24, lineHeight: 1 }} aria-label="חזרה">
             →
           </Link>
         )}
