@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLists, createList, deleteList, reorderLists } from '../api/lists';
 import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace } from '../api/workspaces';
@@ -36,7 +36,14 @@ function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: strin
 }
 
 export function Lists() {
-  const [activeTab, setActiveTab] = useState<TabKey>('lists');
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const tabFromUrl = searchParams.get('tab');
+  const tabFromState = (location.state as { tab?: TabKey } | null)?.tab;
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    if (tabFromState === 'categories' || tabFromState === 'lists') return tabFromState;
+    return tabFromUrl === 'categories' ? 'categories' : 'lists';
+  });
   const [name, setName] = useState('');
   const [showNew, setShowNew] = useState(false);
   const [toast, setToast] = useState<{ message: string; isError: boolean } | null>(null);
@@ -45,6 +52,13 @@ export function Lists() {
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+
+  // Keep activeTab in sync with ?tab= URL or location state (e.g. when returning from category edit)
+  useEffect(() => {
+    if (tabFromState === 'categories' || tabFromState === 'lists') setActiveTab(tabFromState);
+    else if (tabFromUrl === 'categories') setActiveTab('categories');
+    else if (tabFromUrl === 'lists') setActiveTab('lists');
+  }, [tabFromUrl, tabFromState]);
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
   const clearActiveWorkspace = useWorkspaceStore((s) => s.clearActiveWorkspace);
 

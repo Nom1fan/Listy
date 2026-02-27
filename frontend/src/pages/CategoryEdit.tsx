@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useParams, useNavigate, Navigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategory, updateCategory, deleteCategory } from '../api/products';
 import { uploadFile } from '../api/client';
@@ -31,6 +31,9 @@ export function CategoryEdit() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromCategories = location.state?.from === 'categories';
+  const backTo = fromCategories ? '/lists?tab=categories' : '/lists';
 
   const [nameHe, setNameHe] = useState('');
   const [displayImageType, setDisplayImageType] = useState<DisplayImageType>('icon');
@@ -63,7 +66,7 @@ export function CategoryEdit() {
       queryClient.invalidateQueries({ queryKey: ['category', categoryId] });
       queryClient.invalidateQueries({ queryKey: ['categories', category?.workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      navigate('/lists');
+      navigate(backTo);
     },
     onError: (err: Error) => console.error(err),
   });
@@ -73,7 +76,7 @@ export function CategoryEdit() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories', category?.workspaceId] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      navigate('/lists');
+      navigate(backTo);
     },
     onError: (err: Error) => console.error(err),
   });
@@ -106,12 +109,12 @@ export function CategoryEdit() {
   }
 
   if (!categoryId) {
-    return <Navigate to="/lists" replace />;
+    return <Navigate to={backTo} replace />;
   }
   if (!category) {
     return (
       <>
-        <AppBar title="ערוך קטגוריה" backTo="/lists" />
+        <AppBar title="ערוך קטגוריה" backTo={backTo} backToState={fromCategories ? { tab: 'categories' } : undefined} />
         <main style={{ padding: 16 }}><p>טוען...</p></main>
       </>
     );
@@ -122,7 +125,7 @@ export function CategoryEdit() {
 
   return (
     <>
-      <AppBar title="ערוך קטגוריה" backTo="/lists" />
+      <AppBar title="ערוך קטגוריה" backTo={backTo} backToState={fromCategories ? { tab: 'categories' } : undefined} />
       <main style={{ padding: 16, maxWidth: 480, margin: '0 auto' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
           <button
