@@ -37,6 +37,8 @@ export interface ListItemResponse {
   iconId?: string | null;
   quantity: number;
   unit: string;
+  /** When true, show quantity+unit on list even if "1 יחידה" (user explicitly expanded unit section). */
+  showQuantityUnit: boolean;
   note: string | null;
   crossedOff: boolean;
   itemImageUrl: string | null;

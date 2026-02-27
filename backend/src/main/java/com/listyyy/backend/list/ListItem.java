@@ -48,6 +48,11 @@ public class ListItem {
     @Builder.Default
     private String unit = "יחידה";
 
+    /** When true, show quantity and unit on list even if "1 יחידה" (user explicitly expanded unit section). */
+    @Column(name = "show_quantity_unit", nullable = false)
+    @Builder.Default
+    private boolean showQuantityUnit = false;
+
     @Column(columnDefinition = "TEXT")
     private String note;
 

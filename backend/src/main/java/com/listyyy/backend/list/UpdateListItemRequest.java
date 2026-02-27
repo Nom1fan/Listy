@@ -10,6 +10,8 @@ public class UpdateListItemRequest {
 
     private BigDecimal quantity;
     private String unit;
+    /** When true, show quantity+unit on list even if "1 יחידה". Sent when user had unit section expanded on save. */
+    private Boolean showQuantityUnit;
     private String note;
     private Boolean crossedOff;
     private String customNameHe;

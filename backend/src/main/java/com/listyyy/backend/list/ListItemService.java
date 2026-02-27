@@ -120,6 +120,7 @@ public class ListItemService {
         VersionCheck.check(req.getVersion(), item.getVersion());
         if (req.getQuantity() != null) item.setQuantity(req.getQuantity());
         if (req.getUnit() != null) item.setUnit(req.getUnit());
+        if (req.getShowQuantityUnit() != null) item.setShowQuantityUnit(req.getShowQuantityUnit());
         if (req.getNote() != null) item.setNote(req.getNote());
         if (req.getCrossedOff() != null) item.setCrossedOff(req.getCrossedOff());
         if (req.getCustomNameHe() != null) item.setCustomNameHe(req.getCustomNameHe().isBlank() ? null : req.getCustomNameHe());

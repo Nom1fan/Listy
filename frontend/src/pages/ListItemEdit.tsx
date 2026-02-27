@@ -53,6 +53,7 @@ export function ListItemEdit() {
   const [showEmojiPickerDialog, setShowEmojiPickerDialog] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [unitSectionExpanded, setUnitSectionExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -95,19 +96,9 @@ export function ListItemEdit() {
       setImageUrl(item.itemImageUrl || item.productImageUrl || '');
       const hasUnit = (item.unit ?? '').trim() !== '' && item.unit !== 'יחידה';
       const hasNonDefaultQty = Number(item.quantity) !== 1;
-      setUnitSectionExpanded(hasUnit || hasNonDefaultQty);
+      setUnitSectionExpanded(Boolean(item.showQuantityUnit) || hasUnit || hasNonDefaultQty);
     }
   }, [item]);
-
-  const createCategoryMutation = useMutation({
-    mutationFn: ({ nameHe, workspaceId }: { nameHe: string; workspaceId: string }) =>
-      createCategory({ nameHe: nameHe.trim(), workspaceId }),
-    onSuccess: (newCategory) => {
-      queryClient.invalidateQueries({ queryKey: ['categories', list?.workspaceId] });
-      setCategoryId(newCategory.id);
-      setNewCategoryName('');
-    },
-  });
 
   const updateMutation = useMutation({
     mutationFn: ({
@@ -116,12 +107,14 @@ export function ListItemEdit() {
       body: { crossedOff?: boolean; quantity?: number; unit?: string; note?: string; itemImageUrl?: string | null; iconId?: string | null; categoryId?: string; version?: number; customNameHe?: string };
     }) => updateListItem(listId!, itemId!, body),
     onSuccess: () => {
+      setIsSaving(false);
       setSaveError(null);
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       navigate(`/lists/${listId}`);
     },
     onError: (err: Error) => {
+      setIsSaving(false);
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       setSaveError(err instanceof ApiError ? err.message : err.message || 'שגיאה בשמירה');
     },
@@ -144,19 +137,38 @@ export function ListItemEdit() {
     },
   });
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaveError(null);
     if (!item || !listId || !itemId) return;
+    setIsSaving(true);
+    let effectiveCategoryId = categoryId;
+    if (categoryId === '__new__' && newCategoryName.trim() && list?.workspaceId) {
+      try {
+        const newCategory = await createCategory({
+          nameHe: newCategoryName.trim(),
+          workspaceId: list.workspaceId,
+        });
+        queryClient.invalidateQueries({ queryKey: ['categories', list.workspaceId] });
+        effectiveCategoryId = newCategory.id;
+      } catch (err) {
+        setIsSaving(false);
+        setSaveError(err instanceof ApiError ? err.message : 'שגיאה ביצירת קטגוריה');
+        return;
+      }
+    } else if (categoryId === '__new__') {
+      effectiveCategoryId = item.categoryId || '';
+    }
     const body: Record<string, unknown> = {
       version: item.version != null ? Number(item.version) : 0,
+      showQuantityUnit: unitSectionExpanded,
     };
     const newQty = parseFloat(quantity);
     if (!isNaN(newQty) && newQty !== item.quantity) body.quantity = newQty;
     if (unit !== (item.unit || '')) body.unit = unit;
     if (note !== (item.note || '')) body.note = note;
-    if (categoryId && categoryId !== '__new__' && categoryId !== (item.categoryId || '')) {
-      body.categoryId = categoryId;
+    if (effectiveCategoryId && effectiveCategoryId !== (item.categoryId || '')) {
+      body.categoryId = effectiveCategoryId;
     }
     if (name.trim() !== item.displayName) {
       body.customNameHe = name.trim();
@@ -178,7 +190,7 @@ export function ListItemEdit() {
       });
     }
     updateMutation.mutate({
-      body: body as { version?: number; quantity?: number; unit?: string; note?: string; categoryId?: string; itemImageUrl?: string | null; iconId?: string | null; customNameHe?: string },
+      body: body as { version?: number; quantity?: number; unit?: string; showQuantityUnit?: boolean; note?: string; categoryId?: string; itemImageUrl?: string | null; iconId?: string | null; customNameHe?: string },
     });
   }
 
@@ -420,41 +432,14 @@ export function ListItemEdit() {
                 <option value="__new__">➕ קטגוריה חדשה...</option>
               </select>
               {categoryId === '__new__' && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                <div style={{ marginTop: 8 }}>
                   <input
                     type="text"
                     value={newCategoryName}
                     onChange={(e) => setNewCategoryName(e.target.value)}
                     placeholder="שם הקטגוריה"
-                    style={{ flex: 1, padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        if (newCategoryName.trim() && list?.workspaceId) {
-                          createCategoryMutation.mutate({ nameHe: newCategoryName, workspaceId: list.workspaceId });
-                        }
-                      }
-                    }}
+                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
                   />
-                  <button
-                    type="button"
-                    disabled={!newCategoryName.trim() || createCategoryMutation.isPending}
-                    onClick={() => {
-                      if (newCategoryName.trim() && list?.workspaceId) {
-                        createCategoryMutation.mutate({ nameHe: newCategoryName, workspaceId: list.workspaceId });
-                      }
-                    }}
-                    style={{
-                      padding: '10px 16px',
-                      borderRadius: 8,
-                      border: 'none',
-                      background: newCategoryName.trim() && !createCategoryMutation.isPending ? 'var(--color-primary)' : '#ccc',
-                      color: '#fff',
-                      cursor: newCategoryName.trim() && !createCategoryMutation.isPending ? 'pointer' : 'not-allowed',
-                    }}
-                  >
-                    {createCategoryMutation.isPending ? 'יוצר...' : 'צור קטגוריה'}
-                  </button>
                 </div>
               )}
             </div>
@@ -474,19 +459,19 @@ export function ListItemEdit() {
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="submit"
-              disabled={updateMutation.isPending}
+              disabled={isSaving || updateMutation.isPending}
               style={{
                 flex: 1,
                 padding: 12,
-                background: updateMutation.isPending ? '#ccc' : 'var(--color-primary)',
-                color: updateMutation.isPending ? '#666' : '#fff',
+                background: isSaving || updateMutation.isPending ? '#ccc' : 'var(--color-primary)',
+                color: isSaving || updateMutation.isPending ? '#666' : '#fff',
                 fontWeight: 600,
                 borderRadius: 8,
                 border: 'none',
-                cursor: updateMutation.isPending ? 'not-allowed' : 'pointer',
+                cursor: isSaving || updateMutation.isPending ? 'not-allowed' : 'pointer',
               }}
             >
-              {updateMutation.isPending ? 'שומר...' : 'שמור'}
+              {isSaving || updateMutation.isPending ? 'שומר...' : 'שמור'}
             </button>
             <button
               type="button"

@@ -35,6 +35,15 @@ import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import { getFilteredProducts } from '../utils/categoryFilter';
 import type { ListItemResponse, ListEvent, WorkspaceEvent, ProductDto } from '../types';
 
+/** Returns the string to show for quantity+unit, or null to hide. Shows "1 יחידה" when item.showQuantityUnit. */
+function formatQuantityUnit(item: ListItemResponse): string | null {
+  if (item.showQuantityUnit) return `${item.quantity} ${item.unit}`;
+  const q = Number(item.quantity);
+  const u = (item.unit ?? '').trim();
+  if (q === 1 && (u === '' || u === 'יחידה')) return null;
+  return `${item.quantity} ${item.unit}`;
+}
+
 function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -757,10 +766,13 @@ export function ListDetail() {
                       )}
                       <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)}>
                         <div style={{ textDecoration: item.crossedOff ? 'line-through' : 'none', color: item.crossedOff ? 'var(--color-strike)' : 'inherit' }}>{item.displayName}</div>
+                        {(formatQuantityUnit(item) || item.note) && (
                         <div style={{ fontSize: 14, color: '#666' }}>
-                          {item.quantity} {item.unit}
-                          {item.note && ` · ${item.note}`}
+                          {formatQuantityUnit(item) ?? ''}
+                          {formatQuantityUnit(item) && item.note ? ' · ' : ''}
+                          {item.note ?? ''}
                         </div>
+                      )}
                       </div>
                       <button
                         type="button"
@@ -826,9 +838,11 @@ export function ListDetail() {
                       }}>
                         {item.displayName}
                       </span>
-                      <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
-                        {item.quantity} {item.unit}
-                      </span>
+                      {formatQuantityUnit(item) && (
+                        <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
+                          {formatQuantityUnit(item)}
+                        </span>
+                      )}
                       {item.note && (
                         <span style={{ fontSize: 11, color: '#aaa', flexShrink: 1, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {item.note}
@@ -922,9 +936,11 @@ export function ListDetail() {
                         />
                       )}
                       <span style={{ fontWeight: 500, fontSize: 13, wordBreak: 'break-word', textDecoration: item.crossedOff ? 'line-through' : 'none', color: item.crossedOff ? 'var(--color-strike)' : 'inherit' }}>{item.displayName}</span>
-                      <span style={{ fontSize: 11, color: '#666' }}>
-                        {item.quantity} {item.unit}
-                      </span>
+                      {formatQuantityUnit(item) && (
+                        <span style={{ fontSize: 11, color: '#666' }}>
+                          {formatQuantityUnit(item)}
+                        </span>
+                      )}
                       {item.note && (
                         <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {item.note}

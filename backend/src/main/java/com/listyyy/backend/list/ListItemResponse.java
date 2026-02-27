@@ -23,6 +23,7 @@ public class ListItemResponse {
     private String iconId;
     private BigDecimal quantity;
     private String unit;
+    private boolean showQuantityUnit;
     private String note;
     private boolean crossedOff;
     private String itemImageUrl;

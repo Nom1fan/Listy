@@ -197,6 +197,7 @@ public class ListController {
                 .iconId(iconId)
                 .quantity(item.getQuantity())
                 .unit(item.getUnit())
+                .showQuantityUnit(item.isShowQuantityUnit())
                 .note(item.getNote())
                 .crossedOff(item.isCrossedOff())
                 .itemImageUrl(item.getItemImageUrl())
