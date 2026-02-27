@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import { Categories } from './Categories'
 import { CategoryEdit } from './CategoryEdit'
+import { ProductEdit } from './ProductEdit'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -18,6 +19,7 @@ function Wrapper({ children, initialEntries = ['/lists'] }: { children: React.Re
         <Routes>
           <Route path="/lists" element={children} />
           <Route path="/categories/:categoryId/edit" element={<CategoryEdit />} />
+          <Route path="/products/:productId/edit" element={<ProductEdit />} />
         </Routes>
       </QueryClientProvider>
     </MemoryRouter>
@@ -198,7 +200,7 @@ describe('Categories', () => {
       expect(screen.queryByRole('button', { name: /תפריט פריט/i })).not.toBeInTheDocument()
     })
 
-    it('opens edit product modal on single click', async () => {
+    it('navigates to edit product page on single click', async () => {
       mockFetchWithProducts()
       render(
         <Wrapper>
@@ -212,12 +214,12 @@ describe('Categories', () => {
       await waitFor(() => {
         expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
       })
-      // Edit modal should have the expected fields
+      // Same edit item page as from lists: name and unit (product has קילו)
       expect(screen.getByDisplayValue('אורז')).toBeInTheDocument()
       expect(screen.getByDisplayValue('קילו')).toBeInTheDocument()
     })
 
-    it('edit product modal has category dropdown', async () => {
+    it('edit product page has category dropdown', async () => {
       mockFetchWithProducts()
       render(
         <Wrapper>
