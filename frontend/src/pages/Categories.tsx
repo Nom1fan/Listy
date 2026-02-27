@@ -1,17 +1,12 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, createCategory, createProduct, deleteCategory, deleteProduct, reorderCategories } from '../api/products';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
-import { uploadFile } from '../api/client';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { DisplayImageForm } from '../components/DisplayImageForm';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
-import { ProductAutocomplete } from '../components/ProductAutocomplete';
 import type { CategoryDto, ProductDto, WorkspaceEvent } from '../types';
-
-type DisplayImageType = 'icon' | 'device' | 'link' | 'web';
 
 function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: string }) {
   return (
@@ -75,13 +70,6 @@ export function Categories() {
   const [nameHe, setNameHe] = useState('');
   const [addProductCategoryId, setAddProductCategoryId] = useState<string | null>(null);
   const [newProductName, setNewProductName] = useState('');
-  const [newProductUnit, setNewProductUnit] = useState('יחידה');
-  const [newProductDisplayImageType, setNewProductDisplayImageType] = useState<DisplayImageType>('icon');
-  const [newProductIconId, setNewProductIconId] = useState('');
-  const [newProductImageUrl, setNewProductImageUrl] = useState('');
-  const newProductPendingFileRef = useRef<File | null>(null);
-  const newProductFileInputRef = useRef<HTMLInputElement>(null);
-  const [newProductNote, setNewProductNote] = useState('');
   const [productImageToast, setProductImageToast] = useState<{ message: string; isError: boolean } | null>(null);
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<CategoryDto | null>(null);
   const [categoryMenuOpenId, setCategoryMenuOpenId] = useState<string | null>(null);
@@ -142,26 +130,10 @@ export function Categories() {
   });
 
   const createProductMutation = useMutation({
-    mutationFn: (body: { categoryId: string; nameHe: string; defaultUnit?: string; iconId?: string | null; imageUrl?: string | null }) => createProduct(body),
-    onSuccess: async (data) => {
+    mutationFn: (body: { categoryId: string; nameHe: string; defaultUnit?: string }) => createProduct(body),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setNewProductName('');
-      setNewProductUnit('יחידה');
-      setNewProductNote('');
-      setNewProductDisplayImageType('icon');
-      setNewProductIconId('');
-      setNewProductImageUrl('');
-      setAddProductCategoryId(null);
-      const file = newProductPendingFileRef.current;
-      newProductPendingFileRef.current = null;
-      if (file && data?.id) {
-        try {
-          await uploadFile(`/api/upload/product/${data.id}`, file);
-          queryClient.invalidateQueries({ queryKey: ['products'] });
-        } catch (err) {
-          console.error(err);
-        }
-      }
     },
     onError: (err: Error) => {
       setProductImageToast({ message: err.message || 'שגיאה בהוספת פריט', isError: true });
@@ -219,23 +191,14 @@ export function Categories() {
     setCreateError(null);
   }
 
-  function handleAddProduct(e: React.FormEvent, categoryId: string) {
-    e.preventDefault();
-    if (!newProductName.trim()) return;
-    const iconId = newProductDisplayImageType === 'icon' ? (newProductIconId || undefined) : undefined;
-    const imageUrl = (newProductDisplayImageType === 'link' || newProductDisplayImageType === 'web') && newProductImageUrl.trim()
-      ? newProductImageUrl.trim()
-      : undefined;
-    if (newProductDisplayImageType === 'device' && newProductPendingFileRef.current) {
-      // Keep ref for onSuccess upload; don't send imageUrl in create
-    }
+  function handleAddProduct(categoryId: string) {
+    const name = newProductName.trim();
+    if (!name) return;
+    setNewProductName('');
     createProductMutation.mutate({
       categoryId,
-      nameHe: newProductName.trim(),
-      defaultUnit: newProductUnit.trim() || 'יחידה',
-      ...(iconId !== undefined && { iconId }),
-      ...(imageUrl !== undefined && { imageUrl }),
-      ...(newProductNote.trim() && { note: newProductNote.trim() }),
+      nameHe: name,
+      defaultUnit: 'יחידה',
     });
   }
 
@@ -630,6 +593,14 @@ export function Categories() {
                         )}
                         <button
                           type="button"
+                          onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}/edit`, { state: { from: 'categories' } }); }}
+                          aria-label="ערוך פריט"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                        >
+                          <PencilIcon size={16} />
+                        </button>
+                        <button
+                          type="button"
                           onClick={(e) => { e.stopPropagation(); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }}
                           aria-label="מחק פריט"
                           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
@@ -659,6 +630,24 @@ export function Categories() {
                           cursor: 'pointer',
                         }}
                       >
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, width: '100%' }}>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}/edit`, { state: { from: 'categories' } }); }}
+                            aria-label="ערוך פריט"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                          >
+                            <PencilIcon size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }}
+                            aria-label="מחק פריט"
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                          >
+                            <TrashIcon size={16} />
+                          </button>
+                        </div>
                         <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={48} />
                         <span style={{ fontWeight: 500, fontSize: 13 }}>{p.nameHe}</span>
                         {formatProductUnit(p) != null && (
@@ -669,123 +658,69 @@ export function Categories() {
                             {p.note}
                           </span>
                         )}
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }}
-                          aria-label="מחק פריט"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
-                        >
-                          <TrashIcon size={16} />
-                        </button>
                       </div>
                     ))}
                   </div>
                   )}
                   {addProductCategoryId === c.id ? (
-                    <form
-                      onSubmit={(e) => handleAddProduct(e, c.id)}
-                      style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%', maxWidth: 360 }}
-                    >
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                        <div>
-                          <label style={{ display: 'block', marginBottom: 4, fontSize: 13, fontWeight: 600 }}>שם פריט <span style={{ color: '#c00' }}>*</span></label>
-                          <ProductAutocomplete
-                            value={newProductName}
-                            onChange={setNewProductName}
-                            products={allProducts}
-                            placeholder="שם פריט"
-                            style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', minWidth: 120 }}
-                            warnOnly
-                            categoryId={c.id}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>יחידה</label>
-                          <input
-                            type="text"
-                            value={newProductUnit}
-                            onChange={(e) => setNewProductUnit(e.target.value)}
-                            placeholder="יחידה"
-                            style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', width: 80 }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>הערה קבועה</label>
-                          <input
-                            type="text"
-                            value={newProductNote}
-                            onChange={(e) => setNewProductNote(e.target.value)}
-                            placeholder="אופציונלי"
-                            style={{ padding: 8, borderRadius: 8, border: '1px solid #ccc', minWidth: 160 }}
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={createProductMutation.isPending || !newProductName.trim()}
-                          style={{
-                            padding: '8px 12px',
-                            background: createProductMutation.isPending || !newProductName.trim() ? '#ccc' : 'var(--color-primary)',
-                            color: createProductMutation.isPending || !newProductName.trim() ? '#666' : '#fff',
-                            borderRadius: 8,
-                            fontSize: 14,
-                            border: 'none',
-                            cursor: createProductMutation.isPending || !newProductName.trim() ? 'not-allowed' : 'pointer',
-                          }}
-                        >
-                          {createProductMutation.isPending ? 'מוסיף...' : 'הוסף פריט'}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
+                      <input
+                        type="text"
+                        value={newProductName}
+                        onChange={(e) => setNewProductName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddProduct(c.id);
+                          }
+                          if (e.key === 'Escape') {
                             setAddProductCategoryId(null);
                             setNewProductName('');
-                            setNewProductUnit('יחידה');
-                            setNewProductNote('');
-                            setNewProductDisplayImageType('icon');
-                            setNewProductIconId('');
-                            setNewProductImageUrl('');
-                            newProductPendingFileRef.current = null;
-                          }}
-                          style={{ padding: '8px 12px', background: '#eee', borderRadius: 8 }}
-                        >
-                          ביטול
-                        </button>
-                      </div>
-                      <DisplayImageForm
-                        label="תמונת פריט"
-                        displayType={newProductDisplayImageType}
-                        iconId={newProductIconId}
-                        imageUrl={newProductImageUrl}
-                        onDisplayTypeChange={(v) => {
-                          setNewProductDisplayImageType(v);
-                          if (v === 'icon') setNewProductImageUrl('');
-                          if (v === 'link' || v === 'web') { setNewProductImageUrl(''); }
-                          if (v === 'device') { newProductPendingFileRef.current = null; setNewProductImageUrl(''); }
-                        }}
-                        onIconIdChange={setNewProductIconId}
-                        onImageUrlChange={setNewProductImageUrl}
-                        fileInputRef={newProductFileInputRef}
-                      />
-                      <input
-                        ref={newProductFileInputRef}
-                        type="file"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            newProductPendingFileRef.current = file;
-                            setNewProductImageUrl(' ');
                           }
-                          e.target.value = '';
+                        }}
+                        placeholder="שם הפריט"
+                        autoFocus
+                        style={{
+                          flex: 1,
+                          minWidth: 120,
+                          padding: '10px 14px',
+                          borderRadius: 10,
+                          border: '1px solid #ddd',
+                          fontSize: 15,
+                          background: '#f8f8f8',
+                          boxSizing: 'border-box',
                         }}
                       />
-                    </form>
+                      <button
+                        type="button"
+                        onClick={() => handleAddProduct(c.id)}
+                        disabled={createProductMutation.isPending || !newProductName.trim()}
+                        style={{
+                          padding: '10px 16px',
+                          background: createProductMutation.isPending || !newProductName.trim() ? '#ccc' : 'var(--color-primary)',
+                          color: createProductMutation.isPending || !newProductName.trim() ? '#666' : '#fff',
+                          borderRadius: 10,
+                          fontSize: 15,
+                          border: 'none',
+                          cursor: createProductMutation.isPending || !newProductName.trim() ? 'not-allowed' : 'pointer',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {createProductMutation.isPending ? 'מוסיף...' : 'הוסף'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setAddProductCategoryId(null); setNewProductName(''); }}
+                        style={{ padding: '8px 12px', background: '#eee', borderRadius: 8, fontSize: 14, border: 'none', cursor: 'pointer' }}
+                      >
+                        ביטול
+                      </button>
+                    </div>
                   ) : (
                     <button
                       type="button"
                       onClick={() => setAddProductCategoryId(c.id)}
-                      style={{ padding: '6px 12px', background: '#e8f5e9', color: '#2e7d32', borderRadius: 8, fontSize: 14 }}
+                      style={{ padding: '6px 12px', background: '#e8f5e9', color: '#2e7d32', borderRadius: 8, fontSize: 14, marginTop: 8 }}
                     >
                       + הוסף פריט לקטגוריה
                     </button>

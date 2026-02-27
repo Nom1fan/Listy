@@ -180,7 +180,7 @@ describe('Categories', () => {
       })
     })
 
-    it('shows trash icon buttons for products (no kebab menu)', async () => {
+    it('shows pencil (edit) and trash buttons for products', async () => {
       mockFetchWithProducts()
       render(
         <Wrapper>
@@ -190,14 +190,31 @@ describe('Categories', () => {
       await waitFor(() => {
         expect(screen.getByText('אורז')).toBeInTheDocument()
       })
+      const editButtons = screen.getAllByRole('button', { name: /ערוך פריט/i })
       const deleteButtons = screen.getAllByRole('button', { name: /מחק פריט/i })
+      expect(editButtons.length).toBeGreaterThanOrEqual(2)
       expect(deleteButtons.length).toBeGreaterThanOrEqual(2)
-      // Each delete button should contain an SVG (TrashIcon), not an emoji
       deleteButtons.forEach((btn) => {
         expect(btn.querySelector('svg')).toBeTruthy()
       })
-      // No product kebab menus should exist
-      expect(screen.queryByRole('button', { name: /תפריט פריט/i })).not.toBeInTheDocument()
+    })
+
+    it('pencil button navigates to edit product page', async () => {
+      mockFetchWithProducts()
+      render(
+        <Wrapper>
+          <Categories />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('אורז')).toBeInTheDocument()
+      })
+      const editButtons = screen.getAllByRole('button', { name: /ערוך פריט/i })
+      fireEvent.click(editButtons[0])
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+      expect(screen.getByDisplayValue('אורז')).toBeInTheDocument()
     })
 
     it('navigates to edit product page on single click', async () => {
@@ -240,86 +257,99 @@ describe('Categories', () => {
     })
   })
 
-  describe('inline product creation – autocomplete warnings', () => {
+  describe('inline add product (type name, then edit via pencil)', () => {
     const categoriesWithProducts = [
-      { id: 'c1', nameHe: 'מכולת', iconId: 'groceries', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', version: 1, addCount: 0 },
-      { id: 'c2', nameHe: 'ירקות', iconId: 'veggies', imageUrl: null, sortOrder: 1, workspaceId: 'ws1', version: 1, addCount: 0 },
+      { id: 'c1', nameHe: 'מכולת', iconId: 'groceries', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', version: 1 },
+      { id: 'c2', nameHe: 'ירקות', iconId: 'veggies', imageUrl: null, sortOrder: 1, workspaceId: 'ws1', version: 1 },
     ]
 
-    const productsForAutocomplete = [
-      { id: 'p1', nameHe: 'אורז', defaultUnit: 'קילו', categoryId: 'c1', categoryNameHe: 'מכולת', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, addCount: 5, version: 1 },
-      { id: 'p2', nameHe: 'אורז מלא', defaultUnit: 'קילו', categoryId: 'c1', categoryNameHe: 'מכולת', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, addCount: 2, version: 1 },
-      { id: 'p3', nameHe: 'עגבניות', defaultUnit: 'יחידה', categoryId: 'c2', categoryNameHe: 'ירקות', categoryIconId: 'veggies', iconId: null, imageUrl: null, note: 'אורגני', addCount: 3, version: 1 },
+    const productsForAdd = [
+      { id: 'p1', nameHe: 'אורז', defaultUnit: 'קילו', categoryId: 'c1', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, version: 1 },
+      { id: 'p2', nameHe: 'עגבניות', defaultUnit: 'יחידה', categoryId: 'c2', categoryIconId: 'veggies', iconId: null, imageUrl: null, note: null, version: 1 },
     ]
 
-    function mockFetchForAutocomplete() {
+    function mockFetchForAdd() {
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
-      fetchMock.mockImplementation((url: string) => {
+      fetchMock.mockImplementation((url: string, init?: RequestInit) => {
         if (typeof url === 'string' && url.includes('/api/categories')) {
           return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(categoriesWithProducts) })
         }
         if (typeof url === 'string' && url.includes('/api/products')) {
-          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(productsForAutocomplete) })
+          if (init?.method === 'POST') {
+            const body = JSON.parse((init.body as string) || '{}')
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () =>
+                Promise.resolve({
+                  id: 'p-new',
+                  nameHe: body.nameHe || 'חדש',
+                  defaultUnit: body.defaultUnit || 'יחידה',
+                  categoryId: body.categoryId,
+                  categoryIconId: null,
+                  iconId: null,
+                  imageUrl: null,
+                  note: null,
+                  version: 1,
+                }),
+            })
+          }
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(productsForAdd) })
         }
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
       })
     }
 
-    async function openAddProductForm(categoryName: string) {
-      mockFetchForAutocomplete()
-      // Pre-seed products into React Query cache so autocomplete has data immediately
-      queryClient.setQueryData(['products'], productsForAutocomplete)
+    it('clicking add shows name input and add button', async () => {
+      mockFetchForAdd()
       render(
         <Wrapper>
           <Categories />
         </Wrapper>
       )
       await waitFor(() => {
-        expect(screen.getByText(new RegExp(categoryName))).toBeInTheDocument()
+        expect(screen.getByText(/מכולת/)).toBeInTheDocument()
       })
-      // Click the "add product" button for the target category
       const addButtons = screen.getAllByText('+ הוסף פריט לקטגוריה')
-      // First button is for c1 (מכולת), second for c2 (ירקות)
-      const index = categoryName === 'מכולת' ? 0 : 1
-      fireEvent.click(addButtons[index])
+      fireEvent.click(addButtons[0])
       await waitFor(() => {
-        expect(screen.getByPlaceholderText('שם פריט')).toBeInTheDocument()
-      })
-    }
-
-    it('shows similar items dropdown when typing in add product form', async () => {
-      await openAddProductForm('ירקות')
-      const nameInput = screen.getByPlaceholderText('שם פריט')
-      // Type "עגב" to match "עגבניות" which is in category ירקות
-      fireEvent.change(nameInput, { target: { value: 'עגב' } })
-
-      await waitFor(() => {
-        expect(screen.getByText('פריטים דומים שכבר קיימים:')).toBeInTheDocument()
+        expect(screen.getByPlaceholderText('שם הפריט')).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'הוסף' })).toBeInTheDocument()
+        expect(screen.getByText('ביטול')).toBeInTheDocument()
       })
     })
 
-    it('shows exact-duplicate warning when name matches product in same category', async () => {
-      await openAddProductForm('מכולת')
-      const nameInput = screen.getByPlaceholderText('שם פריט')
-      fireEvent.change(nameInput, { target: { value: 'אורז' } })
-
+    it('typing name and clicking add creates product', async () => {
+      mockFetchForAdd()
+      render(
+        <Wrapper>
+          <Categories />
+        </Wrapper>
+      )
       await waitFor(() => {
-        expect(screen.getByText(/פריט בשם זה כבר קיים בקטגוריה/)).toBeInTheDocument()
+        expect(screen.getByText(/מכולת/)).toBeInTheDocument()
       })
-    })
-
-    it('does NOT show exact-duplicate warning when name matches product in different category', async () => {
-      await openAddProductForm('ירקות')
-      const nameInput = screen.getByPlaceholderText('שם פריט')
-      // "אורז" exists in מכולת (c1), but we're adding to ירקות (c2)
-      fireEvent.change(nameInput, { target: { value: 'אורז' } })
-
+      fireEvent.click(screen.getAllByText('+ הוסף פריט לקטגוריה')[0])
       await waitFor(() => {
-        // Similar items dropdown should still show
-        expect(screen.getByText('פריטים דומים שכבר קיימים:')).toBeInTheDocument()
+        expect(screen.getByPlaceholderText('שם הפריט')).toBeInTheDocument()
       })
-      // But the exact-duplicate warning should NOT appear
-      expect(screen.queryByText(/פריט בשם זה כבר קיים בקטגוריה/)).not.toBeInTheDocument()
+      const nameInput = screen.getByPlaceholderText('שם הפריט')
+      fireEvent.change(nameInput, { target: { value: 'חלב' } })
+      fireEvent.click(screen.getByRole('button', { name: 'הוסף' }))
+      await waitFor(() => {
+        const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+        const postCalls = fetchMock.mock.calls.filter((args) => {
+          const url = args[0] as string
+          const init = args[1] as RequestInit | undefined
+          return typeof url === 'string' && url.endsWith('/api/products') && init?.method === 'POST'
+        })
+        expect(postCalls.length).toBeGreaterThanOrEqual(1)
+        const init = postCalls[postCalls.length - 1][1] as RequestInit
+        const body = JSON.parse((init?.body as string) || '{}')
+        expect(body.nameHe).toBe('חלב')
+        expect(body.defaultUnit).toBe('יחידה')
+        expect(body.categoryId).toBe('c1')
+      })
     })
   })
 })
