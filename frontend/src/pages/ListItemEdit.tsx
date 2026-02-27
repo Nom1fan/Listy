@@ -189,6 +189,16 @@ export function ListItemEdit() {
         version: product?.version,
       });
     }
+    // Sync image to product so category view shows the same image
+    if (productId && (displayImageType === 'link' || displayImageType === 'web') && newImageUrl !== (item.productImageUrl || '')) {
+      const product = allProducts.find((p: ProductDto) => p.id === productId);
+      updateProductMutation.mutate({
+        productId,
+        imageUrl: newImageUrl || null,
+        iconId: '',
+        version: product?.version,
+      });
+    }
     updateMutation.mutate({
       body: body as { version?: number; quantity?: number; unit?: string; showQuantityUnit?: boolean; note?: string; categoryId?: string; itemImageUrl?: string | null; iconId?: string | null; customNameHe?: string },
     });

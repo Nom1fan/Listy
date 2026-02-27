@@ -388,6 +388,72 @@ describe('ListDetail', () => {
       })
     })
 
+    it('syncing item image to product when saving list item with image (so category view shows same image)', async () => {
+      const itemWithImage = {
+        ...mockItems[0],
+        itemImageUrl: 'https://example.com/photo.png',
+        productImageUrl: null,
+      }
+      const mockProductP1 = {
+        id: 'p1',
+        categoryId: 'c1',
+        categoryNameHe: 'מוצרי חלב',
+        categoryIconId: 'dairy',
+        iconId: null,
+        nameHe: 'חלב',
+        defaultUnit: 'יחידה',
+        imageUrl: null,
+        note: null,
+        addCount: 0,
+        version: 1,
+      }
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, opts?: RequestInit) => {
+        if (url.includes('/api/lists/list1/items')) {
+          if (opts?.method === 'PATCH') {
+            return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ...itemWithImage, version: 1 }) })
+          }
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([itemWithImage, mockItems[1]]) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        if (url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategories) })
+        }
+        if (url.includes('/api/products')) {
+          if (opts?.method === 'PATCH') {
+            return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ...mockProductP1, imageUrl: 'https://example.com/photo.png' }) })
+          }
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([mockProductP1]) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('חלב'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
+      await waitFor(() => {
+        const calls = fetchMock.mock.calls as [string, RequestInit | undefined][]
+        const productPatch = calls.find(
+          ([url, opts]) => opts?.method === 'PATCH' && url.includes('/api/products/') && url.endsWith('/p1')
+        )
+        expect(productPatch).toBeDefined()
+        const body = JSON.parse(productPatch![1]!.body as string)
+        expect(body.imageUrl).toBe('https://example.com/photo.png')
+        expect(body.iconId).toBe('')
+      })
+    })
+
     it('sends latest version even if cache was updated while modal was open', async () => {
       mockFetchWithCategories()
       render(
