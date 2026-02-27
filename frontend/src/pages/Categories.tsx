@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, createCategory, createProduct, deleteCategory, deleteProduct, reorderCategories } from '../api/products';
@@ -74,6 +74,10 @@ export function Categories() {
   const [confirmDeleteCategory, setConfirmDeleteCategory] = useState<CategoryDto | null>(null);
   const [categoryMenuOpenId, setCategoryMenuOpenId] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [highlightedCategoryId, setHighlightedCategoryId] = useState<string | null>(null);
+  const [highlightedProductId, setHighlightedProductId] = useState<string | null>(null);
+  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const productRefs = useRef<Record<string, HTMLElement | null>>({});
 
   // Drag reorder
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -111,10 +115,11 @@ export function Categories() {
   const createMutation = useMutation({
     mutationFn: (body: { nameHe: string; workspaceId: string; sortOrder?: number }) =>
       createCategory({ nameHe: body.nameHe, workspaceId: body.workspaceId, sortOrder: body.sortOrder }),
-    onSuccess: () => {
+    onSuccess: (newCategory: CategoryDto) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
       closeCreateModal();
+      setHighlightedCategoryId(newCategory.id);
     },
     onError: (err: Error) => {
       setCreateError(err.message || 'שגיאה בהוספת קטגוריה');
@@ -131,9 +136,16 @@ export function Categories() {
 
   const createProductMutation = useMutation({
     mutationFn: (body: { categoryId: string; nameHe: string; defaultUnit?: string }) => createProduct(body),
-    onSuccess: () => {
+    onSuccess: (newProduct: ProductDto) => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setNewProductName('');
+      setAddProductCategoryId(null);
+      setCollapsedCategories((prev) => {
+        const next = new Set(prev);
+        next.delete(newProduct.categoryId);
+        return next;
+      });
+      setHighlightedProductId(newProduct.id);
     },
     onError: (err: Error) => {
       setProductImageToast({ message: err.message || 'שגיאה בהוספת פריט', isError: true });
@@ -184,6 +196,26 @@ export function Categories() {
     setOverIndex(null);
     setOrderedCategories(null);
   }, [orderedCategories, reorderMutation]);
+
+  useEffect(() => {
+    if (!highlightedCategoryId) return;
+    const el = categoryRefs.current[highlightedCategoryId];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const t = setTimeout(() => setHighlightedCategoryId(null), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [highlightedCategoryId, categories]);
+
+  useEffect(() => {
+    if (!highlightedProductId) return;
+    const el = productRefs.current[highlightedProductId];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const t = setTimeout(() => setHighlightedProductId(null), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [highlightedProductId, allProducts]);
 
   function closeCreateModal() {
     setShowCreateModal(false);
@@ -390,7 +422,7 @@ export function Categories() {
               }}
               onDragEnd={handleDragEnd}
               style={{
-                background: overIndex === index ? '#e3f2fd' : '#fff',
+                background: highlightedCategoryId === c.id ? '#e8f5e9' : overIndex === index ? '#e3f2fd' : '#fff',
                 borderRadius: 12,
                 boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                 opacity: dragIndex === index ? 0.5 : 1,
@@ -399,6 +431,7 @@ export function Categories() {
               }}
             >
               <div
+                ref={(el) => { categoryRefs.current[c.id] = el; }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -569,6 +602,7 @@ export function Categories() {
                     {(productsByCategory[c.id] || []).map((p) => (
                       <li
                         key={p.id}
+                        ref={(el) => { productRefs.current[p.id] = el; }}
                         onClick={() => navigate(`/products/${p.id}/edit`, { state: { from: 'categories' } })}
                         style={{
                           display: 'flex',
@@ -577,6 +611,8 @@ export function Categories() {
                           padding: '6px 0',
                           borderBottom: '1px solid #f0f0f0',
                           cursor: 'pointer',
+                          background: highlightedProductId === p.id ? '#e8f5e9' : undefined,
+                          borderRadius: 4,
                         }}
                       >
                         <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={24} />
@@ -615,11 +651,12 @@ export function Categories() {
                     {(productsByCategory[c.id] || []).map((p) => (
                       <div
                         key={p.id}
+                        ref={(el) => { productRefs.current[p.id] = el; }}
                         onClick={() => navigate(`/products/${p.id}/edit`, { state: { from: 'categories' } })}
                         style={{
                           position: 'relative',
                           padding: 10,
-                          background: '#fafafa',
+                          background: highlightedProductId === p.id ? '#e8f5e9' : '#fafafa',
                           borderRadius: 10,
                           boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
                           display: 'flex',

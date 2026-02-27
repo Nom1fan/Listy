@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -172,6 +172,8 @@ export function ListDetail() {
   const [showAddSuggestion, setShowAddSuggestion] = useState(false);
   const [listDetailMenuOpen, setListDetailMenuOpen] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set());
+  const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const { data: list } = useQuery({
     queryKey: ['list', listId],
@@ -308,9 +310,17 @@ export function ListDetail() {
 
   const addItemMutation = useMutation({
     mutationFn: (body: Parameters<typeof addListItem>[1]) => addListItem(listId, body),
-    onSuccess: () => {
+    onSuccess: (newItem: ListItemResponse) => {
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
+      if (newItem.categoryNameHe) {
+        setCollapsedCategories((prev) => {
+          const next = new Set(prev);
+          next.delete(newItem.categoryNameHe!);
+          return next;
+        });
+      }
+      setHighlightedItemId(newItem.id);
     },
     onError: (err: Error) => {
       showNotification(err.message || 'שגיאה בהוספת הפריט', true);
@@ -345,6 +355,16 @@ export function ListDetail() {
     const timer = setTimeout(() => setShowAddSuggestion(true), 500);
     return () => clearTimeout(timer);
   }, [searchQuery, hasExactMatch]);
+
+  useEffect(() => {
+    if (!highlightedItemId) return;
+    const el = itemRefs.current[highlightedItemId];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const t = setTimeout(() => setHighlightedItemId(null), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [highlightedItemId, items]);
 
   const listItemMatches = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -851,12 +871,13 @@ export function ListDetail() {
                   <SortableItem key={item.id} id={item.id}>
                     {({ handleProps }) => (
                     <div
+                      ref={(el) => { itemRefs.current[item.id] = el; }}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: 12,
                         padding: 12,
-                        background: '#fff',
+                        background: highlightedItemId === item.id ? '#e8f5e9' : '#fff',
                         borderRadius: 12,
                         boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                       }}
@@ -925,12 +946,13 @@ export function ListDetail() {
                   <SortableItem key={item.id} id={item.id}>
                     {({ handleProps }) => (
                     <div
+                      ref={(el) => { itemRefs.current[item.id] = el; }}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: 8,
                         padding: '6px 10px',
-                        background: '#fff',
+                        background: highlightedItemId === item.id ? '#e8f5e9' : '#fff',
                         borderRadius: 6,
                         borderBottom: '1px solid #f0f0f0',
                       }}
@@ -999,10 +1021,11 @@ export function ListDetail() {
                   <SortableItem key={item.id} id={item.id}>
                     {({ handleProps }) => (
                     <div
+                      ref={(el) => { itemRefs.current[item.id] = el; }}
                       style={{
                         position: 'relative',
                         padding: 10,
-                        background: '#fff',
+                        background: highlightedItemId === item.id ? '#e8f5e9' : '#fff',
                         borderRadius: 12,
                         boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                         display: 'flex',

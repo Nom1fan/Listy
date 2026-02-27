@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLists, createList, deleteList, reorderLists } from '../api/lists';
@@ -11,7 +11,7 @@ import { CategoryIcon } from '../components/CategoryIcon';
 import { getUserDisplayLabel } from '../utils/user';
 import { WorkspaceTabs, type TabKey } from '../components/WorkspaceTabs';
 import { Categories } from './Categories';
-import type { ListResponse, WorkspaceEvent } from '../types';
+import type { ListResponse, WorkspaceEvent, WorkspaceDto } from '../types';
 
 function PencilIcon({ size = 18, color = '#666' }: { size?: number; color?: string }) {
   return (
@@ -114,7 +114,8 @@ export function Lists() {
 
   const createWorkspaceMutation = useMutation({
     mutationFn: (body: { name: string }) => createWorkspace(body),
-    onSuccess: (ws) => {
+    onSuccess: (ws: WorkspaceDto) => {
+      queryClient.setQueryData<WorkspaceDto[]>(['workspaces'], (prev) => [...(prev ?? []), ws]);
       queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       setActiveWorkspace(ws.id);
       setShowCreateWorkspace(false);
@@ -167,12 +168,27 @@ export function Lists() {
   const displayLists = orderedLists ?? lists;
   const workspaceById = Object.fromEntries(workspaces.map((w) => [w.id, w]));
 
+  const [highlightedListId, setHighlightedListId] = useState<string | null>(null);
+  const listItemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    if (!highlightedListId) return;
+    const el = listItemRefs.current[highlightedListId];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const t = setTimeout(() => setHighlightedListId(null), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [highlightedListId, displayLists]);
+
   const createMutation = useMutation({
     mutationFn: (payload: { name: string; workspaceId: string }) => createList(payload),
-    onSuccess: () => {
+    onSuccess: (newList: ListResponse) => {
+      queryClient.setQueryData<ListResponse[]>(['lists', activeWorkspaceId], (prev) => [...(prev ?? []), newList]);
       queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] });
       setShowNew(false);
       setName('');
+      setHighlightedListId(newList.id);
     },
     onError: (err: Error) => {
       showToast(err.message || 'שגיאה ביצירת הרשימה', true);
@@ -717,11 +733,12 @@ export function Lists() {
                 }}
               >
                 <div
+                  ref={(el) => { listItemRefs.current[list.id] = el; }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     padding: 16,
-                    background: overIndex === index ? '#e3f2fd' : '#fff',
+                    background: highlightedListId === list.id ? '#e8f5e9' : overIndex === index ? '#e3f2fd' : '#fff',
                     borderRadius: 12,
                     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                     gap: 12,
