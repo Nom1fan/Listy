@@ -5,13 +5,25 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { CategoryEdit } from './CategoryEdit'
 
+const mockNavigate = vi.fn()
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>()
+  return { ...actual, useNavigate: () => mockNavigate }
+})
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 })
 
-function Wrapper({ children }: { children: React.ReactNode }) {
+function Wrapper({
+  children,
+  initialEntries = ['/categories/c1/edit'],
+}: {
+  children: React.ReactNode
+  initialEntries?: Array<string | { pathname: string; state?: Record<string, unknown> }>
+}) {
   return (
-    <MemoryRouter initialEntries={['/categories/c1/edit']}>
+    <MemoryRouter initialEntries={initialEntries}>
       <QueryClientProvider client={queryClient}>
         <Routes>
           <Route path="/categories/:categoryId/edit" element={children} />
@@ -98,6 +110,31 @@ describe('CategoryEdit', () => {
     fireEvent.change(screen.getByPlaceholderText('שם קטגוריה'), { target: { value: 'מכולת מעודכנת' } })
     await waitFor(() => {
       expect(saveBtn).not.toBeDisabled()
+    })
+  })
+
+  it('cancel button navigates back to categories tab when opened from categories', async () => {
+    mockNavigate.mockClear()
+    const fn = globalThis.fetch as ReturnType<typeof vi.fn>
+    fn.mockImplementation((url: string) => {
+      if (typeof url === 'string' && url.includes('/api/categories/') && !url.includes('?')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategory) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+    })
+    render(
+      <Wrapper
+        initialEntries={[{ pathname: '/categories/c1/edit', state: { from: 'categories' } }]}
+      >
+        <CategoryEdit />
+      </Wrapper>,
+    )
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('שם קטגוריה')).toBeInTheDocument()
+    }, { timeout: 3000 })
+    fireEvent.click(screen.getByText('ביטול'))
+    expect(mockNavigate).toHaveBeenCalledWith('/lists?tab=categories', {
+      state: { tab: 'categories' },
     })
   })
 })

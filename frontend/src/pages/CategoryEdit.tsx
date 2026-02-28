@@ -241,7 +241,7 @@ export function CategoryEdit() {
             </button>
             <button
               type="button"
-              onClick={() => navigate('/lists')}
+              onClick={() => navigate(backTo, { state: fromCategories ? { tab: 'categories' } : undefined })}
               style={{ padding: 12, background: '#eee', borderRadius: 8, border: 'none', cursor: 'pointer' }}
             >
               ביטול
