@@ -135,6 +135,21 @@ export function ListEdit() {
     );
   }
 
+  const initialDisplayType: DisplayImageType = list.imageUrl ? 'link' : 'icon';
+  const initialIconId = list.iconId ?? '';
+  const initialImageUrl = list.imageUrl ?? '';
+  const initialFilterIds = list.categoryIds ?? [];
+  const filterIdsChanged =
+    filterMode !== (list.categoryFilterMode ?? 'NONE') ||
+    filterCategoryIds.length !== initialFilterIds.length ||
+    [...filterCategoryIds].sort().join(',') !== [...initialFilterIds].sort().join(',');
+  const hasChanges =
+    name.trim() !== (list.name ?? '').trim() ||
+    displayImageType !== initialDisplayType ||
+    (displayImageType === 'icon' && (iconId || '') !== initialIconId) ||
+    ((displayImageType === 'link' || displayImageType === 'web') && (imageUrl.trim() || '') !== (initialImageUrl || '').trim()) ||
+    filterIdsChanged;
+
   const currentImageUrl = imageUrl.trim() || (list?.imageUrl ?? '');
   const showImage = displayImageType === 'link' || displayImageType === 'web' ? currentImageUrl : null;
 
@@ -239,8 +254,18 @@ export function ListEdit() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               type="submit"
-              disabled={updateMutation.isPending}
-              style={{ flex: 1, minWidth: 100, padding: 12, background: 'var(--color-primary)', color: '#fff', fontWeight: 600, borderRadius: 8, border: 'none', cursor: 'pointer' }}
+              disabled={updateMutation.isPending || !hasChanges}
+              style={{
+                flex: 1,
+                minWidth: 100,
+                padding: 12,
+                background: updateMutation.isPending || !hasChanges ? '#ccc' : 'var(--color-primary)',
+                color: updateMutation.isPending || !hasChanges ? '#666' : '#fff',
+                fontWeight: 600,
+                borderRadius: 8,
+                border: 'none',
+                cursor: updateMutation.isPending || !hasChanges ? 'not-allowed' : 'pointer',
+              }}
             >
               {updateMutation.isPending ? 'שומר...' : 'שמור'}
             </button>

@@ -246,6 +246,24 @@ export function ListItemEdit() {
     );
   }
 
+  const initialDisplayType: DisplayImageType = item.itemImageUrl || item.productImageUrl ? 'link' : 'icon';
+  const initialIconId = item.iconId ?? '';
+  const initialImageUrl = item.itemImageUrl || item.productImageUrl || '';
+  const hasUnit = ((item.unit ?? '').trim() !== '' && item.unit !== 'יחידה');
+  const hasNonDefaultQty = Number(item.quantity) !== 1;
+  const initialUnitSectionExpanded = Boolean(item.showQuantityUnit) || hasUnit || hasNonDefaultQty;
+  const effectiveCategoryId = categoryId === '__new__' ? (newCategoryName.trim() ? '__new__' : (item.categoryId || '')) : categoryId;
+  const hasChanges =
+    name.trim() !== (item.displayName ?? '').trim() ||
+    String(parseFloat(quantity) || 1) !== String(item.quantity) ||
+    (unit || '') !== (item.unit || '') ||
+    (note || '') !== (item.note || '') ||
+    effectiveCategoryId !== (item.categoryId || '') ||
+    unitSectionExpanded !== initialUnitSectionExpanded ||
+    displayImageType !== initialDisplayType ||
+    (displayImageType === 'icon' && (iconId || '') !== initialIconId) ||
+    ((displayImageType === 'link' || displayImageType === 'web') && (imageUrl.trim() || '') !== (initialImageUrl || '').trim());
+
   const currentImageUrl = imageUrl.trim() || (item.itemImageUrl || item.productImageUrl || '');
   const showImage = displayImageType === 'link' || displayImageType === 'web' ? currentImageUrl : null;
 
@@ -484,16 +502,16 @@ export function ListItemEdit() {
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="submit"
-              disabled={isSaving || updateMutation.isPending}
+              disabled={isSaving || updateMutation.isPending || !hasChanges}
               style={{
                 flex: 1,
                 padding: 12,
-                background: isSaving || updateMutation.isPending ? '#ccc' : 'var(--color-primary)',
-                color: isSaving || updateMutation.isPending ? '#666' : '#fff',
+                background: isSaving || updateMutation.isPending || !hasChanges ? '#ccc' : 'var(--color-primary)',
+                color: isSaving || updateMutation.isPending || !hasChanges ? '#666' : '#fff',
                 fontWeight: 600,
                 borderRadius: 8,
                 border: 'none',
-                cursor: isSaving || updateMutation.isPending ? 'not-allowed' : 'pointer',
+                cursor: isSaving || updateMutation.isPending || !hasChanges ? 'not-allowed' : 'pointer',
               }}
             >
               {isSaving || updateMutation.isPending ? 'שומר...' : 'שמור'}

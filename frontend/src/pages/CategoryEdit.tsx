@@ -120,6 +120,15 @@ export function CategoryEdit() {
     );
   }
 
+  const initialDisplayType: DisplayImageType = category.imageUrl ? 'link' : 'icon';
+  const initialIconId = category.iconId ?? '';
+  const initialImageUrl = category.imageUrl ?? '';
+  const hasChanges =
+    nameHe.trim() !== (category.nameHe ?? '').trim() ||
+    displayImageType !== initialDisplayType ||
+    (displayImageType === 'icon' && (iconId || '') !== initialIconId) ||
+    ((displayImageType === 'link' || displayImageType === 'web') && (imageUrl.trim() || '') !== (initialImageUrl || '').trim());
+
   const currentImageUrl = imageUrl.trim() || (category?.imageUrl ?? '');
   const showImage = displayImageType === 'link' || displayImageType === 'web' ? currentImageUrl : null;
 
@@ -215,8 +224,18 @@ export function CategoryEdit() {
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button
               type="submit"
-              disabled={updateMutation.isPending || !nameHe.trim()}
-              style={{ flex: 1, minWidth: 100, padding: 12, background: 'var(--color-primary)', color: '#fff', fontWeight: 600, borderRadius: 8, border: 'none', cursor: 'pointer' }}
+              disabled={updateMutation.isPending || !nameHe.trim() || !hasChanges}
+              style={{
+                flex: 1,
+                minWidth: 100,
+                padding: 12,
+                background: updateMutation.isPending || !nameHe.trim() || !hasChanges ? '#ccc' : 'var(--color-primary)',
+                color: updateMutation.isPending || !nameHe.trim() || !hasChanges ? '#666' : '#fff',
+                fontWeight: 600,
+                borderRadius: 8,
+                border: 'none',
+                cursor: updateMutation.isPending || !nameHe.trim() || !hasChanges ? 'not-allowed' : 'pointer',
+              }}
             >
               {updateMutation.isPending ? 'שומר...' : 'שמור'}
             </button>

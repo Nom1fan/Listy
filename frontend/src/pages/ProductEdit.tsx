@@ -189,6 +189,19 @@ export function ProductEdit() {
     );
   }
 
+  const initialDisplayType: DisplayImageType = product.imageUrl ? 'link' : 'icon';
+  const initialIconId = product.iconId ?? '';
+  const initialImageUrl = product.imageUrl ?? '';
+  const effectiveCategoryIdForCompare = categoryId === '__new__' ? (newCategoryName.trim() ? '__new__' : (product.categoryId || '')) : categoryId;
+  const hasChanges =
+    name.trim() !== (product.nameHe ?? '').trim() ||
+    (unitSectionExpanded ? (unit.trim() || 'יחידה') : 'יחידה') !== (product.defaultUnit ?? 'יחידה') ||
+    (note || '').trim() !== (product.note ?? '').trim() ||
+    effectiveCategoryIdForCompare !== (product.categoryId || '') ||
+    displayImageType !== initialDisplayType ||
+    (displayImageType === 'icon' && (iconId || '') !== initialIconId) ||
+    ((displayImageType === 'link' || displayImageType === 'web') && (imageUrl.trim() || '') !== (initialImageUrl || '').trim());
+
   const currentImageUrl = imageUrl.trim() || (product.imageUrl || '');
   const showImage = displayImageType === 'link' || displayImageType === 'web' ? currentImageUrl : null;
 
@@ -376,16 +389,16 @@ export function ProductEdit() {
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               type="submit"
-              disabled={isSaving || updateMutation.isPending || !name.trim()}
+              disabled={isSaving || updateMutation.isPending || !name.trim() || !hasChanges}
               style={{
                 flex: 1,
                 padding: 12,
-                background: isSaving || updateMutation.isPending || !name.trim() ? '#ccc' : 'var(--color-primary)',
-                color: isSaving || updateMutation.isPending || !name.trim() ? '#666' : '#fff',
+                background: isSaving || updateMutation.isPending || !name.trim() || !hasChanges ? '#ccc' : 'var(--color-primary)',
+                color: isSaving || updateMutation.isPending || !name.trim() || !hasChanges ? '#666' : '#fff',
                 fontWeight: 600,
                 borderRadius: 8,
                 border: 'none',
-                cursor: isSaving || updateMutation.isPending || !name.trim() ? 'not-allowed' : 'pointer',
+                cursor: isSaving || updateMutation.isPending || !name.trim() || !hasChanges ? 'not-allowed' : 'pointer',
               }}
             >
               {isSaving || updateMutation.isPending ? 'שומר...' : 'שמור'}

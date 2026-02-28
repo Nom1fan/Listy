@@ -563,6 +563,8 @@ describe('ListDetail', () => {
       await waitFor(() => {
         expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
       })
+      // Make a change so Save is enabled (save button is disabled when there are no changes)
+      fireEvent.change(screen.getByPlaceholderText('אופציונלי'), { target: { value: 'הערה' } })
       fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
       await waitFor(() => {
         const calls = fetchMock.mock.calls as [string, RequestInit | undefined][]
