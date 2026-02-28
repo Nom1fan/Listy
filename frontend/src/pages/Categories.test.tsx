@@ -127,6 +127,41 @@ describe('Categories', () => {
     })
   })
 
+  it('clicking category expand/collapse highlights the category row', async () => {
+    mockFetchWithProducts()
+    render(
+      <Wrapper>
+        <Categories />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText(/מכולת/)).toBeInTheDocument()
+    })
+    const categoryRow = screen.getByText('מכולת').closest('li')!
+    const toggleBtns = screen.getAllByRole('button', { name: /פתח קטגוריה מכולת|סגור קטגוריה מכולת/ })
+    fireEvent.click(toggleBtns[0])
+    await waitFor(() => {
+      expect(categoryRow).toHaveStyle({ background: '#e8f5e9' })
+    })
+  })
+
+  it('when navigating with highlightCategoryId and highlightProductId in location state, expands and highlights that category', async () => {
+    mockFetchWithProducts()
+    render(
+      <Wrapper initialEntries={[{ pathname: '/lists', state: { highlightCategoryId: 'c1', highlightProductId: 'p1' } }]}>
+        <Categories />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText(/מכולת/)).toBeInTheDocument()
+    })
+    await waitFor(() => {
+      const row = screen.getByText('מכולת').closest('li')
+      expect(row).toHaveStyle({ background: '#e8f5e9' })
+    })
+    expect(screen.getByText('אורז')).toBeInTheDocument()
+  })
+
   it('category row kebab has edit and delete; edit navigates to category edit page', async () => {
     const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
     fetchMock.mockImplementation((url: string) => {

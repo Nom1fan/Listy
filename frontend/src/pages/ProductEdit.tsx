@@ -51,6 +51,7 @@ export function ProductEdit() {
   const [isSaving, setIsSaving] = useState(false);
   const [unitSectionExpanded, setUnitSectionExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingHighlightRef = useRef<{ categoryId: string; productId: string } | null>(null);
 
   const { data: allProducts = [] } = useQuery({
     queryKey: ['products'],
@@ -88,7 +89,13 @@ export function ProductEdit() {
       setSaveError(null);
       queryClient.invalidateQueries({ queryKey: ['products'] });
       queryClient.invalidateQueries({ queryKey: ['categories'] });
-      navigate(backTo);
+      const highlight = pendingHighlightRef.current;
+      pendingHighlightRef.current = null;
+      if (fromCategories && highlight) {
+        navigate(backTo, { state: { tab: 'categories', highlightCategoryId: highlight.categoryId, highlightProductId: highlight.productId } });
+      } else {
+        navigate(backTo);
+      }
     },
     onError: (err: Error) => {
       setIsSaving(false);
@@ -138,6 +145,9 @@ export function ProductEdit() {
       }
     }
     const defaultUnitVal = unitSectionExpanded ? (unit.trim() || 'יחידה') : 'יחידה';
+    if (fromCategories && effectiveCategoryId) {
+      pendingHighlightRef.current = { categoryId: effectiveCategoryId, productId: product.id };
+    }
     updateMutation.mutate({
       id: product.id,
       nameHe: name.trim(),

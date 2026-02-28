@@ -11,9 +11,15 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 })
 
-function Wrapper({ children }: { children: React.ReactNode }) {
+function Wrapper({
+  children,
+  initialEntries = ['/lists/list1'],
+}: {
+  children: React.ReactNode
+  initialEntries?: Array<string | { pathname: string; state?: { highlightCategoryId?: string; highlightItemId?: string } }>
+}) {
   return (
-    <MemoryRouter initialEntries={['/lists/list1']}>
+    <MemoryRouter initialEntries={initialEntries}>
       <QueryClientProvider client={queryClient}>
         <Routes>
           <Route path="/lists/:listId" element={children} />
@@ -187,6 +193,75 @@ describe('ListDetail', () => {
 
     const gridBtn = screen.getByRole('button', { name: /תצוגת כרטיסיות/i })
     expect(gridBtn).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  describe('auto-scroll and highlight', () => {
+    const mockCategoriesForHighlight = [
+      { id: 'c1', nameHe: 'מוצרי חלב', iconId: 'dairy', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', version: 1 },
+      { id: 'c2', nameHe: 'מאפים', iconId: 'bakery', imageUrl: null, sortOrder: 1, workspaceId: 'ws1', version: 1 },
+    ]
+
+    function mockFetchWithCategoriesForHighlight() {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string) => {
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItems) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        if (url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategoriesForHighlight) })
+        }
+        if (url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+    }
+
+    it('when navigating with highlightCategoryId and highlightItemId in location state, expands and highlights that category and item', async () => {
+      mockFetchWithCategoriesForHighlight()
+      render(
+        <Wrapper
+          initialEntries={[
+            { pathname: '/lists/list1', state: { highlightCategoryId: 'c1', highlightItemId: 'item1' } },
+          ]}
+        >
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      await waitFor(() => {
+        const categoryHeader = screen.getByText('מוצרי חלב').closest('div')
+        expect(categoryHeader).toHaveStyle({ background: '#e8f5e9' })
+      })
+      // Item row is the outer div with background; "חלב" is inside nested divs
+      const itemRow = screen.getByText('חלב').closest('div')!.parentElement!.parentElement!
+      expect(itemRow).toHaveStyle({ background: '#e8f5e9' })
+    })
+
+    it('clicking category expand/collapse highlights the category header', async () => {
+      mockFetchWithCategoriesForHighlight()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      const toggleBtns = screen.getAllByRole('button', {
+        name: /פתח קטגוריה מוצרי חלב|סגור קטגוריה מוצרי חלב/,
+      })
+      fireEvent.click(toggleBtns[0])
+      await waitFor(() => {
+        const categoryHeader = screen.getByText('מוצרי חלב').closest('div')
+        expect(categoryHeader).toHaveStyle({ background: '#e8f5e9' })
+      })
+    })
   })
 
   it('list header kebab has edit and delete; edit navigates to list edit page', async () => {

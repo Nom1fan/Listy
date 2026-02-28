@@ -56,6 +56,7 @@ export function ListItemEdit() {
   const [isSaving, setIsSaving] = useState(false);
   const [unitSectionExpanded, setUnitSectionExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingHighlightRef = useRef<{ categoryId: string; itemId: string } | null>(null);
 
   const { data: list } = useQuery({
     queryKey: ['list', listId],
@@ -111,7 +112,13 @@ export function ListItemEdit() {
       setSaveError(null);
       queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
       queryClient.invalidateQueries({ queryKey: ['products'] });
-      navigate(`/lists/${listId}`);
+      const highlight = pendingHighlightRef.current;
+      pendingHighlightRef.current = null;
+      if (highlight) {
+        navigate(`/lists/${listId}`, { state: { highlightCategoryId: highlight.categoryId, highlightItemId: highlight.itemId } });
+      } else {
+        navigate(`/lists/${listId}`);
+      }
     },
     onError: (err: Error) => {
       setIsSaving(false);
@@ -200,6 +207,10 @@ export function ListItemEdit() {
         iconId: '',
         version: product?.version,
       });
+    }
+    if (effectiveCategoryId !== (item.categoryId || '') || body.clearCategory) {
+      const targetCategoryId = effectiveCategoryId || '';
+      pendingHighlightRef.current = { categoryId: targetCategoryId, itemId: itemId! };
     }
     updateMutation.mutate({
       body: body as { version?: number; quantity?: number; unit?: string; showQuantityUnit?: boolean; note?: string; categoryId?: string; clearCategory?: boolean; itemImageUrl?: string | null; iconId?: string | null; customNameHe?: string },

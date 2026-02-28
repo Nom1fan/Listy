@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, createCategory, createProduct, deleteCategory, deleteProduct, reorderCategories } from '../api/products';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -62,10 +62,14 @@ function ChevronRightIcon({ size = 20, color = '#555' }: { size?: number; color?
   );
 }
 
+type CategoriesLocationState = { highlightCategoryId?: string; highlightProductId?: string } | null;
+
 export function Categories() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const locationState = location.state as CategoriesLocationState;
   const [viewMode, setViewMode] = useViewMode('categories');
   const [nameHe, setNameHe] = useState('');
   const [addProductCategoryId, setAddProductCategoryId] = useState<string | null>(null);
@@ -216,6 +220,21 @@ export function Categories() {
       return () => clearTimeout(t);
     }
   }, [highlightedProductId, allProducts]);
+
+  // When returning from ProductEdit (e.g. after moving a product to another category), scroll to and highlight that category/product
+  useEffect(() => {
+    const categoryId = locationState?.highlightCategoryId;
+    if (!categoryId || displayCategories.length === 0) return;
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      next.delete(categoryId);
+      return next;
+    });
+    setHighlightedCategoryId(categoryId);
+    if (locationState?.highlightProductId) {
+      setHighlightedProductId(locationState.highlightProductId);
+    }
+  }, [locationState?.highlightCategoryId, locationState?.highlightProductId, displayCategories.length]);
 
   function closeCreateModal() {
     setShowCreateModal(false);
@@ -455,12 +474,15 @@ export function Categories() {
                 <CategoryIcon iconId={c.iconId} imageUrl={c.imageUrl} size={32} />
                 <button
                   type="button"
-                  onClick={() => setCollapsedCategories((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(c.id)) next.delete(c.id);
-                    else next.add(c.id);
-                    return next;
-                  })}
+                  onClick={() => {
+                    setCollapsedCategories((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(c.id)) next.delete(c.id);
+                      else next.add(c.id);
+                      return next;
+                    });
+                    setHighlightedCategoryId(c.id);
+                  }}
                   aria-expanded={!collapsedCategories.has(c.id)}
                   aria-label={collapsedCategories.has(c.id) ? `פתח קטגוריה ${c.nameHe}` : `סגור קטגוריה ${c.nameHe}`}
                   style={{
@@ -482,12 +504,15 @@ export function Categories() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCollapsedCategories((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(c.id)) next.delete(c.id);
-                    else next.add(c.id);
-                    return next;
-                  })}
+                  onClick={() => {
+                    setCollapsedCategories((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(c.id)) next.delete(c.id);
+                      else next.add(c.id);
+                      return next;
+                    });
+                    setHighlightedCategoryId(c.id);
+                  }}
                   aria-expanded={!collapsedCategories.has(c.id)}
                   aria-label={collapsedCategories.has(c.id) ? `פתח קטגוריה ${c.nameHe}` : `סגור קטגוריה ${c.nameHe}`}
                   style={{

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useParams, useNavigate, Navigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
@@ -155,10 +155,14 @@ function getImageUrl(url: string | null): string {
   return base + url;
 }
 
+type ListDetailLocationState = { highlightCategoryId?: string; highlightItemId?: string } | null;
+
 export function ListDetail() {
   const { listId } = useParams<{ listId: string }>();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const locationState = location.state as ListDetailLocationState;
 
   if (!listId) {
     return <Navigate to="/lists" replace />;
@@ -173,7 +177,9 @@ export function ListDetail() {
   const [listDetailMenuOpen, setListDetailMenuOpen] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set());
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
+  const [highlightedCategoryName, setHighlightedCategoryName] = useState<string | null>(null);
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const { data: list } = useQuery({
     queryKey: ['list', listId],
@@ -365,6 +371,34 @@ export function ListDetail() {
       return () => clearTimeout(t);
     }
   }, [highlightedItemId, items]);
+
+  useEffect(() => {
+    if (!highlightedCategoryName) return;
+    const el = categoryRefs.current[highlightedCategoryName];
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      const t = setTimeout(() => setHighlightedCategoryName(null), 2000);
+      return () => clearTimeout(t);
+    }
+  }, [highlightedCategoryName, filteredItems]);
+
+  // When returning from ListItemEdit after moving an item to another category, scroll to and highlight that category/item
+  useEffect(() => {
+    const categoryId = locationState?.highlightCategoryId;
+    const itemId = locationState?.highlightItemId;
+    if (categoryId === undefined && !itemId) return;
+    if (categoryId && workspaceCategories.length === 0) return;
+    const categoryName = categoryId
+      ? (workspaceCategories.find((c) => c.id === categoryId)?.nameHe ?? 'אחר')
+      : 'אחר';
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev);
+      next.delete(categoryName);
+      return next;
+    });
+    setHighlightedCategoryName(categoryName);
+    if (itemId) setHighlightedItemId(itemId);
+  }, [locationState?.highlightCategoryId, locationState?.highlightItemId, workspaceCategories]);
 
   const listItemMatches = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -798,10 +832,10 @@ export function ListDetail() {
             const visibleItems = hideCrossedOff ? grouped[cat].filter(i => !i.crossedOff) : grouped[cat];
             if (visibleItems.length === 0) return null;
             return (
-            <section key={cat} style={{ marginBottom: 24 }}>
+            <section key={cat} ref={(el) => { categoryRefs.current[cat] = el; }} style={{ marginBottom: 24 }}>
               <div
                 style={{
-                  background: 'var(--color-bar)',
+                  background: highlightedCategoryName === cat ? '#e8f5e9' : 'var(--color-bar)',
                   padding: '8px 12px',
                   borderRadius: 8,
                   marginBottom: 8,
@@ -813,12 +847,15 @@ export function ListDetail() {
               >
                 <button
                   type="button"
-                  onClick={() => setCollapsedCategories((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(cat)) next.delete(cat);
-                    else next.add(cat);
-                    return next;
-                  })}
+                  onClick={() => {
+                    setCollapsedCategories((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(cat)) next.delete(cat);
+                      else next.add(cat);
+                      return next;
+                    });
+                    setHighlightedCategoryName(cat);
+                  }}
                   style={{
                     flex: 1,
                     display: 'flex',
@@ -840,12 +877,15 @@ export function ListDetail() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCollapsedCategories((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(cat)) next.delete(cat);
-                    else next.add(cat);
-                    return next;
-                  })}
+                  onClick={() => {
+                    setCollapsedCategories((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(cat)) next.delete(cat);
+                      else next.add(cat);
+                      return next;
+                    });
+                    setHighlightedCategoryName(cat);
+                  }}
                   aria-expanded={!collapsedCategories.has(cat)}
                   aria-label={collapsedCategories.has(cat) ? `פתח קטגוריה ${cat}` : `סגור קטגוריה ${cat}`}
                   style={{
