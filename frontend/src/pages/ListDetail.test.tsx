@@ -353,6 +353,52 @@ describe('ListDetail', () => {
       expect(catSelect.tagName).toBe('SELECT')
     })
 
+    it('sending "ללא קטגוריה" sends clearCategory in PATCH body', async () => {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, opts?: RequestInit) => {
+        if (url.includes('/api/lists/list1/items')) {
+          if (opts?.method === 'PATCH') {
+            return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ...mockItems[0], categoryId: null, productId: null, version: 1 }) })
+          }
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItems) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        if (url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategories) })
+        }
+        if (url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('חלב'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+      const catSelect = screen.getByDisplayValue('מוצרי חלב') as HTMLSelectElement
+      fireEvent.change(catSelect, { target: { value: '' } })
+      fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
+      await waitFor(() => {
+        const calls = fetchMock.mock.calls as [string, RequestInit | undefined][]
+        const patchCall = calls.find(
+          ([url, opts]) => opts?.method === 'PATCH' && url.includes('/api/lists/list1/items/') && url.includes('/item1')
+        )
+        expect(patchCall).toBeDefined()
+        const body = JSON.parse(patchCall![1]!.body as string)
+        expect(body.clearCategory).toBe(true)
+      })
+    })
+
     it('edit screen has image placeholder; clicking it opens image source dialog', async () => {
       mockFetchWithCategories()
       render(

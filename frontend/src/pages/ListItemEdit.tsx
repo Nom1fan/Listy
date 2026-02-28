@@ -104,7 +104,7 @@ export function ListItemEdit() {
     mutationFn: ({
       body,
     }: {
-      body: { crossedOff?: boolean; quantity?: number; unit?: string; note?: string; itemImageUrl?: string | null; iconId?: string | null; categoryId?: string; version?: number; customNameHe?: string };
+      body: { crossedOff?: boolean; quantity?: number; unit?: string; note?: string; itemImageUrl?: string | null; iconId?: string | null; categoryId?: string; clearCategory?: boolean; version?: number; customNameHe?: string };
     }) => updateListItem(listId!, itemId!, body),
     onSuccess: () => {
       setIsSaving(false);
@@ -169,6 +169,8 @@ export function ListItemEdit() {
     if (note !== (item.note || '')) body.note = note;
     if (effectiveCategoryId && effectiveCategoryId !== (item.categoryId || '')) {
       body.categoryId = effectiveCategoryId;
+    } else if (!effectiveCategoryId && (item.categoryId || item.productId)) {
+      body.clearCategory = true;
     }
     if (name.trim() !== item.displayName) {
       body.customNameHe = name.trim();
@@ -200,7 +202,7 @@ export function ListItemEdit() {
       });
     }
     updateMutation.mutate({
-      body: body as { version?: number; quantity?: number; unit?: string; showQuantityUnit?: boolean; note?: string; categoryId?: string; itemImageUrl?: string | null; iconId?: string | null; customNameHe?: string },
+      body: body as { version?: number; quantity?: number; unit?: string; showQuantityUnit?: boolean; note?: string; categoryId?: string; clearCategory?: boolean; itemImageUrl?: string | null; iconId?: string | null; customNameHe?: string },
     });
   }
 

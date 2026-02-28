@@ -10,7 +10,6 @@ import { ImageSourceDialog } from '../components/ImageSourceDialog';
 import { EmojiPickerDialog } from '../components/EmojiPicker';
 import { createPortal } from 'react-dom';
 import { useWorkspaceStore } from '../store/workspaceStore';
-import type { ProductDto } from '../types';
 
 function getImageUrl(url: string | null): string {
   if (!url) return '';
@@ -118,6 +117,25 @@ export function ProductEdit() {
       }
     } else if (categoryId === '__new__') {
       effectiveCategoryId = product.categoryId || '';
+    } else if (!effectiveCategoryId && activeWorkspaceId) {
+      // "ללא קטגוריה (אחר)" — use "אחר" category (get or create)
+      const otherCat = workspaceCategories.find((c) => c.nameHe === 'אחר');
+      if (otherCat) {
+        effectiveCategoryId = otherCat.id;
+      } else {
+        try {
+          const newCategory = await createCategory({
+            nameHe: 'אחר',
+            workspaceId: activeWorkspaceId,
+          });
+          queryClient.invalidateQueries({ queryKey: ['categories', activeWorkspaceId] });
+          effectiveCategoryId = newCategory.id;
+        } catch (err) {
+          setIsSaving(false);
+          setSaveError(err instanceof ApiError ? err.message : 'שגיאה ביצירת קטגוריה');
+          return;
+        }
+      }
     }
     const defaultUnitVal = unitSectionExpanded ? (unit.trim() || 'יחידה') : 'יחידה';
     updateMutation.mutate({

@@ -352,4 +352,80 @@ describe('Categories', () => {
       })
     })
   })
+
+  describe('ProductEdit "ללא קטגוריה" resolves to "אחר" category', () => {
+    it('creates "אחר" category and moves product when selecting no category and "אחר" does not exist', async () => {
+      const categoriesWithoutOther = [
+        { id: 'c1', nameHe: 'מכולת', iconId: 'groceries', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', version: 1 },
+        { id: 'c2', nameHe: 'ירקות', iconId: 'veggies', imageUrl: null, sortOrder: 1, workspaceId: 'ws1', version: 1 },
+      ]
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+        if (typeof url === 'string' && url.includes('/api/products')) {
+          if (init?.method === 'PATCH') {
+            const body = JSON.parse((init?.body as string) || '{}')
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ ...mockProducts[0], categoryId: body.categoryId || 'c-other', version: 1 }),
+            })
+          }
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockProducts) })
+        }
+        if (typeof url === 'string' && url.includes('/api/categories')) {
+          if (init?.method === 'POST') {
+            const body = JSON.parse((init?.body as string) || '{}')
+            return Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () =>
+                Promise.resolve({
+                  id: 'c-other',
+                  nameHe: body.nameHe || 'אחר',
+                  iconId: null,
+                  imageUrl: null,
+                  sortOrder: 0,
+                  workspaceId: body.workspaceId,
+                  version: 1,
+                }),
+            })
+          }
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(categoriesWithoutOther) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+      render(
+        <Wrapper initialEntries={[{ pathname: '/products/p1/edit', state: { from: 'categories' } }]}>
+          <ProductEdit />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('אורז')).toBeInTheDocument()
+      })
+      const catSelect = screen.getByDisplayValue('מכולת') as HTMLSelectElement
+      fireEvent.change(catSelect, { target: { value: '' } })
+      fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
+      await waitFor(() => {
+        const postCalls = fetchMock.mock.calls.filter((args) => {
+          const url = args[0] as string
+          const init = args[1] as RequestInit | undefined
+          return typeof url === 'string' && url.includes('/api/categories') && init?.method === 'POST'
+        })
+        expect(postCalls.length).toBeGreaterThanOrEqual(1)
+        const createBody = JSON.parse((postCalls[postCalls.length - 1][1] as RequestInit)?.body as string)
+        expect(createBody.nameHe).toBe('אחר')
+        expect(createBody.workspaceId).toBe('ws1')
+      })
+      await waitFor(() => {
+        const patchCalls = fetchMock.mock.calls.filter((args) => {
+          const url = args[0] as string
+          const init = args[1] as RequestInit | undefined
+          return typeof url === 'string' && url.includes('/api/products/p1') && init?.method === 'PATCH'
+        })
+        expect(patchCalls.length).toBeGreaterThanOrEqual(1)
+        const updateBody = JSON.parse((patchCalls[patchCalls.length - 1][1] as RequestInit)?.body as string)
+        expect(updateBody.categoryId).toBe('c-other')
+      })
+    })
+  })
 })

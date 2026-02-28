@@ -128,8 +128,17 @@ public class ListItemService {
         if (req.getCustomNameHe() != null) item.setCustomNameHe(req.getCustomNameHe().isBlank() ? null : req.getCustomNameHe());
         if (req.getItemImageUrl() != null) item.setItemImageUrl(req.getItemImageUrl().isBlank() ? null : req.getItemImageUrl());
         if (req.getIconId() != null) item.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
+        // Move item to be category-less
+        if (Boolean.TRUE.equals(req.getClearCategory())) {
+            if (item.getProduct() != null) {
+                Product product = item.getProduct();
+                item.setCustomNameHe(product.getNameHe());
+                item.setProduct(null);
+            }
+            item.setCategory(null);
+        }
         // Move item to a different category
-        if (req.getCategoryId() != null) {
+        else if (req.getCategoryId() != null) {
             GroceryList list = item.getList();
             Category newCategory = categoryRepository.findById(req.getCategoryId())
                     .orElseThrow(() -> new ResourceNotFoundException("הקטגוריה לא נמצאה"));

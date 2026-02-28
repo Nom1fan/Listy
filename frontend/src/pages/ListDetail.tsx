@@ -280,7 +280,7 @@ export function ListDetail() {
       body,
     }: {
       itemId: string;
-      body: { crossedOff?: boolean; quantity?: number; unit?: string; note?: string; itemImageUrl?: string | null; iconId?: string | null; categoryId?: string; version?: number };
+      body: { crossedOff?: boolean; quantity?: number; unit?: string; note?: string; itemImageUrl?: string | null; iconId?: string | null; categoryId?: string; clearCategory?: boolean; version?: number };
     }) => updateListItem(listId, itemId, body),
     onMutate: async ({ itemId, body }) => {
       await queryClient.cancelQueries({ queryKey: ['listItems', listId] });

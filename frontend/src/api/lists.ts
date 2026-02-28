@@ -89,6 +89,8 @@ export async function updateListItem(
     itemImageUrl?: string | null;
     iconId?: string | null;
     categoryId?: string;
+    /** When true, make the item category-less. */
+    clearCategory?: boolean;
     version?: number;
   }
 ): Promise<ListItemResponse> {

@@ -19,6 +19,8 @@ public class UpdateListItemRequest {
     private String iconId;
     /** Move item to a different category; null = no change */
     private UUID categoryId;
+    /** When true, make the item category-less (no category). */
+    private Boolean clearCategory;
     /** Optimistic-locking version from the client; null skips the check. */
     private Long version;
 }

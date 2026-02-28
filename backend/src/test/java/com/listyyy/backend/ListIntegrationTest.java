@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -418,6 +419,34 @@ class ListIntegrationTest extends AbstractIntegrationTest {
                         .param("categoryId", categoryId.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.nameHe == 'פריט מותאם לנייד')]").exists());
+    }
+
+    @Test
+    void move_item_to_category_less_clears_category() throws Exception {
+        String listId = createList("רשימה עם פריט");
+
+        // Add product-based item (has category via product)
+        ResultActions add = mvc.perform(post("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("productId", productId.toString()))))
+                .andExpect(status().isOk());
+        String itemId = objectMapper.readTree(add.andReturn().getResponse().getContentAsString()).get("id").asText();
+
+        // Move item to be category-less
+        mvc.perform(patch("/api/lists/" + listId + "/items/" + itemId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("clearCategory", true))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categoryId").value(nullValue()))
+                .andExpect(jsonPath("$.displayName").exists());
+
+        // Verify list item has no category (items array: single item's categoryId is null)
+        mvc.perform(get("/api/lists/" + listId + "/items")
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].categoryId").value(nullValue()));
     }
 
     @Test
