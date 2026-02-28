@@ -285,10 +285,10 @@ describe('Categories', () => {
       await waitFor(() => {
         expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
       })
-      // Category label and select with both categories as options
-      const categorySelect = screen.getByDisplayValue('מכולת') as HTMLSelectElement
+      // Category dropdown with current category selected
+      const categorySelect = screen.getByRole('combobox', { name: 'קטגוריה' })
       expect(categorySelect).toBeInTheDocument()
-      expect(categorySelect.tagName).toBe('SELECT')
+      expect(categorySelect).toHaveTextContent('מכולת')
     })
   })
 
@@ -437,8 +437,9 @@ describe('Categories', () => {
       await waitFor(() => {
         expect(screen.getByDisplayValue('אורז')).toBeInTheDocument()
       })
-      const catSelect = screen.getByDisplayValue('מכולת') as HTMLSelectElement
-      fireEvent.change(catSelect, { target: { value: '' } })
+      const catSelect = screen.getByRole('combobox', { name: 'קטגוריה' })
+      fireEvent.click(catSelect)
+      fireEvent.click(screen.getByRole('option', { name: 'ללא קטגוריה (אחר)' }))
       fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
       await waitFor(() => {
         const postCalls = fetchMock.mock.calls.filter((args) => {

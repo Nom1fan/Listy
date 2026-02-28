@@ -422,10 +422,10 @@ describe('ListDetail', () => {
       await waitFor(() => {
         expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
       })
-      // Category select should exist with current category selected
-      const catSelect = screen.getByDisplayValue('מוצרי חלב') as HTMLSelectElement
+      // Category dropdown should exist with current category selected
+      const catSelect = screen.getByRole('combobox', { name: 'קטגוריה' })
       expect(catSelect).toBeInTheDocument()
-      expect(catSelect.tagName).toBe('SELECT')
+      expect(catSelect).toHaveTextContent('מוצרי חלב')
     })
 
     it('sending "ללא קטגוריה" sends clearCategory in PATCH body', async () => {
@@ -460,8 +460,9 @@ describe('ListDetail', () => {
       await waitFor(() => {
         expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
       })
-      const catSelect = screen.getByDisplayValue('מוצרי חלב') as HTMLSelectElement
-      fireEvent.change(catSelect, { target: { value: '' } })
+      const catSelect = screen.getByRole('combobox', { name: 'קטגוריה' })
+      fireEvent.click(catSelect)
+      fireEvent.click(screen.getByRole('option', { name: 'ללא קטגוריה (אחר)' }))
       fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
       await waitFor(() => {
         const calls = fetchMock.mock.calls as [string, RequestInit | undefined][]
@@ -1432,19 +1433,19 @@ describe('ListDetail', () => {
       await openQuickAddWithProducts()
       const nameInput = screen.getByPlaceholderText('שם פריט')
 
-      // Verify category starts unselected
-      const catSelect = screen.getByDisplayValue('ללא קטגוריה (אחר)') as HTMLSelectElement
-      expect(catSelect.value).toBe('')
+      // Verify category starts unselected (placeholder shown)
+      const catSelect = screen.getByRole('combobox', { name: 'קטגוריה' })
+      expect(catSelect).toHaveTextContent('ללא קטגוריה (אחר)')
 
       fireEvent.change(nameInput, { target: { value: 'סוי' } })
       expect(screen.getByText('חלב סויה')).toBeInTheDocument()
 
-      // Click on "חלב סויה" suggestion (product in category c2)
+      // Click on "חלב סויה" suggestion (product in category c2 = טבעוני)
       fireEvent.mouseDown(screen.getByText('חלב סויה'))
 
-      // Category dropdown should now be set to the product's category
+      // Category dropdown should now show the product's category
       await waitFor(() => {
-        expect(catSelect.value).toBe('c2')
+        expect(catSelect).toHaveTextContent('טבעוני')
       })
     })
 
@@ -1628,8 +1629,8 @@ describe('ListDetail', () => {
       fireEvent.click(screen.getByRole('button', { name: /הוסף פריט/i }))
       await waitFor(() => { expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument() })
 
-      const categorySelect = screen.getByDisplayValue('ללא קטגוריה (אחר)')
-      const options = categorySelect.querySelectorAll('option')
+      fireEvent.click(screen.getByRole('combobox', { name: 'קטגוריה' }))
+      const options = screen.getAllByRole('option')
       // "ללא קטגוריה" + 3 categories
       expect(options).toHaveLength(4)
     })
@@ -1642,11 +1643,11 @@ describe('ListDetail', () => {
       fireEvent.click(screen.getByRole('button', { name: /הוסף פריט/i }))
       await waitFor(() => { expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument() })
 
-      const categorySelect = screen.getByDisplayValue('ללא קטגוריה (אחר)')
-      const options = categorySelect.querySelectorAll('option')
+      fireEvent.click(screen.getByRole('combobox', { name: 'קטגוריה' }))
+      const options = screen.getAllByRole('option')
       // "ללא קטגוריה" + 1 included category
       expect(options).toHaveLength(2)
-      expect(options[1].textContent).toBe('מוצרי חלב')
+      expect(options[1]).toHaveTextContent('מוצרי חלב')
     })
 
     it('excludes categories in dropdown when mode is EXCLUDE', async () => {
@@ -1657,11 +1658,11 @@ describe('ListDetail', () => {
       fireEvent.click(screen.getByRole('button', { name: /הוסף פריט/i }))
       await waitFor(() => { expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument() })
 
-      const categorySelect = screen.getByDisplayValue('ללא קטגוריה (אחר)')
-      const options = categorySelect.querySelectorAll('option')
+      fireEvent.click(screen.getByRole('combobox', { name: 'קטגוריה' }))
+      const options = screen.getAllByRole('option')
       // "ללא קטגוריה" + 2 categories (c3 excluded)
       expect(options).toHaveLength(3)
-      const optionTexts = Array.from(options).map((o) => o.textContent)
+      const optionTexts = options.map((o) => o.textContent)
       expect(optionTexts).not.toContain('ניקיון')
     })
   })

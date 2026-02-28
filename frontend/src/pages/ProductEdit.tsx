@@ -5,6 +5,7 @@ import { getCategories, getProducts, updateProduct, createCategory } from '../ap
 import { uploadFile, ApiError } from '../api/client';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { CustomSelect } from '../components/CustomSelect';
 import type { DisplayImageType } from '../components/DisplayImageForm';
 import { ImageSourceDialog } from '../components/ImageSourceDialog';
 import { EmojiPickerDialog } from '../components/EmojiPicker';
@@ -332,20 +333,21 @@ export function ProductEdit() {
           </div>
           {workspaceCategories.length > 0 && (
             <div>
-              <label style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קטגוריה</label>
-              <select
+              <CustomSelect
+                label="קטגוריה"
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', background: '#fff', fontSize: 14, boxSizing: 'border-box' }}
-              >
-                <option value="">ללא קטגוריה (אחר)</option>
-                {workspaceCategories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.nameHe}
-                  </option>
-                ))}
-                <option value="__new__">➕ קטגוריה חדשה...</option>
-              </select>
+                onChange={setCategoryId}
+                placeholder="ללא קטגוריה (אחר)"
+                options={[
+                  { value: '', label: 'ללא קטגוריה (אחר)' },
+                  ...workspaceCategories.map((cat) => ({
+                    value: cat.id,
+                    label: cat.nameHe,
+                    icon: <CategoryIcon iconId={cat.iconId} imageUrl={cat.imageUrl} size={20} />,
+                  })),
+                  { value: '__new__', label: '➕ קטגוריה חדשה...' },
+                ]}
+              />
               {categoryId === '__new__' && (
                 <div style={{ marginTop: 8 }}>
                   <input

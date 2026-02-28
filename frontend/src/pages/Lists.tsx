@@ -8,6 +8,7 @@ import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { CustomSelect } from '../components/CustomSelect';
 import { getUserDisplayLabel } from '../utils/user';
 import { WorkspaceTabs, type TabKey } from '../components/WorkspaceTabs';
 import { Categories } from './Categories';
@@ -323,13 +324,16 @@ export function Lists() {
               </span>
             )}
             {workspaces.length > 1 && (
-              <select
+              <CustomSelect
                 id="workspace-select"
                 value={activeWorkspaceId ?? ''}
-                onChange={(e) => {
-                  const id = e.target.value;
-                  if (id) setActiveWorkspace(id);
-                }}
+                onChange={(id) => id && setActiveWorkspace(id)}
+                options={workspaces.map((w) => ({
+                  value: w.id,
+                  label: w.memberCount > 1 ? `${w.name} 👥 (${w.memberCount})` : w.name,
+                }))}
+                fullWidth={false}
+                aria-label="מרחב עבודה"
                 style={{
                   padding: '6px 10px',
                   borderRadius: 8,
@@ -338,16 +342,9 @@ export function Lists() {
                   fontWeight: 600,
                   background: 'rgba(255,255,255,0.15)',
                   color: 'inherit',
-                  cursor: 'pointer',
                   maxWidth: 180,
                 }}
-              >
-                {workspaces.map((w) => (
-                  <option key={w.id} value={w.id} style={{ color: '#1a1a1a' }}>
-                    {w.name}{w.memberCount > 1 ? ` 👥 (${w.memberCount})` : ''}
-                  </option>
-                ))}
-              </select>
+              />
             )}
             {/* Kebab menu for workspace */}
             {!editingWorkspace && !showCreateWorkspace && (
