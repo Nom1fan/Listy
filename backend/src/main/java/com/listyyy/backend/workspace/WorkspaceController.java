@@ -127,7 +127,7 @@ public class WorkspaceController {
     public ResponseEntity<Void> acceptInvitation(@PathVariable UUID id, @AuthenticationPrincipal User user) {
         if (user == null) return ResponseEntity.status(401).build();
         workspaceService.acceptInvitation(id, user);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/invitations/reject")

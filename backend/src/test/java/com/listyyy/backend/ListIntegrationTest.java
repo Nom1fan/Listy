@@ -154,7 +154,7 @@ class ListIntegrationTest extends AbstractIntegrationTest {
         // Other user accepts invitation
         mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
                         .header("Authorization", "Bearer " + otherToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         // Now other user can access the list
         mvc.perform(get("/api/lists/" + listId).header("Authorization", "Bearer " + otherToken))

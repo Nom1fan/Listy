@@ -31,6 +31,17 @@ describe('api', () => {
     expect(result).toBeUndefined()
   })
 
+  it('rejects when response is 200 with empty body (e.g. accept invitation returning ok with no body)', async () => {
+    ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new SyntaxError('Unexpected end of JSON input')),
+    })
+    await expect(api('/api/workspaces/ws1/invitations/accept', { method: 'POST' })).rejects.toThrow(
+      'Unexpected end of JSON input'
+    )
+  })
+
   it('throws on !res.ok with message from JSON', async () => {
     ;(globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
       ok: false,

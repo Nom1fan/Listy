@@ -381,7 +381,7 @@ class OptimisticLockingIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk());
         mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
                         .header("Authorization", "Bearer " + otherToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         // Both users read the current version
         ResultActions getResult = mvc.perform(get("/api/categories/" + categoryId)
@@ -425,7 +425,7 @@ class OptimisticLockingIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk());
         mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
                         .header("Authorization", "Bearer " + otherToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         // Create list and add item
         String listId = createList("שיתופי");

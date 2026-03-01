@@ -117,7 +117,7 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
         // Other user accepts invitation
         mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
                         .header("Authorization", "Bearer " + otherToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         // Now member count is 2
         mvc.perform(get("/api/workspaces/" + workspaceId).header("Authorization", getBearerToken()))
@@ -133,6 +133,32 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/categories").header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].nameHe").value("מכולת"));
+    }
+
+    /**
+     * Regression: accept invitation must return 204 No Content with empty body.
+     * The frontend api() only skips JSON parsing for 204; 200 with empty body causes
+     * "Unexpected end of JSON input" when the client calls response.json().
+     */
+    @Test
+    void accept_invitation_returns_204_no_content_with_empty_body() throws Exception {
+        User other = userRepository.save(User.builder()
+                .email("other@example.com")
+                .passwordHash(passwordEncoder.encode("pass123"))
+                .displayName("Other")
+                .locale("he")
+                .build());
+        mvc.perform(post("/api/workspaces/" + workspaceId + "/members")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "other@example.com"))))
+                .andExpect(status().isOk());
+        String otherToken = login("other@example.com", "pass123");
+
+        mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
     }
 
     @Test
@@ -170,7 +196,7 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk());
         mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
                         .header("Authorization", "Bearer " + otherToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
         mvc.perform(delete("/api/workspaces/" + workspaceId + "/members/" + other.getId())
                         .header("Authorization", getBearerToken()))
                 .andExpect(status().isNoContent());
@@ -199,7 +225,7 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
         String otherToken = login("other@example.com", "pass123");
         mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
                         .header("Authorization", "Bearer " + otherToken))
-                .andExpect(status().isOk());
+                .andExpect(status().isNoContent());
 
         // Member leaves on their own
         mvc.perform(delete("/api/workspaces/" + workspaceId + "/members/" + other.getId())
