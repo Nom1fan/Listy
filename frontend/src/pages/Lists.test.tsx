@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore'
 import { useWorkspaceStore } from '../store/workspaceStore'
 import { Lists } from './Lists'
 import { ListEdit } from './ListEdit'
+import { ListCreate } from './ListCreate'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -17,6 +18,7 @@ function Wrapper({ children, initialEntries = ['/lists'] }: { children: React.Re
       <QueryClientProvider client={queryClient}>
         <Routes>
           <Route path="/lists" element={children} />
+          <Route path="/lists/new" element={<ListCreate />} />
           <Route path="/lists/:listId/edit" element={<ListEdit />} />
         </Routes>
       </QueryClientProvider>
@@ -96,13 +98,16 @@ describe('Lists', () => {
     expect(screen.getByRole('button', { name: 'קטגוריות' })).toBeInTheDocument()
   })
 
-  it('clicking FAB shows inline input for list name', async () => {
+  it('clicking FAB navigates to list create page', async () => {
     const fn = globalThis.fetch as ReturnType<typeof vi.fn>
     fn.mockImplementation((url: string) => {
       if (url.includes('/api/workspaces')) {
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(workspaceData) })
       }
       if (url.includes('/api/lists')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      }
+      if (url.includes('/api/categories')) {
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
       }
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
@@ -113,10 +118,11 @@ describe('Lists', () => {
       </Wrapper>
     )
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /הוסף רשימה/i })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /הוסף רשימה/i })).toBeInTheDocument()
     })
-    fireEvent.click(screen.getByRole('button', { name: /הוסף רשימה/i }))
+    fireEvent.click(screen.getByRole('link', { name: /הוסף רשימה/i }))
     await waitFor(() => {
+      expect(screen.getByText('רשימה חדשה')).toBeInTheDocument()
       expect(screen.getByPlaceholderText('שם הרשימה')).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /צור רשימה/i })).toBeInTheDocument()
       expect(screen.getByText('ביטול')).toBeInTheDocument()

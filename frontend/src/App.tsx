@@ -12,6 +12,7 @@ import { Lists } from './pages/Lists';
 import { ListDetail } from './pages/ListDetail';
 import { ListItemEdit } from './pages/ListItemEdit';
 import { ListEdit } from './pages/ListEdit';
+import { ListCreate } from './pages/ListCreate';
 import { ProductEdit } from './pages/ProductEdit';
 import { CategoryEdit } from './pages/CategoryEdit';
 import { ProductBank } from './pages/ProductBank';
@@ -53,6 +54,14 @@ function AppShell() {
           element={
             <PrivateRoute>
               <Lists />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/lists/new"
+          element={
+            <PrivateRoute>
+              <ListCreate />
             </PrivateRoute>
           }
         />

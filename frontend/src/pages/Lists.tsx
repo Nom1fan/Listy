@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getLists, createList, deleteList, reorderLists } from '../api/lists';
+import { getLists, deleteList, reorderLists } from '../api/lists';
 import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace } from '../api/workspaces';
 import { useAuthStore } from '../store/authStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -45,8 +45,6 @@ export function Lists() {
     if (tabFromState === 'categories' || tabFromState === 'lists') return tabFromState;
     return tabFromUrl === 'categories' ? 'categories' : 'lists';
   });
-  const [name, setName] = useState('');
-  const [showNew, setShowNew] = useState(false);
   const [toast, setToast] = useState<{ message: string; isError: boolean } | null>(null);
   const queryClient = useQueryClient();
   const logout = useAuthStore((s) => s.logout);
@@ -181,20 +179,6 @@ export function Lists() {
       return () => clearTimeout(t);
     }
   }, [highlightedListId, displayLists]);
-
-  const createMutation = useMutation({
-    mutationFn: (payload: { name: string; workspaceId: string }) => createList(payload),
-    onSuccess: (newList: ListResponse) => {
-      queryClient.setQueryData<ListResponse[]>(['lists', activeWorkspaceId], (prev) => [...(prev ?? []), newList]);
-      queryClient.invalidateQueries({ queryKey: ['lists', activeWorkspaceId] });
-      setShowNew(false);
-      setName('');
-      setHighlightedListId(newList.id);
-    },
-    onError: (err: Error) => {
-      showToast(err.message || 'שגיאה ביצירת הרשימה', true);
-    },
-  });
 
   const deleteMutation = useMutation({
     mutationFn: (listId: string) => deleteList(listId),
@@ -609,98 +593,26 @@ export function Lists() {
         {activeTab === 'lists' ? (
           <>
         <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-          {showNew ? (
-            <>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (activeWorkspaceId && name.trim()) {
-                      createMutation.mutate({ name: name.trim(), workspaceId: activeWorkspaceId });
-                    }
-                  }
-                  if (e.key === 'Escape') {
-                    setShowNew(false);
-                    setName('');
-                  }
-                }}
-                placeholder="שם הרשימה"
-                autoFocus
-                style={{
-                  flex: 1,
-                  padding: '12px 16px',
-                  borderRadius: 10,
-                  border: '1px solid #ddd',
-                  fontSize: 15,
-                  boxSizing: 'border-box',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  if (activeWorkspaceId && name.trim()) {
-                    createMutation.mutate({ name: name.trim(), workspaceId: activeWorkspaceId });
-                  }
-                }}
-                disabled={!activeWorkspaceId || !name.trim() || createMutation.isPending}
-                style={{
-                  width: 48,
-                  height: 48,
-                  borderRadius: '50%',
-                  background: activeWorkspaceId && name.trim() && !createMutation.isPending ? 'var(--color-primary)' : '#ccc',
-                  color: '#fff',
-                  fontSize: 24,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: 'none',
-                  cursor: activeWorkspaceId && name.trim() && !createMutation.isPending ? 'pointer' : 'not-allowed',
-                }}
-                aria-label="צור רשימה"
-              >
-                +
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowNew(false); setName(''); }}
-                style={{
-                  padding: '10px 14px',
-                  background: '#eee',
-                  borderRadius: 8,
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                }}
-              >
-                ביטול
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setShowNew(true)}
-              disabled={!activeWorkspaceId}
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
-                background: activeWorkspaceId ? 'var(--color-primary)' : '#ccc',
-                color: '#fff',
-                fontSize: 24,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                cursor: activeWorkspaceId ? 'pointer' : 'not-allowed',
-                border: 'none',
-              }}
-              aria-label="הוסף רשימה"
-            >
-              +
-            </button>
-          )}
+          <Link
+            to="/lists/new"
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: activeWorkspaceId ? 'var(--color-primary)' : '#ccc',
+              color: '#fff',
+              fontSize: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              pointerEvents: activeWorkspaceId ? 'auto' : 'none',
+              textDecoration: 'none',
+            }}
+            aria-label="הוסף רשימה"
+          >
+            +
+          </Link>
         </div>
         {isLoading ? (
           <p>טוען...</p>
