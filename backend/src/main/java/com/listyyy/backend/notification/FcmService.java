@@ -29,34 +29,39 @@ public class FcmService {
     @Async
     public void notifyWorkspaceInvited(UUID inviteeUserId, UUID workspaceId, String workspaceName, String inviterDisplayName) {
         if (FirebaseApp.getApps().isEmpty()) {
-            log.debug("Push skipped (Firebase not initialized): workspace invite to {}", inviteeUserId);
+            log.warn("Push skipped (Firebase not initialized): workspace invite to {}", inviteeUserId);
             return;
         }
         String title = "הזמנה למרחב עבודה";
         String body = inviterDisplayName + " הזמין/ה אותך למרחב \"" + workspaceName + "\"";
         Map<String, String> data = Map.of("type", "workspace_invitation", "workspaceId", workspaceId.toString());
-        sendToUser(inviteeUserId, title, body, data);
+        sendToUser(inviteeUserId, title, body, data, "workspace_invitation");
     }
 
     @Async
     public void notifyInvitationAccepted(UUID inviterUserId, UUID workspaceId, String workspaceName, String inviteeDisplayName) {
         if (FirebaseApp.getApps().isEmpty()) {
-            log.debug("Push skipped (Firebase not initialized): invitation accepted notify to {}", inviterUserId);
+            log.warn("Push skipped (Firebase not initialized): invitation accepted notify to {}", inviterUserId);
             return;
         }
         String title = "הזמנה אושרה";
         String body = inviteeDisplayName + " הצטרף/ה למרחב \"" + workspaceName + "\"";
         Map<String, String> data = Map.of("type", "invitation_accepted", "workspaceId", workspaceId.toString());
-        sendToUser(inviterUserId, title, body, data);
+        sendToUser(inviterUserId, title, body, data, "invitation_accepted");
     }
 
     private void sendToUser(UUID userId, String title, String body) {
-        sendToUser(userId, title, body, null);
+        sendToUser(userId, title, body, null, null);
     }
 
-    private void sendToUser(UUID userId, String title, String body, Map<String, String> data) {
+    private void sendToUser(UUID userId, String title, String body, Map<String, String> data, String context) {
         if (FirebaseApp.getApps().isEmpty()) return;
-        fcmTokenRepository.findByUserId(userId).forEach(token -> {
+        var tokens = fcmTokenRepository.findByUserId(userId);
+        if (tokens.isEmpty()) {
+            log.warn("Push skipped (no FCM tokens for user {}): {}", userId, context != null ? context : "notification");
+            return;
+        }
+        tokens.forEach(token -> {
             try {
                 sendFcm(token.getToken(), title, body, data);
             } catch (FirebaseMessagingException e) {
