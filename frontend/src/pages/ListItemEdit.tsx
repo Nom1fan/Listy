@@ -249,6 +249,7 @@ export function ListItemEdit() {
   const initialDisplayType: DisplayImageType = item.itemImageUrl || item.productImageUrl ? 'link' : 'icon';
   const initialIconId = item.iconId ?? '';
   const initialImageUrl = item.itemImageUrl || item.productImageUrl || '';
+  const isLinkOrWeb = displayImageType === 'link' || displayImageType === 'web';
   const hasUnit = ((item.unit ?? '').trim() !== '' && item.unit !== 'יחידה');
   const hasNonDefaultQty = Number(item.quantity) !== 1;
   const initialUnitSectionExpanded = Boolean(item.showQuantityUnit) || hasUnit || hasNonDefaultQty;
@@ -262,10 +263,10 @@ export function ListItemEdit() {
     unitSectionExpanded !== initialUnitSectionExpanded ||
     displayImageType !== initialDisplayType ||
     (displayImageType === 'icon' && (iconId || '') !== initialIconId) ||
-    ((displayImageType === 'link' || displayImageType === 'web') && (imageUrl.trim() || '') !== (initialImageUrl || '').trim());
+    (isLinkOrWeb && (imageUrl.trim() || '') !== (initialImageUrl || '').trim());
 
   const currentImageUrl = imageUrl.trim() || (item.itemImageUrl || item.productImageUrl || '');
-  const showImage = displayImageType === 'link' || displayImageType === 'web' ? currentImageUrl : null;
+  const showImage = isLinkOrWeb ? currentImageUrl : null;
 
   return (
     <>
@@ -316,7 +317,7 @@ export function ListItemEdit() {
               setImageUrl('');
               setTimeout(() => fileInputRef.current?.click(), 0);
             }}
-            initialLinkUrl={displayImageType === 'link' || displayImageType === 'web' ? imageUrl : ''}
+            initialLinkUrl={isLinkOrWeb ? imageUrl : ''}
             onLinkSubmit={(url) => {
               setDisplayImageType('link');
               setImageUrl(url);

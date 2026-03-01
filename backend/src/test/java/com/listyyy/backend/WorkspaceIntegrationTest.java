@@ -92,22 +92,39 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
                 .locale("he")
                 .build());
 
-        // Invite
+        // Invite creates pending invitation (not yet a member)
         mvc.perform(post("/api/workspaces/" + workspaceId + "/members")
                         .header("Authorization", getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("email", "other@example.com"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.userId").value(other.getId().toString()))
-                .andExpect(jsonPath("$.role").value("editor"));
+                .andExpect(jsonPath("$.role").value("editor"))
+                .andExpect(jsonPath("$.pending").value(true));
 
-        // Verify member count
+        // Member count still 1 until invitee accepts
+        mvc.perform(get("/api/workspaces/" + workspaceId).header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memberCount").value(1));
+
+        // Other user sees invitation in their list
+        String otherToken = login("other@example.com", "pass123");
+        mvc.perform(get("/api/workspaces/invitations").header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].workspaceId").value(workspaceId.toString()));
+
+        // Other user accepts invitation
+        mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk());
+
+        // Now member count is 2
         mvc.perform(get("/api/workspaces/" + workspaceId).header("Authorization", getBearerToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberCount").value(2));
 
         // Other user can now see the workspace
-        String otherToken = login("other@example.com", "pass123");
         mvc.perform(get("/api/workspaces").header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("הרשימות שלי"));
@@ -119,7 +136,7 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void remove_member_from_workspace() throws Exception {
+    void cancel_invitation_and_remove_member() throws Exception {
         User other = userRepository.save(User.builder()
                 .email("other@example.com")
                 .passwordHash(passwordEncoder.encode("pass123"))
@@ -127,19 +144,38 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
                 .locale("he")
                 .build());
 
-        // Invite and then remove
+        // Invite (creates pending invitation)
         mvc.perform(post("/api/workspaces/" + workspaceId + "/members")
                         .header("Authorization", getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("email", "other@example.com"))))
                 .andExpect(status().isOk());
 
+        // Owner cancels the invitation
+        mvc.perform(delete("/api/workspaces/" + workspaceId + "/invitations/" + other.getId())
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isNoContent());
+
+        // Other has no invitations
+        String otherToken = login("other@example.com", "pass123");
+        mvc.perform(get("/api/workspaces/invitations").header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        // Invite again and accept, then owner removes member
+        mvc.perform(post("/api/workspaces/" + workspaceId + "/members")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("email", "other@example.com"))))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk());
         mvc.perform(delete("/api/workspaces/" + workspaceId + "/members/" + other.getId())
                         .header("Authorization", getBearerToken()))
                 .andExpect(status().isNoContent());
 
         // Other can no longer see the workspace
-        String otherToken = login("other@example.com", "pass123");
         mvc.perform(get("/api/workspaces").header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
@@ -160,8 +196,12 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
                         .content(objectMapper.writeValueAsString(Map.of("email", "other@example.com"))))
                 .andExpect(status().isOk());
 
-        // Member leaves on their own
         String otherToken = login("other@example.com", "pass123");
+        mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk());
+
+        // Member leaves on their own
         mvc.perform(delete("/api/workspaces/" + workspaceId + "/members/" + other.getId())
                         .header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isNoContent());
@@ -189,7 +229,7 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
                 .locale("he")
                 .build());
 
-        // Invite other
+        // Invite other (pending)
         mvc.perform(post("/api/workspaces/" + workspaceId + "/members")
                         .header("Authorization", getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -197,7 +237,7 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.profileImageUrl").value("https://example.com/other.jpg"));
 
-        // List members — both should have profileImageUrl
+        // List members — owner + pending invitee (2 rows)
         mvc.perform(get("/api/workspaces/" + workspaceId + "/members")
                         .header("Authorization", getBearerToken()))
                 .andExpect(status().isOk())

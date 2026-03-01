@@ -220,4 +220,4 @@ The deploy script:
    npx cap open android
    ```
 3. Configure `capacitor.config.ts` `server.url` for production API (and use env when building the web bundle so API/WS base URLs point to your server).
-4. For FCM push: add `google-services.json`, enable FCM in Firebase, and implement `FcmService.sendFcm()` in the backend (e.g. Firebase Admin SDK or FCM HTTP v1).
+4. For FCM push: add `google-services.json`, enable FCM in Firebase, and implement `FcmService.sendFcm()` in the backend (e.g. Firebase Admin SDK or FCM HTTP v1). **Locally**, without `GOOGLE_APPLICATION_CREDENTIALS` (or gcloud Application Default Credentials), the Firebase Admin SDK does not initialize and push is skipped (no notifications sent); this is expected. To test push, set credentials or run against an environment where Firebase is configured.

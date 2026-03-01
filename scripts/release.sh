@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
-# Full release: bump version, export DB, optionally build Windows package,
-# build/push Docker image, git commit + tag + push, deploy to EC2.
+# Full release: bump version, build/push Docker image, git commit + tag + push, deploy to EC2.
+# Optionally build Android App Bundle (.aab).
 #
-# Usage: ./scripts/release.sh [--major|--patch] [--db] [--windows] [--aab] [--skip-deploy] [--skip-tests]
+# Usage: ./scripts/release.sh [--major|--patch] [--aab] [--skip-deploy] [--skip-tests]
 #
 # Flags:
 #   --major           Bump major version (e.g. 0.10.0 -> 1.0.0)
 #   --patch           Bump patch version (e.g. 0.10.0 -> 0.10.1)
 #   (default)         Bump minor version (e.g. 0.10.0 -> 0.11.0)
-#   --db              Include DB dump in EC2 deployment (SCP + import)
-#   --windows         Also build the Windows package and zip
 #   --aab             Also build the Android App Bundle (.aab)
 #   --skip-deploy     Skip EC2 deployment (build and push only)
 #   --skip-tests      Skip running tests before release
@@ -23,12 +21,9 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-ZIP="$REPO_ROOT/listyyy-windows.zip"
 VERSION_FILE="$REPO_ROOT/VERSION"
 
 # ── Parse flags ──────────────────────────────────────────────
-DEPLOY_DB=false
-BUILD_WINDOWS=false
 BUILD_AAB=false
 SKIP_DEPLOY=false
 SKIP_TESTS=false
@@ -37,8 +32,6 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --major)         BUMP_TYPE=major; shift ;;
     --patch)         BUMP_TYPE=patch; shift ;;
-    --db)            DEPLOY_DB=true; shift ;;
-    --windows)       BUILD_WINDOWS=true; shift ;;
     --aab)           BUILD_AAB=true; shift ;;
     --skip-deploy)   SKIP_DEPLOY=true; shift ;;
     --skip-tests)    SKIP_TESTS=true; shift ;;
@@ -111,84 +104,52 @@ require('fs').writeFileSync(\"$REPO_ROOT/frontend/package.json\", JSON.stringify
 "
 echo ""
 
-# ── 2. Export DB ─────────────────────────────────────────────
-echo "=== 2. Export DB ==="
-export PGPASSWORD="${DB_PASSWORD:-}"
-if "$SCRIPT_DIR/export-db.sh"; then
-  echo "DB exported to db/listyyy-db.sql"
-else
-  echo "DB export failed (is PostgreSQL running with a listyyy DB?). Continuing without DB dump."
-fi
-echo ""
-
-# ── 3. Build Windows package ────────────────────────────────
-if $BUILD_WINDOWS; then
-  echo "=== 3. Build Windows package ==="
-  "$SCRIPT_DIR/package-for-windows.sh"
-
-  echo ""
-  echo "=== 3b. Zip ==="
-  cd "$REPO_ROOT"
-  rm -f "$ZIP"
-  zip -r "$ZIP" listyyy-windows -x "*.DS_Store"
-  echo "Created $ZIP"
-else
-  echo "=== 3. Build Windows package (SKIPPED -- pass --windows to include) ==="
-fi
-echo ""
-
-# ── 3c. Build Android App Bundle ────────────────────────────
+# ── 2. Build Android App Bundle (optional) ────────────────────
 if $BUILD_AAB; then
-  echo "=== 3c. Build Android App Bundle (.aab) ==="
+  echo "=== 2. Build Android App Bundle (.aab) ==="
   "$SCRIPT_DIR/build-aab.sh"
 else
-  echo "=== 3c. Build Android App Bundle (SKIPPED -- pass --aab to include) ==="
+  echo "=== 2. Build Android App Bundle (SKIPPED -- pass --aab to include) ==="
 fi
 echo ""
 
-# ── 4. Build and push Docker image ──────────────────────────
+# ── 3. Build and push Docker image ──────────────────────────
 if [ -n "${LISTYYY_IMAGE:-}" ]; then
-  echo "=== 4. Build and push Docker image ==="
+  echo "=== 3. Build and push Docker image ==="
   IMAGE_TAG="${LISTYYY_IMAGE}:${new_version}"
   echo "Building $IMAGE_TAG ..."
   docker build -t "$IMAGE_TAG" "$REPO_ROOT"
   docker push "$IMAGE_TAG"
   echo "Pushed $IMAGE_TAG"
 else
-  echo "=== 4. Build and push Docker image (SKIPPED -- set LISTYYY_IMAGE in release.config) ==="
+  echo "=== 3. Build and push Docker image (SKIPPED -- set LISTYYY_IMAGE in release.config) ==="
 fi
 echo ""
 
-# ── 5. Git commit, tag, push ────────────────────────────────
-echo "=== 5. Git commit and tag ==="
+# ── 4. Git commit, tag, push ────────────────────────────────
+echo "=== 4. Git commit and tag ==="
 cd "$REPO_ROOT"
 git add VERSION backend/pom.xml frontend/package.json
-if [ -f db/listyyy-db.sql ]; then git add db/listyyy-db.sql; fi
 git commit -m "Release $new_version"
 git tag "v$new_version"
 git push && git push origin "v$new_version"
 echo "Committed and tagged v$new_version"
 echo ""
 
-# ── 6. Deploy to EC2 ────────────────────────────────────────
+# ── 5. Deploy to EC2 ────────────────────────────────────────
 if ! $SKIP_DEPLOY && [ -n "${EC2_PEM:-}" ] && [ -n "${EC2_HOST:-}" ]; then
-  echo "=== 6. Deploy to EC2 ==="
-  DEPLOY_ARGS="--version $new_version"
-  if $DEPLOY_DB; then DEPLOY_ARGS="$DEPLOY_ARGS --db"; fi
-  "$SCRIPT_DIR/deploy.sh" $DEPLOY_ARGS
+  echo "=== 5. Deploy to EC2 ==="
+  "$SCRIPT_DIR/deploy.sh" --version "$new_version"
 elif $SKIP_DEPLOY; then
-  echo "=== 6. Deploy to EC2 (SKIPPED) ==="
+  echo "=== 5. Deploy to EC2 (SKIPPED) ==="
 else
-  echo "=== 6. Deploy to EC2 (SKIPPED -- set EC2_PEM and EC2_HOST in .env) ==="
+  echo "=== 5. Deploy to EC2 (SKIPPED -- set EC2_PEM and EC2_HOST in .env) ==="
 fi
 echo ""
 
 # ── Summary ──────────────────────────────────────────────────
 echo "========================================================"
 echo "  Release $new_version complete!"
-if $BUILD_WINDOWS; then
-  echo "  Windows:  listyyy-windows.zip ready"
-fi
 if $BUILD_AAB; then
   echo "  Android:  frontend/android/app/build/outputs/bundle/release/app-release-${new_version}.aab"
 fi

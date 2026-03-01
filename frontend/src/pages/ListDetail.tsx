@@ -179,7 +179,7 @@ export function ListDetail() {
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
   const [highlightedCategoryName, setHighlightedCategoryName] = useState<string | null>(null);
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const categoryRefs = useRef<Record<string, HTMLElement | null>>({});
 
   const { data: list } = useQuery({
     queryKey: ['list', listId],

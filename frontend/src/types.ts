@@ -116,5 +116,15 @@ export interface ListMemberDto {
   email: string | null;
   phone: string | null;
   role: string;
+  /** True when invitation is pending (not yet accepted). */
+  pending?: boolean;
+  invitedAt?: string; // ISO date
+}
+
+export interface WorkspaceInvitationDto {
+  workspaceId: string;
+  workspaceName: string;
+  inviterDisplayName: string;
+  invitedAt: string; // ISO date
 }
 

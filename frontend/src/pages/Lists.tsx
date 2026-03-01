@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLists, deleteList, reorderLists } from '../api/lists';
-import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace } from '../api/workspaces';
+import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, getMyWorkspaceInvitations } from '../api/workspaces';
 import { useAuthStore } from '../store/authStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
@@ -66,6 +66,11 @@ export function Lists() {
     queryFn: getWorkspaces,
     staleTime: 1000 * 60 * 2,
     gcTime: 1000 * 60 * 60,
+  });
+
+  const { data: workspaceInvitations = [] } = useQuery({
+    queryKey: ['workspaceInvitations'],
+    queryFn: getMyWorkspaceInvitations,
   });
 
   useEffect(() => {
@@ -279,6 +284,46 @@ export function Lists() {
         }
         right={
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {workspaceInvitations.length > 0 && (
+              <Link
+                to={`/workspaces/${workspaceInvitations[0].workspaceId}/share`}
+                aria-label={`${workspaceInvitations.length} הזמנות ממתינות`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.2)',
+                  color: 'inherit',
+                  textDecoration: 'none',
+                  position: 'relative',
+                }}
+              >
+                <span style={{ fontSize: 20 }}>🔔</span>
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    left: 4,
+                    minWidth: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    background: 'var(--color-primary)',
+                    color: '#fff',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 4px',
+                  }}
+                >
+                  {workspaceInvitations.length}
+                </span>
+              </Link>
+            )}
             {workspacesLoading && workspaces.length === 0 && (
               <span
                 style={{

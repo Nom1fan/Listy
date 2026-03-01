@@ -192,6 +192,7 @@ export function ProductEdit() {
   const initialDisplayType: DisplayImageType = product.imageUrl ? 'link' : 'icon';
   const initialIconId = product.iconId ?? '';
   const initialImageUrl = product.imageUrl ?? '';
+  const isLinkOrWeb = displayImageType === 'link' || displayImageType === 'web';
   const effectiveCategoryIdForCompare = categoryId === '__new__' ? (newCategoryName.trim() ? '__new__' : (product.categoryId || '')) : categoryId;
   const hasChanges =
     name.trim() !== (product.nameHe ?? '').trim() ||
@@ -200,10 +201,10 @@ export function ProductEdit() {
     effectiveCategoryIdForCompare !== (product.categoryId || '') ||
     displayImageType !== initialDisplayType ||
     (displayImageType === 'icon' && (iconId || '') !== initialIconId) ||
-    ((displayImageType === 'link' || displayImageType === 'web') && (imageUrl.trim() || '') !== (initialImageUrl || '').trim());
+    (isLinkOrWeb && (imageUrl.trim() || '') !== (initialImageUrl || '').trim());
 
   const currentImageUrl = imageUrl.trim() || (product.imageUrl || '');
-  const showImage = displayImageType === 'link' || displayImageType === 'web' ? currentImageUrl : null;
+  const showImage = isLinkOrWeb ? currentImageUrl : null;
 
   return (
     <>
@@ -253,7 +254,7 @@ export function ProductEdit() {
               setImageUrl('');
               setTimeout(() => fileInputRef.current?.click(), 0);
             }}
-            initialLinkUrl={displayImageType === 'link' || displayImageType === 'web' ? imageUrl : ''}
+            initialLinkUrl={isLinkOrWeb ? imageUrl : ''}
             onLinkSubmit={(url) => {
               setDisplayImageType('link');
               setImageUrl(url);

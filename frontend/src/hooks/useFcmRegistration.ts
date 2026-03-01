@@ -1,10 +1,12 @@
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useAuthStore } from '../store/authStore';
 import { registerFcmToken } from '../api/fcm';
 
 export function useFcmRegistration() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -24,6 +26,16 @@ export function useFcmRegistration() {
           if (!cancelled) registerFcmToken(token.value).catch(() => {});
         });
 
+        PushNotifications.addListener('pushNotificationActionPerformed', (action: { notification: { data?: Record<string, string> } }) => {
+          if (cancelled) return;
+          const data = action.notification?.data;
+          const workspaceId = data?.workspaceId;
+          const type = data?.type;
+          if (workspaceId && (type === 'workspace_invitation' || type === 'invitation_accepted')) {
+            navigate(`/workspaces/${workspaceId}/share`);
+          }
+        });
+
         PushNotifications.requestPermissions()
           .then((result) => {
             if (cancelled || result.receive !== 'granted') return;
@@ -37,5 +49,5 @@ export function useFcmRegistration() {
       cancelled = true;
       pnModule?.PushNotifications.removeAllListeners();
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, navigate]);
 }

@@ -1,7 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getWorkspace, getWorkspaceMembers, inviteWorkspaceMember, removeWorkspaceMember } from '../api/workspaces';
+import {
+  getWorkspace,
+  getWorkspaceMembers,
+  inviteWorkspaceMember,
+  removeWorkspaceMember,
+  getMyWorkspaceInvitations,
+  acceptWorkspaceInvitation,
+  rejectWorkspaceInvitation,
+  cancelWorkspaceInvitation,
+} from '../api/workspaces';
 import { AppBar } from '../components/AppBar';
 import { useAuthStore } from '../store/authStore';
 import { COUNTRY_OPTIONS } from '../data/countries';
@@ -89,16 +98,27 @@ export function ShareWorkspace() {
   const canInvite =
     inviteMethod === 'email' ? validEmail : inviteMethod === 'phone' && isPhoneComplete;
 
-  const { data: workspace } = useQuery({
+  const { data: workspace, isError: workspaceError } = useQuery({
     queryKey: ['workspace', workspaceId],
     queryFn: () => getWorkspace(workspaceId!),
     enabled: !!workspaceId,
+    retry: false,
   });
+
+  const { data: myInvitations = [] } = useQuery({
+    queryKey: ['workspaceInvitations'],
+    queryFn: getMyWorkspaceInvitations,
+  });
+
+  const invitationForThisWorkspace =
+    workspaceId && myInvitations.find((i) => i.workspaceId === workspaceId);
+
+  const isInviteeView = !!workspaceId && workspaceError && !!invitationForThisWorkspace;
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['workspaceMembers', workspaceId],
     queryFn: () => getWorkspaceMembers(workspaceId!),
-    enabled: !!workspaceId,
+    enabled: !!workspaceId && !!workspace,
   });
 
   const inviteMutation = useMutation({
@@ -127,6 +147,42 @@ export function ShareWorkspace() {
     },
   });
 
+  const cancelInviteMutation = useMutation({
+    mutationFn: (inviteeUserId: string) => cancelWorkspaceInvitation(workspaceId!, inviteeUserId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaceMembers', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspaceInvitations'] });
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      setInviteError(null);
+    },
+    onError: (err: Error) => {
+      setInviteError(err.message || 'שגיאה בביטול ההזמנה');
+    },
+  });
+
+  const acceptInvitationMutation = useMutation({
+    mutationFn: () => acceptWorkspaceInvitation(workspaceId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      queryClient.invalidateQueries({ queryKey: ['workspaceInvitations'] });
+      navigate('/lists');
+    },
+    onError: (err: Error) => {
+      setInviteError(err.message || 'שגיאה באישור ההזמנה');
+    },
+  });
+
+  const rejectInvitationMutation = useMutation({
+    mutationFn: () => rejectWorkspaceInvitation(workspaceId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaceInvitations'] });
+      navigate('/lists');
+    },
+    onError: (err: Error) => {
+      setInviteError(err.message || 'שגיאה בדחיית ההזמנה');
+    },
+  });
+
   const isOwner = workspace?.role === 'owner';
 
   function handleInvite(e: React.FormEvent) {
@@ -144,15 +200,79 @@ export function ShareWorkspace() {
   return (
     <>
       <AppBar
-        title={workspace ? `שיתוף: ${workspace.name}` : 'שיתוף מרחב'}
+        title={
+          isInviteeView && invitationForThisWorkspace
+            ? `הזמנה: ${invitationForThisWorkspace.workspaceName}`
+            : workspace
+              ? `שיתוף: ${workspace.name}`
+              : 'שיתוף מרחב'
+        }
         backTo="/lists"
       />
       <main style={{ padding: 16 }}>
-        <p style={{ margin: '0 0 20px', color: '#555', fontSize: 15 }}>
-          חברים במרחב יראו את כל הרשימות והקטגוריות במרחב ויוכלו לערוך. הזמן משתמש לפי אימייל או לפי מספר טלפון.
-        </p>
+        {isInviteeView && invitationForThisWorkspace ? (
+          <section
+            style={{
+              padding: 20,
+              background: '#fff',
+              borderRadius: 12,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              marginBottom: 24,
+            }}
+          >
+            <p style={{ margin: '0 0 16px', fontSize: 16, color: '#333' }}>
+              {invitationForThisWorkspace.inviterDisplayName} הזמין/ה אותך להצטרף למרחב &quot;
+              {invitationForThisWorkspace.workspaceName}&quot;.
+            </p>
+            <p style={{ margin: '0 0 20px', fontSize: 14, color: '#666' }}>
+              כחבר/ת במרחב תוכל/י לראות ולערוך את כל הרשימות והקטגוריות.
+            </p>
+            {inviteError && (
+              <p style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--color-strike)' }}>{inviteError}</p>
+            )}
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => acceptInvitationMutation.mutate()}
+                disabled={acceptInvitationMutation.isPending}
+                style={{
+                  padding: '12px 20px',
+                  background: 'var(--color-primary)',
+                  color: '#fff',
+                  fontWeight: 600,
+                  borderRadius: 10,
+                  border: 'none',
+                  cursor: acceptInvitationMutation.isPending ? 'not-allowed' : 'pointer',
+                  opacity: acceptInvitationMutation.isPending ? 0.7 : 1,
+                }}
+              >
+                {acceptInvitationMutation.isPending ? 'מצטרף...' : 'אשר הצטרפות'}
+              </button>
+              <button
+                type="button"
+                onClick={() => rejectInvitationMutation.mutate()}
+                disabled={rejectInvitationMutation.isPending}
+                style={{
+                  padding: '12px 20px',
+                  background: '#fff',
+                  color: '#666',
+                  fontWeight: 500,
+                  borderRadius: 10,
+                  border: '1px solid #ccc',
+                  cursor: rejectInvitationMutation.isPending ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {rejectInvitationMutation.isPending ? 'דוחה...' : 'דחה'}
+              </button>
+            </div>
+          </section>
+        ) : (
+          <>
+            <p style={{ margin: '0 0 20px', color: '#555', fontSize: 15 }}>
+              חברים במרחב יראו את כל הרשימות והקטגוריות במרחב ויוכלו לערוך. הזמן משתמש לפי אימייל או לפי מספר טלפון.
+            </p>
 
-        {isLoading ? (
+            {isLoading ? (
           <p>טוען...</p>
         ) : (
           <>
@@ -206,25 +326,51 @@ export function ShareWorkspace() {
                       )}
                       <div>
                         <span style={{ fontWeight: 500 }}>{memberLabel(m, currentUserId)}</span>
-                        <span style={{ marginRight: 8, fontSize: 13, color: '#666' }}>
-                          {m.role === 'owner' ? 'בעל/ת המרחב' : 'עורך/ת'}
+                        <span
+                          style={{
+                            marginRight: 8,
+                            fontSize: 13,
+                            ...(m.pending
+                              ? { color: '#f57f17', background: '#fff8e1', padding: '2px 8px', borderRadius: 6, fontWeight: 600 }
+                              : { color: '#666' }),
+                          }}
+                        >
+                          {m.role === 'owner' ? 'בעל/ת המרחב' : m.pending ? 'ממתין לאישור' : 'עורך/ת'}
                         </span>
                       </div>
                     </div>
                     {m.role !== 'owner' && (
-                      <button
-                        type="button"
-                        onClick={() => removeMutation.mutate(m.userId)}
-                        disabled={removeMutation.isPending}
-                        style={{
-                          padding: '6px 12px',
-                          background: m.userId === currentUserId ? '#fff3e0' : '#ffebee',
-                          color: m.userId === currentUserId ? '#e65100' : '#c62828',
-                          fontSize: 13,
-                        }}
-                      >
-                        {m.userId === currentUserId ? 'עזוב מרחב' : 'הסר'}
-                      </button>
+                      m.pending && isOwner ? (
+                        <button
+                          type="button"
+                          onClick={() => cancelInviteMutation.mutate(m.userId)}
+                          disabled={cancelInviteMutation.isPending}
+                          style={{
+                            padding: '6px 12px',
+                            background: '#ffebee',
+                            color: '#c62828',
+                            fontSize: 13,
+                          }}
+                        >
+                          ביטול הזמנה
+                        </button>
+                      ) : (
+                        !m.pending && (
+                          <button
+                            type="button"
+                            onClick={() => removeMutation.mutate(m.userId)}
+                            disabled={removeMutation.isPending}
+                            style={{
+                              padding: '6px 12px',
+                              background: m.userId === currentUserId ? '#fff3e0' : '#ffebee',
+                              color: m.userId === currentUserId ? '#e65100' : '#c62828',
+                              fontSize: 13,
+                            }}
+                          >
+                            {m.userId === currentUserId ? 'עזוב מרחב' : 'הסר'}
+                          </button>
+                        )
+                      )
                     )}
                   </li>
                 ))}
@@ -371,6 +517,8 @@ export function ShareWorkspace() {
               </section>
             )}
           </>
+        )}
+        </>
         )}
       </main>
     </>

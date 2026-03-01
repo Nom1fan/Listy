@@ -143,15 +143,16 @@ export function ListEdit() {
     filterMode !== (list.categoryFilterMode ?? 'NONE') ||
     filterCategoryIds.length !== initialFilterIds.length ||
     [...filterCategoryIds].sort().join(',') !== [...initialFilterIds].sort().join(',');
+  const isLinkOrWeb = displayImageType === 'link' || displayImageType === 'web';
   const hasChanges =
     name.trim() !== (list.name ?? '').trim() ||
     displayImageType !== initialDisplayType ||
     (displayImageType === 'icon' && (iconId || '') !== initialIconId) ||
-    ((displayImageType === 'link' || displayImageType === 'web') && (imageUrl.trim() || '') !== (initialImageUrl || '').trim()) ||
+    (isLinkOrWeb && (imageUrl.trim() || '') !== (initialImageUrl || '').trim()) ||
     filterIdsChanged;
 
   const currentImageUrl = imageUrl.trim() || (list?.imageUrl ?? '');
-  const showImage = displayImageType === 'link' || displayImageType === 'web' ? currentImageUrl : null;
+  const showImage = isLinkOrWeb ? currentImageUrl : null;
 
   return (
     <>
@@ -201,7 +202,7 @@ export function ListEdit() {
               setImageUrl('');
               setTimeout(() => fileInputRef.current?.click(), 0);
             }}
-            initialLinkUrl={displayImageType === 'link' || displayImageType === 'web' ? imageUrl : ''}
+            initialLinkUrl={isLinkOrWeb ? imageUrl : ''}
             onLinkSubmit={(url) => {
               setDisplayImageType('link');
               setImageUrl(url);

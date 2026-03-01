@@ -1,21 +1,20 @@
 ---
 name: restart-vite-when-needed
-description: Restart the Vite frontend dev server automatically after changes that require it (e.g. vite.config.ts, .env files, proxy settings). Use when the user or context implies the frontend dev server must be restarted, or after making changes that require a restart. Never tell the user to restart manually — just do it.
+description: Always restart the Vite frontend dev server after making frontend changes. Run the restart script from project root; never tell the user to restart manually.
 ---
 
 # Restart Vite Dev Server
 
-Run from the **project root**:
+Run from the **project root** after any frontend changes:
 
 ```bash
 ./restart-frontend.sh
 ```
 
-## When to restart
+## When to restart (always after frontend changes)
 
-- Changes to `vite.config.ts`.
-- Changes to `.env` or environment variables.
-- Changes to proxy settings or other config read at dev server startup.
+- Any changes under `frontend/` (React, config, .env, proxy, etc.).
+- Changes to `vite.config.ts`, `.env`, or proxy settings.
 - User says the frontend or Vite needs a restart.
 
 ## Fallback

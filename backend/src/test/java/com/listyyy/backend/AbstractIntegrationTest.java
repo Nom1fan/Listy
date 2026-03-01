@@ -12,6 +12,7 @@ import com.listyyy.backend.productbank.CategoryRepository;
 import com.listyyy.backend.productbank.Product;
 import com.listyyy.backend.productbank.ProductRepository;
 import com.listyyy.backend.workspace.Workspace;
+import com.listyyy.backend.workspace.WorkspaceInvitationRepository;
 import com.listyyy.backend.workspace.WorkspaceMember;
 import com.listyyy.backend.workspace.WorkspaceMemberRepository;
 import com.listyyy.backend.workspace.WorkspaceRepository;
@@ -69,6 +70,8 @@ public abstract class AbstractIntegrationTest {
     protected WorkspaceRepository workspaceRepository;
     @Autowired
     protected WorkspaceMemberRepository workspaceMemberRepository;
+    @Autowired
+    protected WorkspaceInvitationRepository workspaceInvitationRepository;
 
     protected String authToken;
     protected User testUser;
@@ -85,6 +88,7 @@ public abstract class AbstractIntegrationTest {
         refreshTokenRepository.deleteAll();
         productRepository.deleteAll();
         categoryRepository.deleteAll();
+        workspaceInvitationRepository.deleteAll();
         workspaceMemberRepository.deleteAll();
         workspaceRepository.deleteAll();
         userRepository.deleteAll();

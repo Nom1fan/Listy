@@ -3,6 +3,7 @@ package com.listyyy.backend.sharing;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Data
@@ -15,4 +16,8 @@ public class ListMemberDto {
     private String email;
     private String phone;
     private String role;
+    /** True when this row represents a pending invitation (not yet accepted). */
+    @Builder.Default
+    private Boolean pending = false;
+    private Instant invitedAt;
 }

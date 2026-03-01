@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.listyyy.backend.notification.FcmService;
+
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,9 +26,11 @@ public class WorkspaceService {
 
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
+    private final WorkspaceInvitationRepository workspaceInvitationRepository;
     private final WorkspaceAccessService workspaceAccessService;
     private final UserRepository userRepository;
     private final WorkspaceEventPublisher workspaceEventPublisher;
+    private final FcmService fcmService;
 
     public List<WorkspaceDto> listWorkspaces(User user) {
         List<Workspace> workspaces = workspaceRepository.findVisibleToUser(user.getId());
@@ -113,13 +117,14 @@ public class WorkspaceService {
         if (userWorkspaces.size() <= 1) {
             throw new IllegalArgumentException("לא ניתן למחוק את המרחב האחרון שלך");
         }
+        workspaceInvitationRepository.deleteByWorkspaceId(workspaceId);
         workspaceMemberRepository.deleteByWorkspaceId(workspaceId);
         workspaceRepository.deleteById(workspaceId);
     }
 
     public List<ListMemberDto> getMembers(UUID workspaceId, User user) {
         workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
-        return workspaceMemberRepository.findByWorkspaceIdWithUser(workspaceId).stream()
+        List<ListMemberDto> list = workspaceMemberRepository.findByWorkspaceIdWithUser(workspaceId).stream()
                 .map(m -> ListMemberDto.builder()
                         .userId(m.getUserId())
                         .displayName(m.getUser().getDisplayName())
@@ -127,8 +132,24 @@ public class WorkspaceService {
                         .email(m.getUser().getEmail())
                         .phone(m.getUser().getPhone())
                         .role(m.getRole())
+                        .pending(false)
                         .build())
-                .toList();
+                .collect(Collectors.toList());
+        if (workspaceAccessService.isOwner(user, workspaceId)) {
+            workspaceInvitationRepository.findByWorkspaceIdWithInviteeAndInviter(workspaceId).stream()
+                    .map(inv -> ListMemberDto.builder()
+                            .userId(inv.getInviteeUserId())
+                            .displayName(inv.getInvitee().getDisplayName())
+                            .profileImageUrl(inv.getInvitee().getProfileImageUrl())
+                            .email(inv.getInvitee().getEmail())
+                            .phone(inv.getInvitee().getPhone())
+                            .role("editor")
+                            .pending(true)
+                            .invitedAt(inv.getCreatedAt())
+                            .build())
+                    .forEach(list::add);
+        }
+        return list;
     }
 
     @Transactional
@@ -139,18 +160,25 @@ public class WorkspaceService {
         }
         User invitee = resolveInvitee(req);
         if (invitee.getId().equals(user.getId())) throw new IllegalArgumentException("לא ניתן להזמין את עצמך");
+        if (isSameUser(user, invitee, req)) throw new IllegalArgumentException("לא ניתן להזמין את עצמך");
         if (workspaceMemberRepository.existsByWorkspaceIdAndUserId(workspaceId, invitee.getId())) {
             throw new IllegalArgumentException("המשתמש כבר חבר במרחב");
         }
+        if (workspaceInvitationRepository.existsByWorkspaceIdAndInviteeUserId(workspaceId, invitee.getId())) {
+            throw new IllegalArgumentException("ההזמנה כבר נשלחה למשתמש זה");
+        }
         Workspace workspace = workspaceRepository.findById(workspaceId).orElseThrow();
-        WorkspaceMember member = WorkspaceMember.builder()
+        WorkspaceInvitation inv = WorkspaceInvitation.builder()
                 .workspaceId(workspaceId)
-                .userId(invitee.getId())
+                .inviteeUserId(invitee.getId())
+                .inviterUserId(user.getId())
                 .workspace(workspace)
-                .user(invitee)
-                .role("editor")
+                .invitee(invitee)
+                .inviter(user)
                 .build();
-        workspaceMemberRepository.save(member);
+        workspaceInvitationRepository.save(inv);
+        String inviterName = user.getDisplayName() != null ? user.getDisplayName() : (user.getEmail() != null ? user.getEmail() : user.getPhone());
+        fcmService.notifyWorkspaceInvited(invitee.getId(), workspaceId, workspace.getName(), inviterName != null ? inviterName : "מישהו");
         return ListMemberDto.builder()
                 .userId(invitee.getId())
                 .displayName(invitee.getDisplayName())
@@ -158,7 +186,66 @@ public class WorkspaceService {
                 .email(invitee.getEmail())
                 .phone(invitee.getPhone())
                 .role("editor")
+                .pending(true)
+                .invitedAt(inv.getCreatedAt())
                 .build();
+    }
+
+    public int getActiveMemberCount(UUID workspaceId) {
+        return workspaceMemberRepository.findByWorkspaceId(workspaceId).size();
+    }
+
+    public List<WorkspaceInvitationDto> listMyInvitations(User user) {
+        return workspaceInvitationRepository.findByInviteeUserIdWithWorkspaceAndInviter(user.getId()).stream()
+                .map(i -> WorkspaceInvitationDto.builder()
+                        .workspaceId(i.getWorkspaceId())
+                        .workspaceName(i.getWorkspace().getName())
+                        .inviterDisplayName(displayNameOf(i.getInviter()))
+                        .invitedAt(i.getCreatedAt())
+                        .build())
+                .toList();
+    }
+
+    private static String displayNameOf(com.listyyy.backend.auth.User u) {
+        if (u.getDisplayName() != null && !u.getDisplayName().isBlank()) return u.getDisplayName();
+        if (u.getEmail() != null) return u.getEmail();
+        return u.getPhone() != null ? u.getPhone() : "משתמש";
+    }
+
+    @Transactional
+    public void acceptInvitation(UUID workspaceId, User user) {
+        WorkspaceInvitation inv = workspaceInvitationRepository.findByWorkspaceIdAndInviteeUserId(workspaceId, user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("ההזמנה לא נמצאה או שפגה תוקפה"));
+        Workspace workspace = workspaceRepository.findById(workspaceId).orElseThrow();
+        UUID inviterUserId = inv.getInviterUserId();
+        workspaceMemberRepository.save(WorkspaceMember.builder()
+                .workspaceId(workspaceId)
+                .userId(user.getId())
+                .workspace(workspace)
+                .user(user)
+                .role("editor")
+                .build());
+        workspaceInvitationRepository.delete(inv);
+        String inviteeName = user.getDisplayName() != null ? user.getDisplayName() : (user.getEmail() != null ? user.getEmail() : user.getPhone());
+        fcmService.notifyInvitationAccepted(inviterUserId, workspaceId, workspace.getName(), inviteeName != null ? inviteeName : "משתמש");
+    }
+
+    @Transactional
+    public void rejectInvitation(UUID workspaceId, User user) {
+        WorkspaceInvitation inv = workspaceInvitationRepository.findByWorkspaceIdAndInviteeUserId(workspaceId, user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("ההזמנה לא נמצאה או שפגה תוקפה"));
+        workspaceInvitationRepository.delete(inv);
+    }
+
+    @Transactional
+    public void cancelInvitation(UUID workspaceId, UUID inviteeUserId, User user) {
+        workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
+        if (!workspaceAccessService.isOwner(user, workspaceId)) {
+            throw new AccessDeniedException("רק בעל המרחב יכול לבטל הזמנה");
+        }
+        WorkspaceInvitation inv = workspaceInvitationRepository.findByWorkspaceIdAndInviteeUserId(workspaceId, inviteeUserId)
+                .orElseThrow(() -> new ResourceNotFoundException("ההזמנה לא נמצאה"));
+        workspaceInvitationRepository.delete(inv);
     }
 
     @Transactional
@@ -186,5 +273,18 @@ public class WorkspaceService {
                     .orElseThrow(() -> new ResourceNotFoundException("לא נמצא משתמש עם מספר טלפון זה"));
         }
         throw new IllegalArgumentException("יש להזין אימייל או טלפון");
+    }
+
+    private boolean isSameUser(User current, User invitee, InviteRequest req) {
+        if (current.getId().equals(invitee.getId())) return true;
+        if (req.getEmail() != null && !req.getEmail().isBlank()) {
+            String e = req.getEmail().trim();
+            return e.equalsIgnoreCase(current.getEmail());
+        }
+        if (req.getPhone() != null && !req.getPhone().isBlank()) {
+            String normalized = com.listyyy.backend.auth.PhoneNormalizer.normalize(req.getPhone());
+            return normalized.equals(com.listyyy.backend.auth.PhoneNormalizer.normalize(current.getPhone()));
+        }
+        return false;
     }
 }

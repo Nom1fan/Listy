@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { WorkspaceDto, ListMemberDto } from '../types';
+import type { WorkspaceDto, ListMemberDto, WorkspaceInvitationDto } from '../types';
 
 export async function getWorkspaces(): Promise<WorkspaceDto[]> {
   return api<WorkspaceDto[]>('/api/workspaces');
@@ -46,4 +46,20 @@ export async function inviteWorkspaceMember(
 
 export async function removeWorkspaceMember(workspaceId: string, memberUserId: string): Promise<void> {
   return api<void>(`/api/workspaces/${workspaceId}/members/${memberUserId}`, { method: 'DELETE' });
+}
+
+export async function getMyWorkspaceInvitations(): Promise<WorkspaceInvitationDto[]> {
+  return api<WorkspaceInvitationDto[]>('/api/workspaces/invitations');
+}
+
+export async function acceptWorkspaceInvitation(workspaceId: string): Promise<void> {
+  return api<void>(`/api/workspaces/${workspaceId}/invitations/accept`, { method: 'POST' });
+}
+
+export async function rejectWorkspaceInvitation(workspaceId: string): Promise<void> {
+  return api<void>(`/api/workspaces/${workspaceId}/invitations/reject`, { method: 'POST' });
+}
+
+export async function cancelWorkspaceInvitation(workspaceId: string, inviteeUserId: string): Promise<void> {
+  return api<void>(`/api/workspaces/${workspaceId}/invitations/${inviteeUserId}`, { method: 'DELETE' });
 }

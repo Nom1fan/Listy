@@ -91,8 +91,10 @@ describe('ShareWorkspace', () => {
     await waitFor(() => {
       expect(screen.getByText(/שיתוף: המרחב שלי/)).toBeInTheDocument()
     })
-    expect(screen.getByText('הזמן חבר/ה')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'הזמן' })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText('הזמן חבר/ה')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'הזמן' })).toBeInTheDocument()
+    })
   })
 
   it('shows email vs phone radio and defaults to email', async () => {

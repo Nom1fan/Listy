@@ -12,7 +12,8 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 })
 
-function Wrapper({ children, initialEntries = ['/lists'] }: { children: React.ReactNode; initialEntries?: string[] }) {
+type InitialEntry = string | { pathname: string; state?: Record<string, unknown> }
+function Wrapper({ children, initialEntries = ['/lists'] }: { children: React.ReactNode; initialEntries?: InitialEntry[] }) {
   return (
     <MemoryRouter initialEntries={initialEntries}>
       <QueryClientProvider client={queryClient}>

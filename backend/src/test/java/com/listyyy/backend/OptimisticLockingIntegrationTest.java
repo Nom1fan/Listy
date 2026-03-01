@@ -379,6 +379,9 @@ class OptimisticLockingIntegrationTest extends AbstractIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("email", "other@example.com"))))
                 .andExpect(status().isOk());
+        mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
+                        .header("Authorization", "Bearer " + otherToken))
+                .andExpect(status().isOk());
 
         // Both users read the current version
         ResultActions getResult = mvc.perform(get("/api/categories/" + categoryId)
@@ -419,6 +422,9 @@ class OptimisticLockingIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("email", "other@example.com"))))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/workspaces/" + workspaceId + "/invitations/accept")
+                        .header("Authorization", "Bearer " + otherToken))
                 .andExpect(status().isOk());
 
         // Create list and add item

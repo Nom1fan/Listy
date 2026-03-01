@@ -26,12 +26,18 @@ public class WorkspaceController {
         return ResponseEntity.ok(workspaceService.listWorkspaces(user));
     }
 
+    @GetMapping("/invitations")
+    public ResponseEntity<List<WorkspaceInvitationDto>> listMyInvitations(@AuthenticationPrincipal User user) {
+        if (user == null) return ResponseEntity.status(401).build();
+        return ResponseEntity.ok(workspaceService.listMyInvitations(user));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<WorkspaceDto> get(@PathVariable UUID id, @AuthenticationPrincipal User user) {
         if (user == null) return ResponseEntity.status(401).build();
         Workspace w = workspaceAccessService.getWorkspaceOrThrow(id, user);
         String role = workspaceAccessService.getRole(user, id);
-        int memberCount = workspaceService.getMembers(id, user).size();
+        int memberCount = workspaceService.getActiveMemberCount(id);
         return ResponseEntity.ok(WorkspaceDto.builder()
                 .id(w.getId())
                 .name(w.getName())
@@ -68,7 +74,7 @@ public class WorkspaceController {
         if (user == null) return ResponseEntity.status(401).build();
         Workspace w = workspaceService.updateWorkspace(id, user, req);
         String role = workspaceAccessService.getRole(user, id);
-        int memberCount = workspaceService.getMembers(id, user).size();
+        int memberCount = workspaceService.getActiveMemberCount(id);
         return ResponseEntity.ok(WorkspaceDto.builder()
                 .id(w.getId())
                 .name(w.getName())
@@ -112,6 +118,33 @@ public class WorkspaceController {
     ) {
         if (user == null) return ResponseEntity.status(401).build();
         workspaceService.removeMember(id, memberUserId, user);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- Invitations (invitee accept/reject; owner cancel) ---
+
+    @PostMapping("/{id}/invitations/accept")
+    public ResponseEntity<Void> acceptInvitation(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        if (user == null) return ResponseEntity.status(401).build();
+        workspaceService.acceptInvitation(id, user);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/invitations/reject")
+    public ResponseEntity<Void> rejectInvitation(@PathVariable UUID id, @AuthenticationPrincipal User user) {
+        if (user == null) return ResponseEntity.status(401).build();
+        workspaceService.rejectInvitation(id, user);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/invitations/{inviteeUserId}")
+    public ResponseEntity<Void> cancelInvitation(
+            @PathVariable UUID id,
+            @PathVariable UUID inviteeUserId,
+            @AuthenticationPrincipal User user
+    ) {
+        if (user == null) return ResponseEntity.status(401).build();
+        workspaceService.cancelInvitation(id, inviteeUserId, user);
         return ResponseEntity.noContent().build();
     }
 }

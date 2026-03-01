@@ -123,14 +123,15 @@ export function CategoryEdit() {
   const initialDisplayType: DisplayImageType = category.imageUrl ? 'link' : 'icon';
   const initialIconId = category.iconId ?? '';
   const initialImageUrl = category.imageUrl ?? '';
+  const isLinkOrWeb = displayImageType === 'link' || displayImageType === 'web';
   const hasChanges =
     nameHe.trim() !== (category.nameHe ?? '').trim() ||
     displayImageType !== initialDisplayType ||
     (displayImageType === 'icon' && (iconId || '') !== initialIconId) ||
-    ((displayImageType === 'link' || displayImageType === 'web') && (imageUrl.trim() || '') !== (initialImageUrl || '').trim());
+    (isLinkOrWeb && (imageUrl.trim() || '') !== (initialImageUrl || '').trim());
 
   const currentImageUrl = imageUrl.trim() || (category?.imageUrl ?? '');
-  const showImage = displayImageType === 'link' || displayImageType === 'web' ? currentImageUrl : null;
+  const showImage = isLinkOrWeb ? currentImageUrl : null;
 
   return (
     <>
@@ -180,7 +181,7 @@ export function CategoryEdit() {
               setImageUrl('');
               setTimeout(() => fileInputRef.current?.click(), 0);
             }}
-            initialLinkUrl={displayImageType === 'link' || displayImageType === 'web' ? imageUrl : ''}
+            initialLinkUrl={isLinkOrWeb ? imageUrl : ''}
             onLinkSubmit={(url) => {
               setDisplayImageType('link');
               setImageUrl(url);
