@@ -199,9 +199,9 @@ describe('ShareWorkspace', () => {
     await waitFor(() => {
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
       const call = fetchMock.mock.calls.find(
-        (c: [string, RequestInit?]) =>
-          typeof c[0] === 'string' && c[0].includes('/api/workspaces/ws1/members') && (c[1]?.method === 'POST')
-      )
+        (c: unknown[]) =>
+          typeof c[0] === 'string' && c[0].includes('/api/workspaces/ws1/members') && (c[1] as RequestInit | undefined)?.method === 'POST'
+      ) as [string, RequestInit?] | undefined
       expect(call).toBeDefined()
       const body = JSON.parse((call![1] as RequestInit).body as string)
       expect(body).toHaveProperty('phone')
