@@ -100,13 +100,19 @@ export interface ListEvent {
 }
 
 export interface WorkspaceEvent {
-  entityType: 'WORKSPACE' | 'CATEGORY' | 'PRODUCT' | 'LIST';
-  action: 'CREATED' | 'UPDATED' | 'DELETED';
+  entityType: 'WORKSPACE' | 'CATEGORY' | 'PRODUCT' | 'LIST' | 'INVITATION';
+  action: 'CREATED' | 'UPDATED' | 'DELETED' | 'REJECTED';
   workspaceId: string;
   entityId: string;
   entityName: string;
   userId: string;
   userDisplayName: string;
+}
+
+/** Event sent to /topic/user/{userId} (new invitation, removed from workspace). */
+export interface UserEvent {
+  type: 'NEW_INVITATION' | 'REMOVED_FROM_WORKSPACE';
+  workspaceId?: string;
 }
 
 export interface ListMemberDto {

@@ -44,6 +44,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private static final Pattern LIST_TOPIC_PATTERN = Pattern.compile("^/topic/lists/([0-9a-fA-F-]{36})$");
     private static final Pattern WORKSPACE_TOPIC_PATTERN = Pattern.compile("^/topic/workspaces/([0-9a-fA-F-]{36})$");
+    private static final Pattern USER_TOPIC_PATTERN = Pattern.compile("^/topic/user/([0-9a-fA-F-]{36})$");
 
     private final JwtService jwtService;
     private final UserRepository userRepository;
@@ -138,6 +139,20 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                             if (!workspaceAccessService.canAccess(user, workspaceId)) {
                                 log.warn("User {} denied SUBSCRIBE to workspace {}", user.getId(), workspaceId);
                                 throw new IllegalArgumentException("אין גישה");
+                            }
+                        } else {
+                            Matcher userMatcher = USER_TOPIC_PATTERN.matcher(destination);
+                            if (userMatcher.matches()) {
+                                User user = getAuthenticatedUser(accessor);
+                                if (user == null) {
+                                    log.warn("Unauthenticated SUBSCRIBE to {}", destination);
+                                    throw new IllegalArgumentException("אין גישה");
+                                }
+                                UUID topicUserId = UUID.fromString(userMatcher.group(1));
+                                if (!user.getId().equals(topicUserId)) {
+                                    log.warn("User {} denied SUBSCRIBE to user topic {}", user.getId(), topicUserId);
+                                    throw new IllegalArgumentException("אין גישה");
+                                }
                             }
                         }
                     }

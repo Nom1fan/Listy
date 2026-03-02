@@ -7,6 +7,7 @@ import com.listyyy.backend.exception.ResourceNotFoundException;
 import com.listyyy.backend.exception.VersionCheck;
 import com.listyyy.backend.sharing.InviteRequest;
 import com.listyyy.backend.sharing.ListMemberDto;
+import com.listyyy.backend.websocket.UserEventPublisher;
 import com.listyyy.backend.websocket.WorkspaceEvent;
 import com.listyyy.backend.websocket.WorkspaceEventPublisher;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class WorkspaceService {
     private final WorkspaceAccessService workspaceAccessService;
     private final UserRepository userRepository;
     private final WorkspaceEventPublisher workspaceEventPublisher;
+    private final UserEventPublisher userEventPublisher;
     private final FcmService fcmService;
 
     public List<WorkspaceDto> listWorkspaces(User user) {
@@ -179,6 +181,7 @@ public class WorkspaceService {
         workspaceInvitationRepository.save(inv);
         String inviterName = user.getDisplayName() != null ? user.getDisplayName() : (user.getEmail() != null ? user.getEmail() : user.getPhone());
         fcmService.notifyWorkspaceInvited(invitee.getId(), workspaceId, workspace.getName(), inviterName != null ? inviterName : "מישהו");
+        userEventPublisher.publishNewInvitation(invitee.getId());
         return ListMemberDto.builder()
                 .userId(invitee.getId())
                 .displayName(invitee.getDisplayName())
@@ -228,29 +231,36 @@ public class WorkspaceService {
         workspaceInvitationRepository.delete(inv);
         String inviteeName = user.getDisplayName() != null ? user.getDisplayName() : (user.getEmail() != null ? user.getEmail() : user.getPhone());
         fcmService.notifyInvitationAccepted(inviterUserId, workspaceId, workspace.getName(), inviteeName != null ? inviteeName : "משתמש");
+        workspaceEventPublisher.publish(workspaceId, WorkspaceEvent.EntityType.WORKSPACE,
+                WorkspaceEvent.Action.UPDATED, workspaceId, workspace.getName(), user);
     }
 
     @Transactional
     public void rejectInvitation(UUID workspaceId, User user) {
         WorkspaceInvitation inv = workspaceInvitationRepository.findByWorkspaceIdAndInviteeUserId(workspaceId, user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("ההזמנה לא נמצאה או שפגה תוקפה"));
+        String inviteeDisplayName = displayNameOf(user);
         workspaceInvitationRepository.delete(inv);
+        workspaceEventPublisher.publish(workspaceId, WorkspaceEvent.EntityType.INVITATION,
+                WorkspaceEvent.Action.REJECTED, user.getId(), inviteeDisplayName != null ? inviteeDisplayName : "משתמש", user);
     }
 
     @Transactional
     public void cancelInvitation(UUID workspaceId, UUID inviteeUserId, User user) {
-        workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
+        Workspace workspace = workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
         if (!workspaceAccessService.isOwner(user, workspaceId)) {
             throw new AccessDeniedException("רק בעל המרחב יכול לבטל הזמנה");
         }
         WorkspaceInvitation inv = workspaceInvitationRepository.findByWorkspaceIdAndInviteeUserId(workspaceId, inviteeUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("ההזמנה לא נמצאה"));
         workspaceInvitationRepository.delete(inv);
+        workspaceEventPublisher.publish(workspaceId, WorkspaceEvent.EntityType.WORKSPACE,
+                WorkspaceEvent.Action.UPDATED, workspaceId, workspace.getName(), user);
     }
 
     @Transactional
     public void removeMember(UUID workspaceId, UUID memberUserId, User user) {
-        workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
+        Workspace workspace = workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
         WorkspaceMember target = workspaceMemberRepository.findByWorkspaceIdAndUserId(workspaceId, memberUserId)
                 .orElseThrow(() -> new ResourceNotFoundException("החבר לא נמצא"));
         if ("owner".equals(target.getRole())) {
@@ -260,6 +270,9 @@ public class WorkspaceService {
             throw new AccessDeniedException("רק בעל המרחב יכול להסיר אחרים");
         }
         workspaceMemberRepository.deleteById(new WorkspaceMemberId(workspaceId, memberUserId));
+        workspaceEventPublisher.publish(workspaceId, WorkspaceEvent.EntityType.WORKSPACE,
+                WorkspaceEvent.Action.UPDATED, workspaceId, workspace.getName(), user);
+        userEventPublisher.publishRemovedFromWorkspace(memberUserId, workspaceId);
     }
 
     private User resolveInvitee(InviteRequest req) {

@@ -13,8 +13,8 @@ import java.util.UUID;
 @Builder
 public class WorkspaceEvent {
 
-    public enum EntityType { WORKSPACE, CATEGORY, PRODUCT, LIST }
-    public enum Action { CREATED, UPDATED, DELETED }
+    public enum EntityType { WORKSPACE, CATEGORY, PRODUCT, LIST, INVITATION }
+    public enum Action { CREATED, UPDATED, DELETED, REJECTED }
 
     private EntityType entityType;
     private Action action;

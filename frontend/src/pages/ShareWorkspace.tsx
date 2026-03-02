@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import {
   getWorkspace,
   getWorkspaceMembers,
@@ -14,7 +15,7 @@ import {
 import { AppBar } from '../components/AppBar';
 import { useAuthStore } from '../store/authStore';
 import { COUNTRY_OPTIONS } from '../data/countries';
-import type { ListMemberDto } from '../types';
+import type { ListMemberDto, WorkspaceEvent } from '../types';
 
 const segmentInputStyle: React.CSSProperties = {
   padding: '10px 6px',
@@ -53,6 +54,7 @@ export function ShareWorkspace() {
     COUNTRY_OPTIONS[0].segments.map(() => ''),
   );
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const segmentRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const country = COUNTRY_OPTIONS[countryIndex];
@@ -120,6 +122,20 @@ export function ShareWorkspace() {
     queryFn: () => getWorkspaceMembers(workspaceId!),
     enabled: !!workspaceId && !!workspace,
   });
+
+  useWorkspaceEvents(workspaceId ?? null, useCallback((event: WorkspaceEvent) => {
+    if (event.entityType === 'WORKSPACE') {
+      queryClient.invalidateQueries({ queryKey: ['workspaceMembers', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspaceInvitations'] });
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+    }
+    if (event.entityType === 'INVITATION' && event.action === 'REJECTED') {
+      queryClient.invalidateQueries({ queryKey: ['workspaceMembers', workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ['workspaceInvitations'] });
+      setToast(`${event.entityName} דחה/דחתה את ההזמנה`);
+      setTimeout(() => setToast(null), 4000);
+    }
+  }, [queryClient, workspaceId]));
 
   const inviteMutation = useMutation({
     mutationFn: (body: { email?: string; phone?: string }) => inviteWorkspaceMember(workspaceId!, body),
@@ -210,6 +226,11 @@ export function ShareWorkspace() {
         backTo="/lists"
       />
       <main style={{ padding: 16 }}>
+        {toast && (
+          <p style={{ margin: '0 0 16px', padding: 12, background: 'var(--color-primary)', color: '#fff', borderRadius: 10, fontSize: 14 }}>
+            {toast}
+          </p>
+        )}
         {isInviteeView && invitationForThisWorkspace ? (
           <section
             style={{

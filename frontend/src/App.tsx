@@ -1,7 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useCallback } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from './store/authStore';
+import { useWorkspaceStore } from './store/workspaceStore';
 import { useFcmRegistration } from './hooks/useFcmRegistration';
 import { useAuthFailureRedirect } from './hooks/useAuthFailureRedirect';
+import { useUserEvents } from './hooks/useUserEvents';
 import { SideMenu } from './components/SideMenu';
 import { OfflineBanner } from './components/OfflineBanner';
 import { Login } from './pages/Login';
@@ -38,6 +42,24 @@ function WelcomeGate({ children }: { children: React.ReactNode }) {
 function AppShell() {
   useFcmRegistration();
   useAuthFailureRedirect();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const userId = useAuthStore((s) => s.user?.userId);
+  const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
+  const clearActiveWorkspace = useWorkspaceStore((s) => s.clearActiveWorkspace());
+
+  useUserEvents(userId, useCallback((event) => {
+    if (event.type === 'NEW_INVITATION') {
+      queryClient.invalidateQueries({ queryKey: ['workspaceInvitations'] });
+    }
+    if (event.type === 'REMOVED_FROM_WORKSPACE' && event.workspaceId) {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      clearActiveWorkspace();
+      if (activeWorkspaceId === event.workspaceId) {
+        navigate('/lists', { replace: true });
+      }
+    }
+  }, [queryClient, navigate, activeWorkspaceId, clearActiveWorkspace]));
 
   return (
     <>
