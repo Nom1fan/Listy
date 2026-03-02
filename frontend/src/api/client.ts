@@ -22,26 +22,37 @@ function getToken(): string | null {
 
 // ---- silent token refresh logic ----
 
-let refreshPromise: Promise<boolean> | null = null;
+const REFRESH_TIMEOUT_MS = 15_000;
+
+type RefreshResult = 'ok' | 'invalid' | 'network_error';
+
+let refreshPromise: Promise<RefreshResult> | null = null;
 
 /**
  * Attempt to get a new access token using the HttpOnly refresh cookie.
- * Returns true if the token was refreshed successfully.
+ * - 'ok': token refreshed; caller can retry the request.
+ * - 'invalid': server returned 401 (cookie missing/expired); caller should log out.
+ * - 'network_error': request failed or timed out; do NOT log out — user stays logged in.
  */
-async function tryRefreshToken(): Promise<boolean> {
-  // Deduplicate concurrent refresh attempts
+async function tryRefreshToken(): Promise<RefreshResult> {
   if (refreshPromise) return refreshPromise;
-  refreshPromise = (async () => {
+  refreshPromise = (async (): Promise<RefreshResult> => {
+    const ac = new AbortController();
+    const timeoutId = setTimeout(() => ac.abort(), REFRESH_TIMEOUT_MS);
     try {
       const res = await fetch(API_BASE + '/api/auth/refresh', {
         method: 'POST',
-        credentials: 'include', // send the HttpOnly cookie
+        credentials: 'include',
+        signal: ac.signal,
       });
-      if (!res.ok) return false;
+      if (!res.ok) {
+        // 401/403 = refresh token invalid or expired — session is done
+        if (res.status === 401 || res.status === 403) return 'invalid';
+        return 'network_error';
+      }
       const data = await res.json();
       if (data.token) {
         localStorage.setItem('listyyy_token', data.token);
-        // Also update the Zustand persisted store so it stays in sync
         try {
           const raw = localStorage.getItem('listyyy-auth');
           if (raw) {
@@ -62,12 +73,14 @@ async function tryRefreshToken(): Promise<boolean> {
         } catch {
           // best-effort sync
         }
-        return true;
+        return 'ok';
       }
-      return false;
+      return 'invalid';
     } catch {
-      return false;
+      // Network error, timeout (AbortError), or other failure — do not treat as logout
+      return 'network_error';
     } finally {
+      clearTimeout(timeoutId);
       refreshPromise = null;
     }
   })();
@@ -91,16 +104,18 @@ async function fetchWithAuth(url: string, options: RequestInit): Promise<Respons
     throw new Error('אין חיבור לשרת. נסה שוב מאוחר יותר.');
   }
   if ((res.status === 401 || res.status === 403) && getToken()) {
-    // Access token expired or rejected — try silent refresh
-    const refreshed = await tryRefreshToken();
-    if (refreshed) {
-      // Retry the original request with the new token
+    const result = await tryRefreshToken();
+    if (result === 'ok') {
       const newToken = getToken();
       const retryHeaders = new Headers(options.headers);
       if (newToken) retryHeaders.set('Authorization', `Bearer ${newToken}`);
       return fetch(url, { ...options, headers: retryHeaders });
     }
-    handleAuthFailure();
+    if (result === 'invalid') {
+      handleAuthFailure();
+    }
+    // result === 'network_error': do NOT log out — throw so UI shows connection error
+    throw new Error('אין חיבור לשרת. נסה שוב מאוחר יותר.');
   }
   return res;
 }
@@ -120,7 +135,8 @@ export async function api<T>(
   let res: Response;
   try {
     res = await fetchWithAuth(API_BASE + path, { ...options, headers, credentials: 'include' });
-  } catch {
+  } catch (e) {
+    if (e instanceof Error && e.message === 'פג תוקף החיבור') throw e;
     throw new Error('אין חיבור לשרת. נסה שוב מאוחר יותר.');
   }
   if (!res.ok) {

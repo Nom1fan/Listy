@@ -98,6 +98,57 @@ describe('api', () => {
       })
     )
   })
+
+  it('on 401 with token: refresh succeeds then retries request', async () => {
+    localStorage.setItem('listyyy_token', 'old-token')
+    const fn = globalThis.fetch as ReturnType<typeof vi.fn>
+    fn
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ token: 'new-token', userId: 'u1', email: null, phone: null, displayName: null, profileImageUrl: null, locale: 'he' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ data: 'lists' }),
+      })
+    const result = await api<{ data: string }>('/api/lists')
+    expect(result).toEqual({ data: 'lists' })
+    expect(localStorage.getItem('listyyy_token')).toBe('new-token')
+  })
+
+  it('on 401 with token: refresh returns 401 → dispatches auth-failure and throws', async () => {
+    localStorage.setItem('listyyy_token', 'old-token')
+    const authFailureHandler = vi.fn()
+    window.addEventListener('listyyy:auth-failure', authFailureHandler)
+    const fn = globalThis.fetch as ReturnType<typeof vi.fn>
+    fn
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+    await expect(api('/api/lists')).rejects.toThrow('פג תוקף החיבור')
+    expect(authFailureHandler).toHaveBeenCalled()
+    expect(localStorage.getItem('listyyy_token')).toBeNull()
+    window.removeEventListener('listyyy:auth-failure', authFailureHandler)
+  })
+
+  it('on 401 with token: refresh network error → throws connection error, does NOT log out', async () => {
+    localStorage.setItem('listyyy_token', 'old-token')
+    const authFailureHandler = vi.fn()
+    window.addEventListener('listyyy:auth-failure', authFailureHandler)
+    const fn = globalThis.fetch as ReturnType<typeof vi.fn>
+    fn
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockRejectedValueOnce(new Error('Network error'))
+    await expect(api('/api/lists')).rejects.toThrow('אין חיבור לשרת')
+    expect(authFailureHandler).not.toHaveBeenCalled()
+    expect(localStorage.getItem('listyyy_token')).toBe('old-token')
+    window.removeEventListener('listyyy:auth-failure', authFailureHandler)
+  })
 })
 
 describe('getWsUrl', () => {
