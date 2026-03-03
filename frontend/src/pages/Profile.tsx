@@ -4,6 +4,7 @@ import { useAuthStore } from '../store/authStore';
 import { updateProfile } from '../api/auth';
 import { uploadFile } from '../api/client';
 import { AppBar } from '../components/AppBar';
+import { ImageSourceDialog } from '../components/ImageSourceDialog';
 import { getUserDisplayLabel } from '../utils/user';
 
 export function Profile() {
@@ -15,8 +16,7 @@ export function Profile() {
   const [imageUrl, setImageUrl] = useState(user?.profileImageUrl ?? '');
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
-  const [linkInput, setLinkInput] = useState('');
-  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [imageSourceDialogOpen, setImageSourceDialogOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -39,15 +39,9 @@ export function Profile() {
     }
   }
 
-  function handleLinkSubmit() {
-    const url = linkInput.trim();
-    if (!url) return;
-    setImageUrl(url);
-    setLinkInput('');
-    setShowLinkInput(false);
-  }
-
-  function handleRemoveImage() {
+  function handleRemoveImage(e: React.MouseEvent) {
+    e.stopPropagation();
+    setImageUrl('');
     setImageUrl('');
   }
 
@@ -89,18 +83,30 @@ export function Profile() {
           {hasImage ? (
             <>
               <div style={{ position: 'relative', marginBottom: 8 }}>
-                <img
-                  src={imageUrl}
-                  alt="תמונת פרופיל"
+                <button
+                  type="button"
+                  onClick={() => setImageSourceDialogOpen(true)}
                   style={{
-                    width: 120,
-                    height: 120,
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '3px solid var(--color-primary)',
+                    padding: 0,
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    display: 'block',
                   }}
-                  onError={() => setImageUrl('')}
-                />
+                >
+                  <img
+                    src={imageUrl}
+                    alt="תמונת פרופיל"
+                    style={{
+                      width: 120,
+                      height: 120,
+                      borderRadius: '50%',
+                      objectFit: 'cover',
+                      border: '3px solid var(--color-primary)',
+                    }}
+                    onError={() => setImageUrl('')}
+                  />
+                </button>
                 <button
                   type="button"
                   onClick={handleRemoveImage}
@@ -135,7 +141,9 @@ export function Profile() {
             </>
           ) : (
             <>
-              <div
+              <button
+                type="button"
+                onClick={() => setImageSourceDialogOpen(true)}
                 style={{
                   width: 120,
                   height: 120,
@@ -148,21 +156,22 @@ export function Profile() {
                   color: '#9e9e9e',
                   marginBottom: 8,
                   border: '3px dashed #bdbdbd',
+                  cursor: 'pointer',
+                  padding: 0,
                 }}
               >
                 👤
-              </div>
+              </button>
               <span style={{ fontSize: 15, fontWeight: 500, color: '#333' }}>
                 {getUserDisplayLabel(user) || '—'}
               </span>
             </>
           )}
 
-          {/* Image action buttons */}
           <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
             <button
               type="button"
-              onClick={() => fileRef.current?.click()}
+              onClick={() => setImageSourceDialogOpen(true)}
               disabled={uploading}
               style={{
                 padding: '8px 16px',
@@ -170,26 +179,11 @@ export function Profile() {
                 border: '1px solid #ddd',
                 borderRadius: 8,
                 fontSize: 13,
-                cursor: 'pointer',
+                cursor: uploading ? 'not-allowed' : 'pointer',
                 color: '#333',
               }}
             >
-              {uploading ? 'מעלה...' : 'העלה תמונה'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowLinkInput((v) => !v)}
-              style={{
-                padding: '8px 16px',
-                background: '#f5f5f5',
-                border: '1px solid #ddd',
-                borderRadius: 8,
-                fontSize: 13,
-                cursor: 'pointer',
-                color: '#333',
-              }}
-            >
-              קישור לתמונה
+              {hasImage ? 'שנה תמונה' : 'הוסף תמונה'}
             </button>
           </div>
 
@@ -201,41 +195,19 @@ export function Profile() {
             onChange={handleFileUpload}
           />
 
-          {showLinkInput && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 12, width: '100%' }}>
-              <input
-                type="url"
-                value={linkInput}
-                onChange={(e) => setLinkInput(e.target.value)}
-                placeholder="https://..."
-                dir="ltr"
-                style={{
-                  flex: 1,
-                  padding: 8,
-                  borderRadius: 8,
-                  border: '1px solid #ccc',
-                  fontSize: 13,
-                }}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleLinkSubmit(); }}
-              />
-              <button
-                type="button"
-                onClick={handleLinkSubmit}
-                disabled={!linkInput.trim()}
-                style={{
-                  padding: '8px 14px',
-                  background: 'var(--color-primary)',
-                  color: '#fff',
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  opacity: !linkInput.trim() ? 0.5 : 1,
-                }}
-              >
-                אישור
-              </button>
-            </div>
-          )}
+          <ImageSourceDialog
+            open={imageSourceDialogOpen}
+            onClose={() => setImageSourceDialogOpen(false)}
+            hideIconOption
+            title="איך להוסיף תמונת פרופיל?"
+            onSelectDevice={() => {
+              setImageSourceDialogOpen(false);
+              setTimeout(() => fileRef.current?.click(), 0);
+            }}
+            initialLinkUrl={imageUrl}
+            onLinkSubmit={(url) => setImageUrl(url)}
+            onSearchSelect={(url) => setImageUrl(url)}
+          />
         </div>
 
         {/* Display name form */}

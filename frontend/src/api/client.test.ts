@@ -101,6 +101,8 @@ describe('api', () => {
 
   it('on 401 with token: refresh succeeds then retries request', async () => {
     localStorage.setItem('listyyy_token', 'old-token')
+    const tokenRefreshedHandler = vi.fn()
+    window.addEventListener('listyyy:token-refreshed', tokenRefreshedHandler)
     const fn = globalThis.fetch as ReturnType<typeof vi.fn>
     fn
       .mockResolvedValueOnce({
@@ -120,6 +122,17 @@ describe('api', () => {
     const result = await api<{ data: string }>('/api/lists')
     expect(result).toEqual({ data: 'lists' })
     expect(localStorage.getItem('listyyy_token')).toBe('new-token')
+    expect(tokenRefreshedHandler).toHaveBeenCalledTimes(1)
+    expect((tokenRefreshedHandler.mock.calls[0][0] as CustomEvent).detail).toEqual({
+      token: 'new-token',
+      userId: 'u1',
+      email: null,
+      phone: null,
+      displayName: null,
+      profileImageUrl: null,
+      locale: 'he',
+    })
+    window.removeEventListener('listyyy:token-refreshed', tokenRefreshedHandler)
   })
 
   it('on 401 with token: refresh returns 401 → dispatches auth-failure and throws', async () => {

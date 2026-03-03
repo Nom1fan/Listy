@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Capacitor } from '@capacitor/core';
 import { useAuthStore } from '../store/authStore';
 import { registerFcmToken } from '../api/fcm';
 
@@ -10,15 +9,18 @@ export function useFcmRegistration() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    if (!Capacitor.isNativePlatform()) return;
 
     let cancelled = false;
     type PNModule = typeof import('@capacitor/push-notifications');
     let pnModule: Awaited<PNModule> | null = null;
 
-    import('@capacitor/push-notifications')
+    import('@capacitor/core')
+      .then(({ Capacitor }) => {
+        if (cancelled || !Capacitor.isNativePlatform()) return;
+        return import('@capacitor/push-notifications');
+      })
       .then((mod) => {
-        if (cancelled) return;
+        if (cancelled || !mod) return;
         pnModule = mod;
         const { PushNotifications } = mod;
 

@@ -98,8 +98,10 @@ if [ ! -f "$EC2_PEM" ]; then
   exit 1
 fi
 
-SSH_OPTS="-i $EC2_PEM -o StrictHostKeyChecking=no -o ConnectTimeout=10"
 REMOTE="${EC2_USER}@${EC2_HOST}"
+# Use explicit -i "$EC2_PEM" so path is one argument; unquoted SSH_OPTS can break when PEM has spaces or is empty
+ssh_cmd() { ssh -i "$EC2_PEM" -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$REMOTE" "$@"; }
+scp_cmd() { scp -i "$EC2_PEM" -o StrictHostKeyChecking=no -o ConnectTimeout=10 "$@"; }
 
 echo ""
 echo "========================================================"
@@ -110,23 +112,23 @@ echo ""
 
 # ── 1. Prepare remote directory ──────────────────────────────
 echo "[1/5] Preparing remote directory ($EC2_DEPLOY_DIR) ..."
-ssh $SSH_OPTS "$REMOTE" "mkdir -p $EC2_DEPLOY_DIR"
+ssh_cmd "mkdir -p $EC2_DEPLOY_DIR"
 
 # ── 2. Copy docker-compose + nginx config ───────────────────
 echo "[2/5] Copying docker-compose.prod.yml, nginx config, and init-ssl.sh ..."
-scp $SSH_OPTS "$REPO_ROOT/docker-compose.prod.yml" "$REMOTE:$EC2_DEPLOY_DIR/docker-compose.yml"
-ssh $SSH_OPTS "$REMOTE" "mkdir -p $EC2_DEPLOY_DIR/nginx"
-scp $SSH_OPTS "$REPO_ROOT/nginx/default.conf" "$REMOTE:$EC2_DEPLOY_DIR/nginx/default.conf"
-scp $SSH_OPTS "$REPO_ROOT/scripts/init-ssl.sh" "$REMOTE:$EC2_DEPLOY_DIR/init-ssl.sh"
-ssh $SSH_OPTS "$REMOTE" "chmod +x $EC2_DEPLOY_DIR/init-ssl.sh"
+scp_cmd "$REPO_ROOT/docker-compose.prod.yml" "$REMOTE:$EC2_DEPLOY_DIR/docker-compose.yml"
+ssh_cmd "mkdir -p $EC2_DEPLOY_DIR/nginx"
+scp_cmd "$REPO_ROOT/nginx/default.conf" "$REMOTE:$EC2_DEPLOY_DIR/nginx/default.conf"
+scp_cmd "$REPO_ROOT/scripts/init-ssl.sh" "$REMOTE:$EC2_DEPLOY_DIR/init-ssl.sh"
+ssh_cmd "chmod +x $EC2_DEPLOY_DIR/init-ssl.sh"
 
 # ── 3. Copy DB dump if requested ────────────────────────────
 if $DEPLOY_DB; then
   DB_DUMP="$REPO_ROOT/db/listyyy-db.sql"
   if [ -f "$DB_DUMP" ]; then
     echo "[3/5] Copying DB dump and import script ..."
-    scp $SSH_OPTS "$DB_DUMP" "$REMOTE:$EC2_DEPLOY_DIR/listyyy-db.sql"
-    scp $SSH_OPTS "$SCRIPT_DIR/import-db-ec2.sh" "$REMOTE:$EC2_DEPLOY_DIR/import-db-ec2.sh"
+    scp_cmd "$DB_DUMP" "$REMOTE:$EC2_DEPLOY_DIR/listyyy-db.sql"
+    scp_cmd "$SCRIPT_DIR/import-db-ec2.sh" "$REMOTE:$EC2_DEPLOY_DIR/import-db-ec2.sh"
   else
     echo "[3/5] WARNING: --db requested but $DB_DUMP not found. Run export-db.sh first."
     DEPLOY_DB=false
@@ -141,7 +143,7 @@ echo "[4/5] Updating remote .env (LISTYYY_IMAGE=$IMAGE_TAG) ..."
 # Helper: upsert a KEY=VALUE in the remote .env
 upsert_remote_env() {
   local key="$1" value="$2"
-  ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
+  ssh_cmd "cd $EC2_DEPLOY_DIR && \
     if grep -q '^${key}=' .env 2>/dev/null; then \
       sed -i 's|^${key}=.*|${key}=${value}|' .env; \
     else \
@@ -150,7 +152,7 @@ upsert_remote_env() {
 }
 
 # Create .env if it doesn't exist (first deploy)
-ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
+ssh_cmd "cd $EC2_DEPLOY_DIR && \
   if [ ! -f .env ]; then \
     touch .env; \
     echo '  (created new .env)'; \
@@ -158,7 +160,7 @@ ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
 
 upsert_remote_env "LISTYYY_IMAGE" "$IMAGE_TAG"
 # JWT_SECRET: only set on first deploy (don't overwrite production secret)
-ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
+ssh_cmd "cd $EC2_DEPLOY_DIR && \
   if ! grep -q '^JWT_SECRET=' .env 2>/dev/null; then \
     echo 'JWT_SECRET=$JWT' >> .env; \
     echo '  (set JWT_SECRET)'; \
@@ -174,19 +176,19 @@ upsert_remote_env "MAIL_PASSWORD" "${MAIL_PASSWORD:-}"
 
 # ── 5. Pull and restart ─────────────────────────────────────
 echo "[5/5] Pulling image and restarting services ..."
-ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && docker compose pull && docker compose up -d"
+ssh_cmd "cd $EC2_DEPLOY_DIR && docker compose pull && docker compose up -d"
 
 # ── 6. Import DB if requested ───────────────────────────────
 if $DEPLOY_DB; then
   echo ""
   echo "[+] Waiting for DB container to be ready ..."
-  ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && \
+  ssh_cmd "cd $EC2_DEPLOY_DIR && \
     for i in \$(seq 1 30); do \
       if docker compose exec -T db pg_isready -U postgres &>/dev/null; then break; fi; \
       echo '  waiting ...'; sleep 2; \
     done"
   echo "[+] Importing DB dump on EC2 ..."
-  ssh $SSH_OPTS "$REMOTE" "cd $EC2_DEPLOY_DIR && chmod +x import-db-ec2.sh && ./import-db-ec2.sh ./listyyy-db.sql"
+  ssh_cmd "cd $EC2_DEPLOY_DIR && chmod +x import-db-ec2.sh && ./import-db-ec2.sh ./listyyy-db.sql"
 fi
 
 echo ""

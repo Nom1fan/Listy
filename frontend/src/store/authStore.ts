@@ -42,3 +42,15 @@ export const useAuthStore = create<AuthState>()(
     { name: 'listyyy-auth' }
   )
 );
+
+// When the API client refreshes the token (e.g. after 401), sync store so WebSocket hooks
+// see the new token and reconnect with a valid session instead of "Unauthenticated SUBSCRIBE"
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'listyyy:token-refreshed',
+    (e: Event) => {
+      const detail = (e as CustomEvent<AuthResponse>).detail;
+      if (detail?.token) useAuthStore.getState().setAuth(detail);
+    }
+  );
+}

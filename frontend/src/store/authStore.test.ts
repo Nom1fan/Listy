@@ -43,4 +43,25 @@ describe('authStore', () => {
     expect(useAuthStore.getState().token).toBeNull()
     expect(localStorage.getItem('listyyy_token')).toBeNull()
   })
+
+  it('listyyy:token-refreshed event updates store so WebSocket hooks reconnect with new token', () => {
+    expect(useAuthStore.getState().token).toBeNull()
+    window.dispatchEvent(
+      new CustomEvent('listyyy:token-refreshed', {
+        detail: {
+          token: 'refreshed-jwt',
+          userId: 'u2',
+          email: 'b@c.com',
+          phone: null,
+          displayName: 'Updated',
+          profileImageUrl: null,
+          locale: 'en',
+        },
+      })
+    )
+    expect(useAuthStore.getState().token).toBe('refreshed-jwt')
+    expect(useAuthStore.getState().user?.userId).toBe('u2')
+    expect(useAuthStore.getState().user?.email).toBe('b@c.com')
+    expect(localStorage.getItem('listyyy_token')).toBe('refreshed-jwt')
+  })
 })

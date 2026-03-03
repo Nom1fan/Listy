@@ -120,8 +120,12 @@ const backButtonStyle: React.CSSProperties = {
 export interface ImageSourceDialogProps {
   open: boolean;
   onClose: () => void;
-  /** Called when user chooses Icon – parent should close dialog and open emoji picker */
-  onSelectIcon: () => void;
+  /** When true, hide the Icon (emoji) option – e.g. for profile picture selection */
+  hideIconOption?: boolean;
+  /** Dialog title when showing the choice grid. Default: "איך להוסיף תמונה?" */
+  title?: string;
+  /** Called when user chooses Icon – parent should close dialog and open emoji picker. Required when hideIconOption is false. */
+  onSelectIcon?: () => void;
   /** Called when user chooses Device – parent should close dialog and trigger file input */
   onSelectDevice: () => void;
   /** Initial value for link URL input (e.g. current image URL) */
@@ -135,6 +139,8 @@ export interface ImageSourceDialogProps {
 export function ImageSourceDialog({
   open,
   onClose,
+  hideIconOption = false,
+  title: titleProp,
   onSelectIcon,
   onSelectDevice,
   initialLinkUrl = '',
@@ -143,6 +149,8 @@ export function ImageSourceDialog({
 }: ImageSourceDialogProps) {
   const [view, setView] = useState<DialogView>('choice');
   const [linkUrl, setLinkUrl] = useState(initialLinkUrl);
+  const title = titleProp ?? 'איך להוסיף תמונה?';
+  const options = hideIconOption ? choiceOptions.filter((opt) => opt.type !== 'icon') : choiceOptions;
 
   useEffect(() => {
     if (open) {
@@ -155,7 +163,7 @@ export function ImageSourceDialog({
 
   function handleChoice(type: DisplayImageType) {
     if (type === 'icon') {
-      onSelectIcon();
+      onSelectIcon?.();
       onClose();
     } else if (type === 'device') {
       onSelectDevice();
@@ -188,10 +196,10 @@ export function ImageSourceDialog({
         {view === 'choice' && (
           <>
             <h2 id="image-source-dialog-title" style={titleStyle}>
-              איך להוסיף תמונה?
+              {title}
             </h2>
             <div style={gridStyle}>
-              {choiceOptions.map(({ type, label, Icon }) => (
+              {options.map(({ type, label, Icon }) => (
                 <button
                   key={type}
                   type="button"

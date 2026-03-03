@@ -71,3 +71,14 @@ export default defineConfig([
   },
 ])
 ```
+
+## Development
+
+- Start the dev server: `npm run dev` (from the `frontend/` directory).
+- The app proxies `/api`, `/ws`, and `/uploads` to the backend at `http://127.0.0.1:8080`; ensure the backend is running when testing API calls.
+
+If the app appears **stuck** or shows **no network activity** in an embedded/internal browser (e.g. Cursor's Simple Browser):
+
+1. Confirm the Vite dev server is running and you're opening the URL it prints (e.g. `http://localhost:5173`).
+2. Open the same URL in a normal browser (Chrome, Safari, Firefox) to see if the issue is specific to the embedded browser.
+3. Ensure the backend is running on port 8080 so that API requests can be proxied and the UI can load data.

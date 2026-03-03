@@ -53,26 +53,20 @@ async function tryRefreshToken(): Promise<RefreshResult> {
       const data = await res.json();
       if (data.token) {
         localStorage.setItem('listyyy_token', data.token);
-        try {
-          const raw = localStorage.getItem('listyyy-auth');
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (parsed?.state) {
-              parsed.state.token = data.token;
-              parsed.state.user = {
-                userId: data.userId,
-                email: data.email,
-                phone: data.phone,
-                displayName: data.displayName,
-                profileImageUrl: data.profileImageUrl,
-                locale: data.locale,
-              };
-              localStorage.setItem('listyyy-auth', JSON.stringify(parsed));
-            }
-          }
-        } catch {
-          // best-effort sync
-        }
+        // Sync auth store so WebSocket hooks (and any subscriber to token) reconnect with new token
+        window.dispatchEvent(
+          new CustomEvent('listyyy:token-refreshed', {
+            detail: {
+              token: data.token,
+              userId: data.userId,
+              email: data.email,
+              phone: data.phone,
+              displayName: data.displayName,
+              profileImageUrl: data.profileImageUrl,
+              locale: data.locale,
+            },
+          })
+        );
         return 'ok';
       }
       return 'invalid';
