@@ -1,8 +1,15 @@
-import { StrictMode, Component, type ReactNode } from 'react';
+import { StrictMode, Component, type ReactNode, lazy, Suspense } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './index.css';
-import App from './App';
+
+const App = lazy(() => import('./App'));
+
+const fallback = (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'system-ui' }}>
+    טוען…
+  </div>
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,7 +42,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <App />
+        <Suspense fallback={fallback}>
+          <App />
+        </Suspense>
       </QueryClientProvider>
     </ErrorBoundary>
   </StrictMode>

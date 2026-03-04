@@ -688,9 +688,10 @@ describe('ListDetail', () => {
 
       fireEvent.click(checkboxes[0])
 
-      // Checkbox should be checked immediately (optimistic update), even though PATCH hasn't resolved
+      // Optimistic update: checked section appears and "חלב" moves there (still visible on page)
       await waitFor(() => {
-        expect(checkboxes[0]).toBeChecked()
+        expect(screen.getByText('פריטים מסומנים')).toBeInTheDocument()
+        expect(screen.getByText('חלב')).toBeInTheDocument()
       })
       expect(resolvePatch).toBeDefined()
 
@@ -731,9 +732,10 @@ describe('ListDetail', () => {
 
       fireEvent.click(checkboxes[0])
 
-      // Optimistic: checked immediately
+      // Optimistic: checked section appears with "חלב"
       await waitFor(() => {
-        expect(checkboxes[0]).toBeChecked()
+        expect(screen.getByText('פריטים מסומנים')).toBeInTheDocument()
+        expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
       // Now reject the PATCH to trigger rollback
@@ -741,9 +743,10 @@ describe('ListDetail', () => {
         rejectPatch!(new Error('Server error'))
       })
 
-      // After error settles, should roll back
+      // After error settles, roll back: no checked items so "פריטים מסומנים" hidden; "חלב" back in category
       await waitFor(() => {
-        expect(checkboxes[0]).not.toBeChecked()
+        expect(screen.queryByText('פריטים מסומנים')).not.toBeInTheDocument()
+        expect(screen.getByText('חלב')).toBeInTheDocument()
       })
     })
   })
@@ -934,17 +937,38 @@ describe('ListDetail', () => {
         expect(screen.getByText('חלב')).toBeInTheDocument()
       })
 
-      // Both category headers visible initially
+      // Unchecked items in categories; "מאפים" has only checked "לחם" so no category header for it
       expect(screen.getByText(/מוצרי חלב/)).toBeInTheDocument()
-      expect(screen.getByText(/מאפים/)).toBeInTheDocument()
+      expect(screen.getByText('פריטים מסומנים')).toBeInTheDocument()
 
-      // Hide crossed-off items — "לחם" is the only item in "מאפים" and it's crossed off
+      // Hide crossed-off items (hides the checked section)
       fireEvent.click(screen.getByRole('button', { name: /הסתר פריטים מסומנים/i }))
 
       // "מוצרי חלב" category should still show (has non-crossed-off "חלב")
       expect(screen.getByText(/מוצרי חלב/)).toBeInTheDocument()
-      // "מאפים" category should be hidden (all items crossed off)
-      expect(screen.queryByText('מאפים')).not.toBeInTheDocument()
+      // Checked section is hidden when toggle is on
+      expect(screen.queryByText('פריטים מסומנים')).not.toBeInTheDocument()
+    })
+
+    it('shows checked items in a separate section below unchecked items', async () => {
+      mockFetchCrossedOff()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+
+      // Unchecked "חלב" appears in its category (מוצרי חלב)
+      expect(screen.getByText(/מוצרי חלב/)).toBeInTheDocument()
+      expect(screen.getByText('חלב')).toBeInTheDocument()
+
+      // Checked items appear in a distinct "פריטים מסומנים" section below
+      expect(screen.getByText('פריטים מסומנים')).toBeInTheDocument()
+      expect(screen.getByText('לחם')).toBeInTheDocument()
+      expect(screen.getByText('גבינה')).toBeInTheDocument()
     })
   })
 

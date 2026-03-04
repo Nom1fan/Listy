@@ -252,6 +252,21 @@ export function ListDetail() {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
+    const checkedItemsNow = filteredItems.filter((i) => i.crossedOff);
+
+    // Reorder within checked section
+    if (checkedItemsNow.some((i) => i.id === active.id) && checkedItemsNow.some((i) => i.id === over.id)) {
+      const oldIndex = checkedItemsNow.findIndex((i) => i.id === active.id);
+      const newIndex = checkedItemsNow.findIndex((i) => i.id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reorderedChecked = arrayMove(checkedItemsNow, oldIndex, newIndex);
+      const uncheckedOrder = categories.flatMap((cat) => grouped[cat].filter((i) => !i.crossedOff));
+      const newItems = [...uncheckedOrder, ...reorderedChecked];
+      queryClient.setQueryData(['listItems', listId], newItems);
+      reorderMutation.mutate(newItems.map((i) => i.id));
+      return;
+    }
+
     // Find which category the dragged item is in
     let targetCat = '';
     for (const cat of categories) {
@@ -261,17 +276,19 @@ export function ListDetail() {
       }
     }
 
-    const catItems = grouped[targetCat];
-    const oldIndex = catItems.findIndex((i) => i.id === active.id);
-    const newIndex = catItems.findIndex((i) => i.id === over.id);
+    const catUnchecked = grouped[targetCat].filter((i) => !i.crossedOff);
+    const oldIndex = catUnchecked.findIndex((i) => i.id === active.id);
+    const newIndex = catUnchecked.findIndex((i) => i.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const reorderedCatItems = arrayMove(catItems, oldIndex, newIndex);
+    const reorderedCatUnchecked = arrayMove(catUnchecked, oldIndex, newIndex);
 
-    // Build full item order across all categories
-    const newItems = categories.flatMap((cat) =>
-      cat === targetCat ? reorderedCatItems : grouped[cat]
+    // Build full item order: unchecked by category, then checked
+    const uncheckedOrder = categories.flatMap((cat) =>
+      cat === targetCat ? reorderedCatUnchecked : grouped[cat].filter((i) => !i.crossedOff)
     );
+    const checkedOrder = filteredItems.filter((i) => i.crossedOff);
+    const newItems = [...uncheckedOrder, ...checkedOrder];
 
     // Optimistic update
     queryClient.setQueryData(['listItems', listId], newItems);
@@ -575,6 +592,11 @@ export function ListDetail() {
 
   const categories = Object.keys(grouped).sort((a, b) => (a === 'אחר' ? 1 : b === 'אחר' ? -1 : a.localeCompare(b)));
 
+  /** Checked (crossed-off) items, shown in a separate section below. Order preserved from filteredItems. */
+  const checkedItems = useMemo(() => filteredItems.filter((i) => i.crossedOff), [filteredItems]);
+
+  const CHECKED_SECTION = '__checked__';
+
   function getCategoryIconId(cat: string): string | null {
     const first = grouped[cat]?.[0];
     return first ? first.categoryIconId ?? null : null;
@@ -796,7 +818,7 @@ export function ListDetail() {
               </button>
               <button
                 type="button"
-                onClick={() => setCollapsedCategories(new Set(categories))}
+                onClick={() => setCollapsedCategories(new Set(checkedItems.length > 0 ? [...categories, CHECKED_SECTION] : categories))}
                 title="סגור את כל הקטגוריות"
                 aria-label="סגור את כל הקטגוריות"
                 style={{
@@ -829,7 +851,7 @@ export function ListDetail() {
           )}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           {categories.map((cat) => {
-            const visibleItems = hideCrossedOff ? grouped[cat].filter(i => !i.crossedOff) : grouped[cat];
+            const visibleItems = grouped[cat].filter((i) => !i.crossedOff);
             if (visibleItems.length === 0) return null;
             return (
             <section key={cat} ref={(el) => { categoryRefs.current[cat] = el; }} style={{ marginBottom: 24 }}>
@@ -1145,6 +1167,325 @@ export function ListDetail() {
             </section>
             );
           })}
+          {checkedItems.length > 0 && !hideCrossedOff && (
+            <section
+              ref={(el) => { categoryRefs.current[CHECKED_SECTION] = el; }}
+              style={{
+                marginTop: 28,
+                paddingTop: 24,
+                borderTop: '2px solid #e0e0e0',
+              }}
+            >
+              <div
+                style={{
+                  background: highlightedCategoryName === CHECKED_SECTION ? '#e8f5e9' : '#f5f5f5',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  marginBottom: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  textAlign: 'right',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCollapsedCategories((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(CHECKED_SECTION)) next.delete(CHECKED_SECTION);
+                      else next.add(CHECKED_SECTION);
+                      return next;
+                    });
+                    setHighlightedCategoryName(CHECKED_SECTION);
+                  }}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    font: 'inherit',
+                    textAlign: 'right',
+                  }}
+                  aria-expanded={!collapsedCategories.has(CHECKED_SECTION)}
+                  aria-label={collapsedCategories.has(CHECKED_SECTION) ? 'פתח פריטים מסומנים' : 'סגור פריטים מסומנים'}
+                >
+                  <span style={{ fontWeight: 600, color: '#666' }}>פריטים מסומנים</span>
+                  <span style={{ fontSize: 13, fontWeight: 400, color: '#888' }}>{checkedItems.length}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCollapsedCategories((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(CHECKED_SECTION)) next.delete(CHECKED_SECTION);
+                      else next.add(CHECKED_SECTION);
+                      return next;
+                    });
+                    setHighlightedCategoryName(CHECKED_SECTION);
+                  }}
+                  aria-expanded={!collapsedCategories.has(CHECKED_SECTION)}
+                  aria-label={collapsedCategories.has(CHECKED_SECTION) ? 'פתח פריטים מסומנים' : 'סגור פריטים מסומנים'}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: '4px 6px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 6,
+                    color: '#555',
+                  }}
+                >
+                  {collapsedCategories.has(CHECKED_SECTION) ? <ChevronRightIcon size={22} color="#555" /> : <ChevronDownIcon size={22} color="#555" />}
+                </button>
+              </div>
+              {!collapsedCategories.has(CHECKED_SECTION) && (
+              <SortableContext items={checkedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+              {viewMode === 'list' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {checkedItems.map((item) => (
+                  <SortableItem key={item.id} id={item.id}>
+                    {({ handleProps }) => (
+                    <div
+                      ref={(el) => { itemRefs.current[item.id] = el; }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: 12,
+                        background: highlightedItemId === item.id ? '#e8f5e9' : '#fafafa',
+                        borderRadius: 12,
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                      }}
+                    >
+                      <span {...handleProps} style={{ cursor: 'grab', touchAction: 'none', color: '#bbb', fontSize: 18, flexShrink: 0, lineHeight: 1, padding: '0 2px' }} aria-label="גרור לשינוי סדר">⠿</span>
+                      <input
+                        type="checkbox"
+                        checked
+                        onChange={() =>
+                          updateMutation.mutate({
+                            itemId: item.id,
+                            body: { crossedOff: false },
+                          })
+                        }
+                        style={{ width: 22, height: 22, cursor: 'pointer', accentColor: 'var(--color-primary)', flexShrink: 0 }}
+                        aria-label="בטל סימון"
+                      />
+                      {(item.itemImageUrl || item.productImageUrl) ? (
+                        <img
+                          src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
+                          alt=""
+                          style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <CategoryIcon
+                          iconId={item.iconId ?? item.categoryIconId ?? null}
+                          imageUrl={null}
+                          size={48}
+                        />
+                      )}
+                      <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)}>
+                        <div style={{ textDecoration: 'line-through', color: 'var(--color-strike)' }}>{item.displayName}</div>
+                        {(formatQuantityUnit(item) || item.note) && (
+                        <div style={{ fontSize: 14, color: '#666' }}>
+                          {formatQuantityUnit(item) ?? ''}
+                          {formatQuantityUnit(item) && item.note ? ' · ' : ''}
+                          {item.note ?? ''}
+                        </div>
+                      )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)}
+                        aria-label="ערוך פריט"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                      >
+                        <PencilIcon />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeMutation.mutate(item.id)}
+                        aria-label="הסר פריט"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                      >
+                        <TrashIcon />
+                      </button>
+                    </div>
+                    )}
+                  </SortableItem>
+                ))}
+              </div>
+              ) : viewMode === 'compact' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {checkedItems.map((item) => (
+                  <SortableItem key={item.id} id={item.id}>
+                    {({ handleProps }) => (
+                    <div
+                      ref={(el) => { itemRefs.current[item.id] = el; }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '6px 10px',
+                        background: highlightedItemId === item.id ? '#e8f5e9' : '#fafafa',
+                        borderRadius: 6,
+                        borderBottom: '1px solid #f0f0f0',
+                      }}
+                    >
+                      <span {...handleProps} style={{ cursor: 'grab', touchAction: 'none', color: '#ccc', fontSize: 14, flexShrink: 0, lineHeight: 1, padding: '0 1px' }} aria-label="גרור לשינוי סדר">⠿</span>
+                      <input
+                        type="checkbox"
+                        checked
+                        onChange={() =>
+                          updateMutation.mutate({
+                            itemId: item.id,
+                            body: { crossedOff: false },
+                          })
+                        }
+                        style={{ width: 18, height: 18, cursor: 'pointer', accentColor: 'var(--color-primary)', flexShrink: 0 }}
+                        aria-label="בטל סימון"
+                      />
+                      <span
+                        onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)}
+                        style={{
+                          flex: 1,
+                          fontSize: 14,
+                          textDecoration: 'line-through',
+                          color: 'var(--color-strike)',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          cursor: 'pointer',
+                        }}>
+                        {item.displayName}
+                      </span>
+                      {formatQuantityUnit(item) && (
+                        <span style={{ fontSize: 12, color: '#888', flexShrink: 0 }}>
+                          {formatQuantityUnit(item)}
+                        </span>
+                      )}
+                      {item.note && (
+                        <span style={{ fontSize: 11, color: '#aaa', flexShrink: 1, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.note}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)}
+                        aria-label="ערוך פריט"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', lineHeight: 1, borderRadius: 4, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                      >
+                        <PencilIcon size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeMutation.mutate(item.id)}
+                        aria-label="הסר פריט"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', lineHeight: 1, borderRadius: 4, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                      >
+                        <TrashIcon size={14} />
+                      </button>
+                    </div>
+                    )}
+                  </SortableItem>
+                ))}
+              </div>
+              ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 }}>
+                {checkedItems.map((item) => (
+                  <SortableItem key={item.id} id={item.id}>
+                    {({ handleProps }) => (
+                    <div
+                      ref={(el) => { itemRefs.current[item.id] = el; }}
+                      style={{
+                        position: 'relative',
+                        padding: 10,
+                        background: highlightedItemId === item.id ? '#e8f5e9' : '#fafafa',
+                        borderRadius: 12,
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 6,
+                        textAlign: 'center',
+                        opacity: 0.85,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <input
+                          type="checkbox"
+                          checked
+                          onChange={() =>
+                            updateMutation.mutate({
+                              itemId: item.id,
+                              body: { crossedOff: false },
+                            })
+                          }
+                          style={{ width: 20, height: 20, cursor: 'pointer', accentColor: 'var(--color-primary)' }}
+                          aria-label="בטל סימון"
+                        />
+                        <span {...handleProps} style={{ cursor: 'grab', touchAction: 'none', color: '#bbb', fontSize: 16, lineHeight: 1 }} aria-label="גרור לשינוי סדר">⠿</span>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)}
+                          aria-label="ערוך פריט"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                        >
+                          <PencilIcon size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeMutation.mutate(item.id)}
+                          aria-label="הסר פריט"
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                        >
+                          <TrashIcon size={14} />
+                        </button>
+                      </div>
+                      <div onClick={() => navigate(`/lists/${listId}/items/${item.id}/edit`)} style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: '100%' }}>
+                      {(item.itemImageUrl || item.productImageUrl) ? (
+                        <img
+                          src={getImageUrl(item.itemImageUrl || item.productImageUrl)}
+                          alt=""
+                          style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 8 }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
+                      ) : (
+                        <CategoryIcon
+                          iconId={item.iconId ?? item.categoryIconId ?? null}
+                          imageUrl={null}
+                          size={48}
+                        />
+                      )}
+                      <span style={{ fontWeight: 500, fontSize: 13, wordBreak: 'break-word', textDecoration: 'line-through', color: 'var(--color-strike)' }}>{item.displayName}</span>
+                      {formatQuantityUnit(item) && (
+                        <span style={{ fontSize: 11, color: '#666' }}>
+                          {formatQuantityUnit(item)}
+                        </span>
+                      )}
+                      {item.note && (
+                        <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {item.note}
+                        </span>
+                      )}
+                      </div>
+                    </div>
+                    )}
+                  </SortableItem>
+                ))}
+              </div>
+              )}
+              </SortableContext>
+              )}
+            </section>
+          )}
           </DndContext>
           </>
         )}

@@ -1,6 +1,4 @@
 import { useEffect, useRef } from 'react';
-import SockJS from 'sockjs-client';
-import { Client } from '@stomp/stompjs';
 import { getWsUrlWithToken } from '../api/client';
 import { useAuthStore } from '../store/authStore';
 import type { UserEvent } from '../types';
@@ -12,38 +10,59 @@ function getTokenForWs(): string | null {
 /**
  * Subscribe to user-level WebSocket events (new invitation, removed from workspace).
  * Only connects when userId is present (authenticated). Invoke onEvent to invalidate queries / navigate.
+ * SockJS and STOMP are lazy-loaded so they never run on initial app load (avoids main-thread freeze).
  */
 export function useUserEvents(userId: string | null | undefined, onEvent: (event: UserEvent) => void) {
   const token = useAuthStore((s) => s.token) ?? localStorage.getItem('listyyy_token');
-  const clientRef = useRef<Client | null>(null);
+  const clientRef = useRef<{ deactivate: () => void } | null>(null);
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
 
   useEffect(() => {
     const effectiveToken = token ?? getTokenForWs();
     if (!userId || !effectiveToken) return;
 
-    const wsUrl = getWsUrlWithToken(effectiveToken);
-    const sock = new SockJS(wsUrl);
-    const client = new Client({
-      webSocketFactory: () => sock as unknown as WebSocket,
-      connectHeaders: { Authorization: `Bearer ${effectiveToken}` },
-      reconnectDelay: 3000,
-      onConnect: () => {
-        client.subscribe(`/topic/user/${userId}`, (msg) => {
-          try {
-            const event = JSON.parse(msg.body) as UserEvent;
-            onEvent(event);
-          } catch {
-            // ignore
-          }
+    let cancelled = false;
+    const timeoutId = setTimeout(() => {
+      if (cancelled) return;
+      const wsUrl = getWsUrlWithToken(effectiveToken);
+      void Promise.all([
+        import('sockjs-client'),
+        import('@stomp/stompjs'),
+      ]).then(([SockJSModule, stompModule]) => {
+        if (cancelled) return;
+        const SockJS = SockJSModule.default;
+        const { Client } = stompModule;
+        const sock = new SockJS(wsUrl);
+        const client = new Client({
+          webSocketFactory: () => sock as unknown as WebSocket,
+          connectHeaders: { Authorization: `Bearer ${effectiveToken}` },
+          reconnectDelay: 3000,
+          onConnect: () => {
+            if (cancelled) return;
+            client.subscribe(`/topic/user/${userId}`, (msg) => {
+              try {
+                const event = JSON.parse(msg.body) as UserEvent;
+                onEventRef.current?.(event);
+              } catch {
+                // ignore
+              }
+            });
+          },
         });
-      },
-    });
-    client.activate();
-    clientRef.current = client;
+        client.activate();
+        clientRef.current = client;
+      }).catch(() => {});
+    }, 100);
 
     return () => {
-      client.deactivate();
-      clientRef.current = null;
+      cancelled = true;
+      clearTimeout(timeoutId);
+      const client = clientRef.current;
+      if (client) {
+        client.deactivate();
+        clientRef.current = null;
+      }
     };
-  }, [userId, token, onEvent]);
+  }, [userId, token]);
 }
