@@ -7,5 +7,6 @@ SELECT DISTINCT p.category_id, lm.user_id, 'editor'
 FROM list_items li
 JOIN products p ON p.id = li.product_id
 JOIN list_members lm ON lm.list_id = li.list_id
-WHERE lm.user_id != (SELECT id FROM users WHERE phone = '+972542258808')
+WHERE EXISTS (SELECT 1 FROM users WHERE phone = '+972542258808')
+  AND lm.user_id != (SELECT id FROM users WHERE phone = '+972542258808')
 ON CONFLICT (category_id, user_id) DO NOTHING;
