@@ -25,6 +25,9 @@ Desktop.ini
 # Release config (per-machine image name; copy from release.config.example)
 release.config
 
+# PEM for docker-build-image.sh --ca (corporate root CA); never commit
+docker/*.pem
+
 # IDE / editor (project-specific IDE config lives in subprojects)
 .idea/
 .vscode/

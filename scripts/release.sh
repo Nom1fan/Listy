@@ -118,7 +118,7 @@ if [ -n "${LISTYYY_IMAGE:-}" ]; then
   echo "=== 3. Build and push Docker image ==="
   IMAGE_TAG="${LISTYYY_IMAGE}:${new_version}"
   echo "Building $IMAGE_TAG ..."
-  docker build -t "$IMAGE_TAG" "$REPO_ROOT"
+  docker build --platform linux/amd64 -t "$IMAGE_TAG" "$REPO_ROOT"
   docker push "$IMAGE_TAG"
   echo "Pushed $IMAGE_TAG"
 else

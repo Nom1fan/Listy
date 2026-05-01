@@ -1,0 +1,63 @@
+# Build and push linux/amd64 image to Docker Hub (clean TLS — avoids corporate MITM on laptops).
+#
+# Setup (once, in GitHub repo → Settings → Secrets and variables → Actions):
+#   DOCKERHUB_USERNAME   your Docker Hub username
+#   DOCKERHUB_TOKEN        Docker Hub access token (Account Settings → Security)
+#
+# Setup (once, same place → Variables):
+#   LISTYYY_IMAGE          e.g. mmerhav/listyyy  (must match release.config)
+#
+# Optional: trigger manually via Actions → "Docker image" → Run workflow.
+
+name: Docker image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - "Dockerfile"
+      - "frontend/**"
+      - "backend/**"
+      - "VERSION"
+      - ".github/workflows/docker-image.yml"
+
+env:
+  # Fallback if LISTYYY_IMAGE repository variable is not set (forks / first run).
+  LISTYYY_IMAGE_FALLBACK: nom1fan/listyyy
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Version
+        id: ver
+        run: echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
+
+      - name: Image name
+        id: img
+        run: |
+          IMG="${{ vars.LISTYYY_IMAGE }}"
+          if [ -z "$IMG" ]; then IMG="${{ env.LISTYYY_IMAGE_FALLBACK }}"; fi
+          echo "listyyy_image=$IMG" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.img.outputs.listyyy_image }}:${{ steps.ver.outputs.version }}
+            ${{ steps.img.outputs.listyyy_image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
