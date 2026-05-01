@@ -14,6 +14,7 @@ import com.listyyy.backend.productbank.CategoryRepository;
 import com.listyyy.backend.productbank.Product;
 import com.listyyy.backend.productbank.ProductRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Slf4j
 public class UploadController {
 
     private final UploadService uploadService;
@@ -106,10 +108,22 @@ public class UploadController {
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal User user
     ) throws IOException {
-        if (user == null) return ResponseEntity.status(401).build();
-        String url = uploadService.saveProfileImage(file);
-        user.setProfileImageUrl(url);
-        userRepository.save(user);
-        return ResponseEntity.ok(Map.of("url", url));
+        if (user == null) {
+            log.warn("Profile upload rejected: unauthenticated");
+            return ResponseEntity.status(401).build();
+        }
+        try {
+            String url = uploadService.saveProfileImage(file);
+            user.setProfileImageUrl(url);
+            userRepository.save(user);
+            log.info("Profile image uploaded for user {} -> {}", user.getEmail() != null ? user.getEmail() : user.getPhone(), url);
+            return ResponseEntity.ok(Map.of("url", url));
+        } catch (IOException e) {
+            log.error("Profile image upload failed for user {}: {}", user.getEmail() != null ? user.getEmail() : user.getPhone(), e.getMessage());
+            throw e;
+        } catch (IllegalArgumentException e) {
+            log.warn("Profile image upload rejected for user {}: {}", user.getEmail() != null ? user.getEmail() : user.getPhone(), e.getMessage());
+            throw e;
+        }
     }
 }
