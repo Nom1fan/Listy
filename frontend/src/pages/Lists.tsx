@@ -93,6 +93,7 @@ export function Lists() {
   const [editingWorkspace, setEditingWorkspace] = useState(false);
   const [editWorkspaceName, setEditWorkspaceName] = useState('');
   const [confirmDeleteWorkspace, setConfirmDeleteWorkspace] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
 
   const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
 
@@ -499,7 +500,7 @@ export function Lists() {
               </div>
             )}
 
-            <button onClick={logout} style={{ background: 'transparent', color: 'inherit', fontSize: 14 }}>
+            <button type="button" onClick={() => setConfirmLogout(true)} style={{ background: 'transparent', color: 'inherit', fontSize: 14 }}>
               יציאה
             </button>
           </div>
@@ -932,6 +933,75 @@ export function Lists() {
         )}
 
         {/* Edit list modal */}
+        {/* Logout confirmation */}
+        {confirmLogout && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1001,
+              padding: 24,
+            }}
+            onClick={() => setConfirmLogout(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#fff',
+                borderRadius: 16,
+                padding: 24,
+                maxWidth: 360,
+                width: '100%',
+              }}
+            >
+              <h3 style={{ margin: '0 0 12px', fontSize: 18 }}>התנתקות</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 15, color: '#333', lineHeight: 1.6 }}>
+                האם ברצונך להתנתק מהחשבון?
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmLogout(false);
+                    logout();
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    background: 'var(--color-primary)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    borderRadius: 8,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 15,
+                  }}
+                >
+                  התנתק
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmLogout(false)}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    background: '#eee',
+                    borderRadius: 8,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 15,
+                  }}
+                >
+                  לא
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Delete workspace confirmation */}
         {confirmDeleteWorkspace && activeWorkspace && (
           <div

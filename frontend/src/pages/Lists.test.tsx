@@ -183,4 +183,72 @@ describe('Lists', () => {
       expect(screen.getByPlaceholderText('שם הרשימה')).toHaveValue('רשימה אחת')
     })
   })
+
+  it('exit opens confirmation; cancel keeps session', async () => {
+    const fn = globalThis.fetch as ReturnType<typeof vi.fn>
+    fn.mockImplementation((url: string) => {
+      if (url.includes('/api/workspaces')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(workspaceData) })
+      }
+      if (url.includes('/api/lists')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+    })
+    render(
+      <Wrapper>
+        <Lists />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'יציאה' })).toBeInTheDocument()
+    })
+    expect(useAuthStore.getState().token).toBe('test-token')
+    fireEvent.click(screen.getByRole('button', { name: 'יציאה' }))
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'התנתקות' })).toBeInTheDocument()
+      expect(screen.getByText('האם ברצונך להתנתק מהחשבון?')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'לא' }))
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'התנתקות' })).not.toBeInTheDocument()
+    })
+    expect(useAuthStore.getState().token).toBe('test-token')
+  })
+
+  it('confirming exit logs out', async () => {
+    const fn = globalThis.fetch as ReturnType<typeof vi.fn>
+    fn.mockImplementation((url: string) => {
+      if (url.includes('/api/auth/logout')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })
+      }
+      if (url.includes('/api/workspaces')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(workspaceData) })
+      }
+      if (url.includes('/api/lists')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+    })
+    render(
+      <Wrapper>
+        <Lists />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'יציאה' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'יציאה' }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'התנתק' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'התנתק' }))
+    await waitFor(() => {
+      expect(useAuthStore.getState().token).toBeNull()
+    })
+    expect(fn).toHaveBeenCalledWith(
+      expect.stringContaining('/api/auth/logout'),
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
 })
