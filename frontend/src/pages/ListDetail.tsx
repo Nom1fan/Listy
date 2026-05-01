@@ -170,6 +170,7 @@ export function ListDetail() {
   const [notification, setNotification] = useState<string | null>(null);
   const [notificationIsError, setNotificationIsError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmDeleteMarked, setConfirmDeleteMarked] = useState(false);
   const [viewMode, setViewMode] = useViewMode(`list-${listId}`);
   const [hideCrossedOff, setHideCrossedOff] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -355,6 +356,20 @@ export function ListDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['lists'] });
       navigate('/lists');
+    },
+  });
+
+  const deleteMarkedMutation = useMutation({
+    mutationFn: async (itemIds: string[]) => {
+      await Promise.all(itemIds.map((itemId) => removeListItem(listId, itemId)));
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
+      setConfirmDeleteMarked(false);
+    },
+    onError: (err: Error) => {
+      queryClient.invalidateQueries({ queryKey: ['listItems', listId] });
+      showNotification(err.message || 'שגיאה במחיקת פריטים', true);
     },
   });
 
@@ -779,24 +794,47 @@ export function ListDetail() {
             {items.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
               {hasCrossedOff && (
-                <button
-                  type="button"
-                  onClick={() => setHideCrossedOff(v => !v)}
-                  title={hideCrossedOff ? 'הצג פריטים מסומנים' : 'הסתר פריטים מסומנים'}
-                  aria-label={hideCrossedOff ? 'הצג פריטים מסומנים' : 'הסתר פריטים מסומנים'}
-                  style={{
-                    padding: '6px 8px',
-                    background: hideCrossedOff ? 'var(--color-primary)' : '#fff',
-                    border: '1px solid #ccc',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    lineHeight: 1,
-                  }}
-                >
-                  {hideCrossedOff ? <EyeOffIcon size={18} color={hideCrossedOff ? '#fff' : '#666'} /> : <EyeIcon size={18} color="#666" />}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setHideCrossedOff(v => !v)}
+                    title={hideCrossedOff ? 'הצג פריטים מסומנים' : 'הסתר פריטים מסומנים'}
+                    aria-label={hideCrossedOff ? 'הצג פריטים מסומנים' : 'הסתר פריטים מסומנים'}
+                    style={{
+                      padding: '6px 8px',
+                      background: hideCrossedOff ? 'var(--color-primary)' : '#fff',
+                      border: '1px solid #ccc',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      lineHeight: 1,
+                    }}
+                  >
+                    {hideCrossedOff ? <EyeOffIcon size={18} color={hideCrossedOff ? '#fff' : '#666'} /> : <EyeIcon size={18} color="#666" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteMarked(true)}
+                    title="מחק את כל הפריטים המסומנים"
+                    aria-label="מחק את כל הפריטים המסומנים"
+                    style={{
+                      padding: '6px 10px',
+                      background: '#fff',
+                      border: '1px solid #ccc',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      fontSize: 13,
+                      color: '#c00',
+                    }}
+                  >
+                    <TrashIcon size={16} color="#c00" />
+                    מחק מסומנים
+                  </button>
+                </>
               )}
               <button
                 type="button"
@@ -1544,6 +1582,78 @@ export function ListDetail() {
                 <button
                   type="button"
                   onClick={() => setConfirmDelete(false)}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    background: '#eee',
+                    borderRadius: 8,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 15,
+                  }}
+                >
+                  לא
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete all marked items confirmation */}
+        {confirmDeleteMarked && listId && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1001,
+              padding: 24,
+            }}
+            onClick={() => !deleteMarkedMutation.isPending && setConfirmDeleteMarked(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#fff',
+                borderRadius: 16,
+                padding: 24,
+                maxWidth: 360,
+                width: '100%',
+              }}
+            >
+              <h3 style={{ margin: '0 0 12px', fontSize: 18 }}>מחיקת פריטים מסומנים</h3>
+              <p style={{ margin: '0 0 20px', fontSize: 15, color: '#333', lineHeight: 1.6 }}>
+                למחוק את כל {items.filter((i) => i.crossedOff).length} הפריטים המסומנים? לא ניתן לבטל.
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ids = items.filter((i) => i.crossedOff).map((i) => i.id);
+                    deleteMarkedMutation.mutate(ids);
+                  }}
+                  disabled={deleteMarkedMutation.isPending}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    background: '#c62828',
+                    color: '#fff',
+                    fontWeight: 600,
+                    borderRadius: 8,
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: 15,
+                  }}
+                >
+                  {deleteMarkedMutation.isPending ? 'מוחק...' : 'כן, מחק'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteMarked(false)}
+                  disabled={deleteMarkedMutation.isPending}
                   style={{
                     flex: 1,
                     padding: 12,

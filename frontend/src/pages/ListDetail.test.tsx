@@ -970,6 +970,65 @@ describe('ListDetail', () => {
       expect(screen.getByText('לחם')).toBeInTheDocument()
       expect(screen.getByText('גבינה')).toBeInTheDocument()
     })
+
+    it('shows delete marked button when there are crossed-off items and opens confirmation on click', async () => {
+      mockFetchCrossedOff()
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      const deleteMarkedBtn = screen.getByRole('button', { name: /מחק את כל הפריטים המסומנים/i })
+      expect(deleteMarkedBtn).toBeInTheDocument()
+      fireEvent.click(deleteMarkedBtn)
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'מחיקת פריטים מסומנים' })).toBeInTheDocument()
+      })
+      expect(screen.getByText(/למחוק את כל 2 הפריטים המסומנים/)).toBeInTheDocument()
+      expect(screen.getByText('כן, מחק')).toBeInTheDocument()
+      expect(screen.getByText('לא')).toBeInTheDocument()
+    })
+
+    it('deletes all marked items when confirming', async () => {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, opts?: RequestInit) => {
+        if (opts?.method === 'DELETE' && url.includes('/api/lists/list1/items/')) {
+          return Promise.resolve({ ok: true, status: 204 })
+        }
+        if (url.includes('/api/lists/list1/items')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItemsWithCrossedOff) })
+        }
+        if (url.includes('/api/lists/list1')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockList) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+      render(
+        <Wrapper>
+          <ListDetail />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText('חלב')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByRole('button', { name: /מחק את כל הפריטים המסומנים/i }))
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'מחיקת פריטים מסומנים' })).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByText('כן, מחק'))
+      await waitFor(() => {
+        const deleteCalls = (fetchMock.mock.calls as Array<[string, RequestInit?]>).filter(
+          (call) => call[1]?.method === 'DELETE' && call[0].includes('/api/lists/list1/items/')
+        )
+        expect(deleteCalls.length).toBe(2)
+        const urls = deleteCalls.map((c) => c[0])
+        expect(urls.some((u) => u.includes('item2'))).toBe(true)
+        expect(urls.some((u) => u.includes('item3'))).toBe(true)
+      })
+    })
   })
 
   describe.skip('quick-add dialog – unit & amount (modal removed: add is inline, edit on item)', () => {
