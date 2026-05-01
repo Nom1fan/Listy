@@ -104,7 +104,10 @@ export function Profile() {
                       objectFit: 'cover',
                       border: '3px solid var(--color-primary)',
                     }}
-                    onError={() => setImageUrl('')}
+                    onError={() => {
+                      setImageUrl('');
+                      setError('תמונת הפרופיל לא נטענה. נסה להעלות שוב או לבחור תמונה אחרת.');
+                    }}
                   />
                 </button>
                 <button
