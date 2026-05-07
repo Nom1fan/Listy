@@ -27,6 +27,10 @@ services:
       POSTGRES_DB: listyyy
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+    # Map to host port 5433 so local `./restart-backend.sh` can reach Postgres without
+    # colliding with a native/other Postgres already bound to localhost:5432.
+    ports:
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

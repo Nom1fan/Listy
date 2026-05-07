@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { EMOJI_CATEGORIES, LEGACY_ICON_MAP } from './emojiData';
-import type { EmojiItem } from './emojiData';
+import type { EmojiPickerItem } from './emojiData';
+import { ASSET_ICON_MAP, isAssetIconId } from './iconAssets';
 
 /* ------------------------------------------------------------------ */
 /*  EmojiPickerDialog – WhatsApp-style picker with categories & search */
@@ -28,12 +29,14 @@ export function EmojiPickerDialog({ selectedEmoji, onSelect, onClose }: EmojiPic
   const filteredEmojis = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return null; // null means "show by category"
-    const results: EmojiItem[] = [];
+    const results: EmojiPickerItem[] = [];
     for (const cat of EMOJI_CATEGORIES) {
       for (const item of cat.emojis) {
+        const keywords = item.keywords ?? [];
+        const display = 'emoji' in item ? item.emoji : `asset:${item.assetId}`;
         if (
-          item.emoji.includes(q) ||
-          item.keywords.some((kw) => kw.includes(q))
+          display.includes(q) ||
+          keywords.some((kw) => kw.includes(q))
         ) {
           results.push(item);
         }
@@ -56,8 +59,8 @@ export function EmojiPickerDialog({ selectedEmoji, onSelect, onClose }: EmojiPic
     ? LEGACY_ICON_MAP[selectedEmoji] ?? selectedEmoji
     : '';
 
-  function handleSelect(emoji: string) {
-    onSelect(emoji);
+  function handleSelect(value: string) {
+    onSelect(value);
     onClose();
   }
 
@@ -256,12 +259,13 @@ export function EmojiPickerDialog({ selectedEmoji, onSelect, onClose }: EmojiPic
               ? filteredEmojis
               : activeCategoryData?.emojis ?? []
             ).map((item, idx) => {
-              const isSelected = item.emoji === resolvedSelected;
+              const value = 'emoji' in item ? item.emoji : `asset:${item.assetId}`;
+              const isSelected = value === resolvedSelected;
               return (
                 <button
-                  key={`${item.emoji}-${idx}`}
+                  key={`${value}-${idx}`}
                   type="button"
-                  onClick={() => handleSelect(item.emoji)}
+                  onClick={() => handleSelect(value)}
                   title={item.keywords[0]}
                   style={{
                     display: 'flex',
@@ -291,7 +295,16 @@ export function EmojiPickerDialog({ selectedEmoji, onSelect, onClose }: EmojiPic
                     e.currentTarget.style.transform = '';
                   }}
                 >
-                  {item.emoji}
+                  {'emoji' in item ? (
+                    item.emoji
+                  ) : (
+                    <img
+                      src={isAssetIconId(item.assetId) ? ASSET_ICON_MAP[item.assetId].src : ''}
+                      alt=""
+                      style={{ width: 28, height: 28, objectFit: 'contain', display: 'block' }}
+                      draggable={false}
+                    />
+                  )}
                 </button>
               );
             })}

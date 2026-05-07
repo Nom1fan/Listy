@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { LEGACY_ICON_MAP } from './emojiData';
+import { getAssetIconSrc, isAssetIconId } from './iconAssets';
 
 interface CategoryIconProps {
   iconId: string | null;
@@ -32,6 +33,21 @@ export function CategoryIcon({ iconId, imageUrl, size = 32 }: CategoryIconProps)
         onError={() => setImgError(true)}
       />
     );
+  }
+
+  if (iconId?.startsWith('asset:')) {
+    const assetId = iconId.slice('asset:'.length);
+    if (isAssetIconId(assetId)) {
+      return (
+        <img
+          src={getAssetIconSrc(assetId)}
+          alt=""
+          style={{ width: size, height: size, objectFit: 'contain' }}
+          onError={() => setImgError(true)}
+          draggable={false}
+        />
+      );
+    }
   }
   // Legacy IDs (e.g. 'dairy') are mapped to emojis; new IDs are the emoji character itself.
   // Emoji code points are > U+00FF, so any plain ASCII string is treated as unknown → fallback.

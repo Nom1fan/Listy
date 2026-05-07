@@ -24,4 +24,12 @@ describe('CategoryIcon', () => {
     expect(img).not.toBeNull()
     expect(img).toHaveAttribute('src', expect.stringContaining('/uploads/cat/x.png'))
   })
+
+  it('renders bundled asset img when iconId starts with asset:', () => {
+    const { container } = render(<CategoryIcon iconId="asset:spray_bottle" imageUrl={null} size={32} />)
+    const img = container.querySelector('img')
+    expect(img).not.toBeNull()
+    // Vite often inlines SVG imports as data: URIs in tests.
+    expect(img).toHaveAttribute('src', expect.stringContaining('data:image/svg+xml'))
+  })
 })

@@ -51,11 +51,18 @@ export interface EmojiItem {
   keywords: string[];
 }
 
+export interface EmojiAssetItem {
+  assetId: string;
+  keywords: string[];
+}
+
+export type EmojiPickerItem = EmojiItem | EmojiAssetItem;
+
 export interface EmojiCategory {
   id: string;
   label: string;
   icon: string;
-  emojis: EmojiItem[];
+  emojis: EmojiPickerItem[];
 }
 
 export const EMOJI_CATEGORIES: EmojiCategory[] = [
@@ -134,6 +141,9 @@ export const EMOJI_CATEGORIES: EmojiCategory[] = [
       { emoji: '🥕', keywords: ['גזר', 'carrot'] },
       { emoji: '🌽', keywords: ['תירס', 'corn'] },
       { emoji: '🌶️', keywords: ['צילי', 'פלפל חריף', 'chili', 'hot pepper'] },
+      { assetId: 'pepper_red', keywords: ['פלפל', 'גמבה', 'אדום', 'פלפל אדום', 'pepper', 'bell pepper', 'red pepper', 'capsicum'] },
+      { assetId: 'pepper_yellow', keywords: ['פלפל', 'גמבה', 'צהוב', 'פלפל צהוב', 'pepper', 'bell pepper', 'yellow pepper', 'capsicum'] },
+      { assetId: 'pepper_orange', keywords: ['פלפל', 'גמבה', 'כתום', 'פלפל כתום', 'pepper', 'bell pepper', 'orange pepper', 'capsicum'] },
       { emoji: '🫑', keywords: ['פלפל', 'pepper'] },
       { emoji: '🥒', keywords: ['מלפפון', 'cucumber'] },
       { emoji: '🥬', keywords: ['ירקות', 'חסה', 'ירק עלים', 'lettuce', 'greens'] },
@@ -353,6 +363,7 @@ export const EMOJI_CATEGORIES: EmojiCategory[] = [
     label: 'חפצים',
     icon: '💡',
     emojis: [
+      { assetId: 'spray_bottle', keywords: ['ניקיון', 'ספריי', 'תרסיס', 'אקונומיקה', 'כלור', 'spray', 'cleaner', 'bleach', 'chlorine'] },
       { emoji: '📱', keywords: ['טלפון', 'פלאפון', 'phone', 'mobile'] },
       { emoji: '💻', keywords: ['מחשב', 'לפטופ', 'computer', 'laptop'] },
       { emoji: '⌨️', keywords: ['מקלדת', 'keyboard'] },
