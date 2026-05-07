@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Full release: bump version, build/push Docker image, git commit + tag + push, deploy to EC2.
+# Full release: bump version, git commit + tag + push, wait for CI Docker build, deploy to EC2.
+# Docker image is built and pushed by .github/workflows/docker-image.yml on push to main.
 # Optionally build Android App Bundle (.aab).
 #
 # Usage: ./scripts/release.sh [--major|--patch] [--aab] [--skip-deploy] [--skip-tests]
@@ -113,27 +114,39 @@ else
 fi
 echo ""
 
-# ── 3. Build and push Docker image ──────────────────────────
-if [ -n "${LISTYYY_IMAGE:-}" ]; then
-  echo "=== 3. Build and push Docker image ==="
-  IMAGE_TAG="${LISTYYY_IMAGE}:${new_version}"
-  echo "Building $IMAGE_TAG ..."
-  docker build --platform linux/amd64 -t "$IMAGE_TAG" "$REPO_ROOT"
-  docker push "$IMAGE_TAG"
-  echo "Pushed $IMAGE_TAG"
-else
-  echo "=== 3. Build and push Docker image (SKIPPED -- set LISTYYY_IMAGE in release.config) ==="
-fi
-echo ""
-
-# ── 4. Git commit, tag, push ────────────────────────────────
-echo "=== 4. Git commit and tag ==="
+# ── 3. Git commit, tag, push (triggers CI Docker build) ────
+echo "=== 3. Git commit and tag ==="
 cd "$REPO_ROOT"
 git add VERSION backend/pom.xml frontend/package.json
 git commit -m "Release $new_version"
 git tag "v$new_version"
 git push && git push origin "v$new_version"
 echo "Committed and tagged v$new_version"
+echo ""
+
+# ── 4. Wait for CI to build & push the Docker image ─────────
+# Image is built by .github/workflows/docker-image.yml on push to main.
+if [ -n "${LISTYYY_IMAGE:-}" ] && command -v gh >/dev/null 2>&1; then
+  echo "=== 4. Waiting for CI Docker image build (${LISTYYY_IMAGE}:${new_version}) ==="
+  # Give GitHub a moment to register the run, then watch it.
+  sleep 5
+  RUN_ID=$(gh run list --workflow=docker-image.yml --branch main --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)
+  if [ -n "$RUN_ID" ]; then
+    gh run watch "$RUN_ID" --exit-status
+    echo "CI build complete: ${LISTYYY_IMAGE}:${new_version}"
+  else
+    echo "Could not locate CI run; check Actions tab manually before deploying."
+    exit 1
+  fi
+elif [ -n "${LISTYYY_IMAGE:-}" ]; then
+  echo "=== 4. Docker image build (CI) ==="
+  echo "  gh CLI not installed -- cannot wait on CI."
+  echo "  Watch https://github.com/<owner>/<repo>/actions and re-run deploy with:"
+  echo "    ./scripts/deploy.sh --version $new_version"
+  exit 0
+else
+  echo "=== 4. Docker image build (SKIPPED -- LISTYYY_IMAGE not set) ==="
+fi
 echo ""
 
 # ── 5. Deploy to EC2 ────────────────────────────────────────
@@ -154,7 +167,7 @@ if $BUILD_AAB; then
   echo "  Android:  frontend/android/app/build/outputs/bundle/release/app-release-${new_version}.aab"
 fi
 if [ -n "${LISTYYY_IMAGE:-}" ]; then
-  echo "  Docker:   ${LISTYYY_IMAGE}:${new_version} pushed"
+  echo "  Docker:   ${LISTYYY_IMAGE}:${new_version} (built by GH Actions)"
 fi
 if ! $SKIP_DEPLOY && [ -n "${EC2_PEM:-}" ] && [ -n "${EC2_HOST:-}" ]; then
   echo "  EC2:      deployed to $EC2_HOST"
