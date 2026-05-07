@@ -8,8 +8,6 @@ export interface AuthResponse {
   locale: string;
 }
 
-export type CategoryFilterMode = 'NONE' | 'INCLUDE' | 'EXCLUDE';
-
 export interface ListResponse {
   id: string;
   name: string;
@@ -17,7 +15,12 @@ export interface ListResponse {
   iconId: string | null;
   imageUrl: string | null;
   sortOrder: number;
-  categoryFilterMode: CategoryFilterMode;
+  /**
+   * Categories attached to this list. When empty, the list has no
+   * auto-completion or "add from categories" affordance. When non-empty,
+   * search auto-completes from products in these categories and the
+   * "add from categories" button is shown.
+   */
   categoryIds: string[];
   createdAt: string;
   updatedAt: string;

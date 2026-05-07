@@ -113,7 +113,7 @@ describe('CategoryEdit', () => {
     })
   })
 
-  it('cancel button navigates back to categories tab when opened from categories', async () => {
+  it('cancel button navigates back to the categories page', async () => {
     mockNavigate.mockClear()
     const fn = globalThis.fetch as ReturnType<typeof vi.fn>
     fn.mockImplementation((url: string) => {
@@ -124,7 +124,7 @@ describe('CategoryEdit', () => {
     })
     render(
       <Wrapper
-        initialEntries={[{ pathname: '/categories/c1/edit', state: { from: 'categories' } }]}
+        initialEntries={[{ pathname: '/categories/c1/edit' }]}
       >
         <CategoryEdit />
       </Wrapper>,
@@ -133,8 +133,6 @@ describe('CategoryEdit', () => {
       expect(screen.getByPlaceholderText('שם קטגוריה')).toBeInTheDocument()
     }, { timeout: 3000 })
     fireEvent.click(screen.getByText('ביטול'))
-    expect(mockNavigate).toHaveBeenCalledWith('/lists?tab=categories', {
-      state: { tab: 'categories' },
-    })
+    expect(mockNavigate).toHaveBeenCalledWith('/categories')
   })
 })

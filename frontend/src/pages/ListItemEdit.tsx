@@ -5,6 +5,7 @@ import {
   getList,
   getListItems,
   updateListItem,
+  updateList,
   removeListItem,
 } from '../api/lists';
 import { getCategories, getProducts, updateProduct, createCategory } from '../api/products';
@@ -16,7 +17,6 @@ import type { DisplayImageType } from '../components/DisplayImageForm';
 import { ImageSourceDialog } from '../components/ImageSourceDialog';
 import { EmojiPickerDialog } from '../components/EmojiPicker';
 import { createPortal } from 'react-dom';
-import { getFilteredCategories } from '../utils/categoryFilter';
 import type { ProductDto } from '../types';
 
 function getImageUrl(url: string | null): string {
@@ -83,7 +83,6 @@ export function ListItemEdit() {
     enabled: !!list?.workspaceId,
   });
 
-  const filteredCategories = getFilteredCategories(workspaceCategories, list);
   const item = items.find((i) => i.id === itemId);
 
   useEffect(() => {
@@ -159,6 +158,20 @@ export function ListItemEdit() {
         });
         queryClient.invalidateQueries({ queryKey: ['categories', list.workspaceId] });
         effectiveCategoryId = newCategory.id;
+        // Auto-attach the freshly-created category to the current list so that
+        // auto-completion and "add from categories" surface it without an extra step.
+        if (!list.categoryIds.includes(newCategory.id)) {
+          try {
+            await updateList(list.id, {
+              categoryIds: [...list.categoryIds, newCategory.id],
+              version: list.version,
+            });
+            queryClient.invalidateQueries({ queryKey: ['list', list.id] });
+            queryClient.invalidateQueries({ queryKey: ['lists'] });
+          } catch (err) {
+            console.warn('Failed to auto-attach new category to list', err);
+          }
+        }
       } catch (err) {
         setIsSaving(false);
         setSaveError(err instanceof ApiError ? err.message : 'שגיאה ביצירת קטגוריה');
@@ -458,7 +471,7 @@ export function ListItemEdit() {
               style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', resize: 'vertical', boxSizing: 'border-box' }}
             />
           </div>
-          {(filteredCategories.length > 0 || list?.workspaceId) && (
+          {(workspaceCategories.length > 0 || list?.workspaceId) && (
             <div>
               <CustomSelect
                 label="קטגוריה"
@@ -467,7 +480,7 @@ export function ListItemEdit() {
                 placeholder="ללא קטגוריה (אחר)"
                 options={[
                   { value: '', label: 'ללא קטגוריה (אחר)' },
-                  ...filteredCategories.map((cat) => ({
+                  ...workspaceCategories.map((cat) => ({
                     value: cat.id,
                     label: cat.nameHe,
                     icon: <CategoryIcon iconId={cat.iconId} imageUrl={cat.imageUrl} size={20} />,

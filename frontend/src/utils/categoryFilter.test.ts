@@ -15,51 +15,43 @@ const products: ProductDto[] = [
 ]
 
 describe('getFilteredCategories', () => {
-  it('returns all categories when mode is NONE', () => {
-    const result = getFilteredCategories(categories, { categoryFilterMode: 'NONE', categoryIds: [] })
-    expect(result).toEqual(categories)
+  it('returns empty array when list is null', () => {
+    expect(getFilteredCategories(categories, null)).toEqual([])
   })
 
-  it('returns all categories when list is null', () => {
-    expect(getFilteredCategories(categories, null)).toEqual(categories)
+  it('returns empty array when no categories are attached', () => {
+    expect(getFilteredCategories(categories, { categoryIds: [] })).toEqual([])
   })
 
-  it('returns only included categories in INCLUDE mode', () => {
-    const result = getFilteredCategories(categories, { categoryFilterMode: 'INCLUDE', categoryIds: ['c1', 'c3'] })
+  it('returns only the attached categories', () => {
+    const result = getFilteredCategories(categories, { categoryIds: ['c1', 'c3'] })
     expect(result).toHaveLength(2)
     expect(result.map((c) => c.id)).toEqual(['c1', 'c3'])
   })
 
-  it('excludes specified categories in EXCLUDE mode', () => {
-    const result = getFilteredCategories(categories, { categoryFilterMode: 'EXCLUDE', categoryIds: ['c2'] })
-    expect(result).toHaveLength(2)
-    expect(result.map((c) => c.id)).toEqual(['c1', 'c3'])
-  })
-
-  it('returns empty array when all categories are excluded', () => {
-    const result = getFilteredCategories(categories, { categoryFilterMode: 'EXCLUDE', categoryIds: ['c1', 'c2', 'c3'] })
-    expect(result).toHaveLength(0)
+  it('ignores attached ids that no longer exist', () => {
+    const result = getFilteredCategories(categories, { categoryIds: ['c1', 'cX'] })
+    expect(result.map((c) => c.id)).toEqual(['c1'])
   })
 })
 
 describe('getFilteredProducts', () => {
-  it('returns all products when mode is NONE', () => {
-    expect(getFilteredProducts(products, { categoryFilterMode: 'NONE', categoryIds: [] })).toEqual(products)
+  it('returns empty array when list is null', () => {
+    expect(getFilteredProducts(products, null)).toEqual([])
   })
 
-  it('returns all products when list is null', () => {
-    expect(getFilteredProducts(products, null)).toEqual(products)
+  it('returns empty array when no categories are attached', () => {
+    expect(getFilteredProducts(products, { categoryIds: [] })).toEqual([])
   })
 
-  it('returns only products from included categories', () => {
-    const result = getFilteredProducts(products, { categoryFilterMode: 'INCLUDE', categoryIds: ['c1'] })
+  it('returns only products in the attached categories', () => {
+    const result = getFilteredProducts(products, { categoryIds: ['c1'] })
     expect(result).toHaveLength(1)
     expect(result[0].nameHe).toBe('אורז')
   })
 
-  it('excludes products from excluded categories', () => {
-    const result = getFilteredProducts(products, { categoryFilterMode: 'EXCLUDE', categoryIds: ['c3'] })
-    expect(result).toHaveLength(2)
+  it('returns products across multiple attached categories', () => {
+    const result = getFilteredProducts(products, { categoryIds: ['c1', 'c2'] })
     expect(result.map((p) => p.nameHe)).toEqual(['אורז', 'עגבנייה'])
   })
 })

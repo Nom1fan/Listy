@@ -7,12 +7,11 @@ import { uploadFile } from '../api/client';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { CategoryFilterConfig } from '../components/CategoryFilterConfig';
+import { CategoryAttachPicker } from '../components/CategoryAttachPicker';
 import type { DisplayImageType } from '../components/DisplayImageForm';
 import { ImageSourceDialog } from '../components/ImageSourceDialog';
 import { EmojiPickerDialog } from '../components/EmojiPicker';
 import { createPortal } from 'react-dom';
-import type { CategoryFilterMode } from '../types';
 import type { ListResponse } from '../types';
 
 function getImageUrl(url: string | null): string {
@@ -44,8 +43,7 @@ export function ListCreate() {
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [imageSourceDialogOpen, setImageSourceDialogOpen] = useState(false);
   const [showEmojiPickerDialog, setShowEmojiPickerDialog] = useState(false);
-  const [filterMode, setFilterMode] = useState<CategoryFilterMode>('NONE');
-  const [filterCategoryIds, setFilterCategoryIds] = useState<string[]>([]);
+  const [attachedCategoryIds, setAttachedCategoryIds] = useState<string[]>([]);
   const [toast, setToast] = useState<{ message: string; isError: boolean } | null>(null);
   const [previewObjectUrl, setPreviewObjectUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,7 +65,7 @@ export function ListCreate() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (payload: { name: string; workspaceId: string; iconId?: string | null; imageUrl?: string | null; categoryFilterMode?: string; categoryIds?: string[] }) =>
+    mutationFn: (payload: { name: string; workspaceId: string; iconId?: string | null; imageUrl?: string | null; categoryIds?: string[] }) =>
       createList(payload),
     onSuccess: async (newList: ListResponse) => {
       queryClient.setQueryData<ListResponse[]>(['lists', activeWorkspaceId], (prev) => [...(prev ?? []), newList]);
@@ -111,8 +109,7 @@ export function ListCreate() {
       workspaceId: activeWorkspaceId,
       iconId: iconIdVal || undefined,
       imageUrl: imageUrlVal || undefined,
-      categoryFilterMode: filterMode,
-      categoryIds: filterCategoryIds,
+      categoryIds: attachedCategoryIds,
     });
   }
 
@@ -243,12 +240,10 @@ export function ListCreate() {
             />
           </div>
           {workspaceCategories.length > 0 && (
-            <CategoryFilterConfig
-              mode={filterMode}
-              selectedIds={filterCategoryIds}
+            <CategoryAttachPicker
+              selectedIds={attachedCategoryIds}
               categories={workspaceCategories}
-              onModeChange={setFilterMode}
-              onSelectedIdsChange={setFilterCategoryIds}
+              onSelectedIdsChange={setAttachedCategoryIds}
             />
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

@@ -48,7 +48,7 @@ public class ListController {
         if (user == null) return ResponseEntity.status(401).build();
         if (req.getWorkspaceId() == null) throw new IllegalArgumentException("חובה לציין מרחב");
         GroceryList list = listService.create(user, req.getWorkspaceId(), req.getName(), req.getIconId(), req.getImageUrl(),
-                req.getCategoryFilterMode(), req.getCategoryIds());
+                req.getCategoryIds());
         long count = listItemService.getItemCountsByListIds(List.of(list.getId())).getOrDefault(list.getId(), 0L);
         return ResponseEntity.ok(toListResponse(list, count));
     }
@@ -72,7 +72,7 @@ public class ListController {
     ) {
         if (user == null) return ResponseEntity.status(401).build();
         GroceryList list = listService.update(listId, user, req.getName(), req.getIconId(), req.getImageUrl(), req.getVersion(),
-                req.getCategoryFilterMode(), req.getCategoryIds());
+                req.getCategoryIds());
         long count = listItemService.getItemCountsByListIds(List.of(list.getId())).getOrDefault(list.getId(), 0L);
         return ResponseEntity.ok(toListResponse(list, count));
     }
@@ -154,7 +154,7 @@ public class ListController {
     }
 
     private ListResponse toListResponse(GroceryList list, long itemCount) {
-        List<UUID> categoryIds = list.getFilterCategories().stream()
+        List<UUID> categoryIds = list.getCategories().stream()
                 .map(Category::getId)
                 .toList();
         return ListResponse.builder()
@@ -164,7 +164,6 @@ public class ListController {
                 .iconId(list.getIconId())
                 .imageUrl(list.getImageUrl())
                 .sortOrder(list.getSortOrder())
-                .categoryFilterMode(list.getCategoryFilterMode().name())
                 .categoryIds(categoryIds)
                 .createdAt(list.getCreatedAt())
                 .updatedAt(list.getUpdatedAt())

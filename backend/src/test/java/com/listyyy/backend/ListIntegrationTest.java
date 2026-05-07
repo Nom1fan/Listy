@@ -476,7 +476,7 @@ class ListIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void create_list_with_include_category_filter() throws Exception {
+    void create_list_with_attached_categories() throws Exception {
         var cat2 = categoryRepository.save(
                 com.listyyy.backend.productbank.Category.builder()
                         .workspace(workspaceRepository.findById(workspaceId).orElseThrow())
@@ -488,12 +488,10 @@ class ListIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "name", "Filtered List",
+                                "name", "Attached List",
                                 "workspaceId", workspaceId.toString(),
-                                "categoryFilterMode", "INCLUDE",
                                 "categoryIds", java.util.List.of(categoryId.toString())))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.categoryFilterMode").value("INCLUDE"))
                 .andExpect(jsonPath("$.categoryIds", hasSize(1)))
                 .andExpect(jsonPath("$.categoryIds[0]").value(categoryId.toString()));
 
@@ -501,27 +499,11 @@ class ListIntegrationTest extends AbstractIntegrationTest {
 
         mvc.perform(get("/api/lists/" + listId).header("Authorization", getBearerToken()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.categoryFilterMode").value("INCLUDE"))
                 .andExpect(jsonPath("$.categoryIds", hasSize(1)));
     }
 
     @Test
-    void create_list_with_exclude_category_filter() throws Exception {
-        mvc.perform(post("/api/lists")
-                        .header("Authorization", getBearerToken())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(Map.of(
-                                "name", "Exclude List",
-                                "workspaceId", workspaceId.toString(),
-                                "categoryFilterMode", "EXCLUDE",
-                                "categoryIds", java.util.List.of(categoryId.toString())))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.categoryFilterMode").value("EXCLUDE"))
-                .andExpect(jsonPath("$.categoryIds", hasSize(1)));
-    }
-
-    @Test
-    void create_list_defaults_to_none_filter() throws Exception {
+    void create_list_defaults_to_no_attached_categories() throws Exception {
         mvc.perform(post("/api/lists")
                         .header("Authorization", getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -529,66 +511,59 @@ class ListIntegrationTest extends AbstractIntegrationTest {
                                 "name", "Default List",
                                 "workspaceId", workspaceId.toString()))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.categoryFilterMode").value("NONE"))
                 .andExpect(jsonPath("$.categoryIds", hasSize(0)));
     }
 
     @Test
-    void update_list_category_filter() throws Exception {
-        String listId = createList("No filter");
+    void update_list_attaches_and_detaches_categories() throws Exception {
+        String listId = createList("No attached");
 
         mvc.perform(get("/api/lists/" + listId).header("Authorization", getBearerToken()))
-                .andExpect(jsonPath("$.categoryFilterMode").value("NONE"));
+                .andExpect(jsonPath("$.categoryIds", hasSize(0)));
 
+        // Attach a category
         mvc.perform(put("/api/lists/" + listId)
                         .header("Authorization", getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "categoryFilterMode", "INCLUDE",
                                 "categoryIds", java.util.List.of(categoryId.toString())))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.categoryFilterMode").value("INCLUDE"))
                 .andExpect(jsonPath("$.categoryIds", hasSize(1)));
 
-        // Switch back to NONE
+        // Detach all by sending an empty list
         mvc.perform(put("/api/lists/" + listId)
                         .header("Authorization", getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "categoryFilterMode", "NONE"))))
+                                "categoryIds", java.util.List.of()))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.categoryFilterMode").value("NONE"))
                 .andExpect(jsonPath("$.categoryIds", hasSize(0)));
     }
 
     @Test
-    void update_list_without_filter_fields_preserves_existing_filter() throws Exception {
-        // Create list with include filter
+    void update_list_without_categoryIds_preserves_attached_categories() throws Exception {
         ResultActions create = mvc.perform(post("/api/lists")
                         .header("Authorization", getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "name", "Filtered",
+                                "name", "Attached",
                                 "workspaceId", workspaceId.toString(),
-                                "categoryFilterMode", "INCLUDE",
                                 "categoryIds", java.util.List.of(categoryId.toString())))))
                 .andExpect(status().isOk());
         String listId = objectMapper.readTree(create.andReturn().getResponse().getContentAsString()).get("id").asText();
 
-        // Update only name, filter should be preserved
+        // Update only name, attached categories should be preserved
         mvc.perform(put("/api/lists/" + listId)
                         .header("Authorization", getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of("name", "Renamed"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("Renamed"))
-                .andExpect(jsonPath("$.categoryFilterMode").value("INCLUDE"))
                 .andExpect(jsonPath("$.categoryIds", hasSize(1)));
     }
 
     @Test
-    void category_filter_rejects_category_from_other_workspace() throws Exception {
-        // Create another workspace with its own category
+    void attach_rejects_category_from_other_workspace() throws Exception {
         var ws2 = workspaceRepository.save(
                 com.listyyy.backend.workspace.Workspace.builder().name("Other WS").build());
         workspaceMemberRepository.save(
@@ -603,15 +578,14 @@ class ListIntegrationTest extends AbstractIntegrationTest {
                         .header("Authorization", getBearerToken())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
-                                "name", "Bad filter",
+                                "name", "Bad attach",
                                 "workspaceId", workspaceId.toString(),
-                                "categoryFilterMode", "INCLUDE",
                                 "categoryIds", java.util.List.of(otherCat.getId().toString())))))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
-    void delete_category_removes_it_from_list_filter() throws Exception {
+    void delete_category_removes_it_from_list_attachments() throws Exception {
         var cat2 = categoryRepository.save(
                 com.listyyy.backend.productbank.Category.builder()
                         .workspace(workspaceRepository.findById(workspaceId).orElseThrow())
@@ -625,21 +599,18 @@ class ListIntegrationTest extends AbstractIntegrationTest {
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "name", "Cascade test",
                                 "workspaceId", workspaceId.toString(),
-                                "categoryFilterMode", "INCLUDE",
                                 "categoryIds", java.util.List.of(categoryId.toString(), cat2.getId().toString())))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.categoryIds", hasSize(2)));
         String listId = objectMapper.readTree(create.andReturn().getResponse().getContentAsString()).get("id").asText();
 
-        // Delete cat2 via API
         mvc.perform(delete("/api/categories/" + cat2.getId())
                         .header("Authorization", getBearerToken()))
                 .andExpect(status().isNoContent());
 
-        // List should now only have one category in filter
+        // List should now have only one attached category
         mvc.perform(get("/api/lists/" + listId).header("Authorization", getBearerToken()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.categoryFilterMode").value("INCLUDE"))
                 .andExpect(jsonPath("$.categoryIds", hasSize(1)))
                 .andExpect(jsonPath("$.categoryIds[0]").value(categoryId.toString()));
     }

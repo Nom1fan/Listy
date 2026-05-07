@@ -1,26 +1,28 @@
 import type { CategoryDto, ListResponse, ProductDto } from '../types';
 
+/**
+ * Returns categories attached to the list. With no list or no attached
+ * categories, returns an empty array — the list opts out of auto-completion
+ * and "add from categories" surfaces.
+ */
 export function getFilteredCategories(
   allCategories: CategoryDto[],
-  list: Pick<ListResponse, 'categoryFilterMode' | 'categoryIds'> | null | undefined
+  list: Pick<ListResponse, 'categoryIds'> | null | undefined
 ): CategoryDto[] {
-  if (!list || list.categoryFilterMode === 'NONE') return allCategories;
+  if (!list || !list.categoryIds || list.categoryIds.length === 0) return [];
   const idSet = new Set(list.categoryIds);
-  if (list.categoryFilterMode === 'INCLUDE') {
-    return allCategories.filter((c) => idSet.has(c.id));
-  }
-  // EXCLUDE
-  return allCategories.filter((c) => !idSet.has(c.id));
+  return allCategories.filter((c) => idSet.has(c.id));
 }
 
+/**
+ * Returns products in the categories attached to the list. With no list or no
+ * attached categories, returns an empty array.
+ */
 export function getFilteredProducts(
   allProducts: ProductDto[],
-  list: Pick<ListResponse, 'categoryFilterMode' | 'categoryIds'> | null | undefined
+  list: Pick<ListResponse, 'categoryIds'> | null | undefined
 ): ProductDto[] {
-  if (!list || list.categoryFilterMode === 'NONE') return allProducts;
+  if (!list || !list.categoryIds || list.categoryIds.length === 0) return [];
   const idSet = new Set(list.categoryIds);
-  if (list.categoryFilterMode === 'INCLUDE') {
-    return allProducts.filter((p) => idSet.has(p.categoryId));
-  }
-  return allProducts.filter((p) => !idSet.has(p.categoryId));
+  return allProducts.filter((p) => idSet.has(p.categoryId));
 }

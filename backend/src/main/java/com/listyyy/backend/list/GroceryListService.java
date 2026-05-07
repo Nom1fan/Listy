@@ -44,21 +44,19 @@ public class GroceryListService {
 
     @Transactional
     public GroceryList create(User user, UUID workspaceId, String name, String iconId, String imageUrl,
-                              String categoryFilterModeStr, List<UUID> categoryIds) {
+                              List<UUID> categoryIds) {
         Workspace workspace = workspaceAccessService.getWorkspaceOrThrow(workspaceId, user);
         String listName = name != null && !name.isBlank() ? name : "רשימה חדשה";
         if (listRepository.existsByWorkspaceIdAndName(workspaceId, listName)) {
             throw new IllegalArgumentException("כבר קיימת רשימה בשם זה במרחב");
         }
-        CategoryFilterMode filterMode = parseCategoryFilterMode(categoryFilterModeStr);
-        Set<Category> filterCategories = resolveFilterCategories(filterMode, categoryIds, workspaceId);
+        Set<Category> attachedCategories = resolveAttachedCategories(categoryIds, workspaceId);
         GroceryList list = GroceryList.builder()
                 .name(listName)
                 .workspace(workspace)
                 .iconId(iconId)
                 .imageUrl(imageUrl)
-                .categoryFilterMode(filterMode)
-                .filterCategories(filterCategories)
+                .categories(attachedCategories)
                 .build();
         list = listRepository.save(list);
         workspaceEventPublisher.publish(workspaceId, WorkspaceEvent.EntityType.LIST,
@@ -77,7 +75,7 @@ public class GroceryListService {
 
     @Transactional
     public GroceryList update(UUID listId, User user, String name, String iconId, String imageUrl, Long clientVersion,
-                              String categoryFilterModeStr, List<UUID> categoryIds) {
+                              List<UUID> categoryIds) {
         GroceryList list = get(listId, user);
         if (!listAccessService.canEdit(user, listId)) throw new AccessDeniedException("אין הרשאה לערוך");
         VersionCheck.check(clientVersion, list.getVersion());
@@ -89,10 +87,8 @@ public class GroceryListService {
         }
         if (iconId != null) list.setIconId(iconId.isBlank() ? null : iconId);
         if (imageUrl != null) list.setImageUrl(imageUrl.isBlank() ? null : imageUrl);
-        if (categoryFilterModeStr != null) {
-            CategoryFilterMode filterMode = parseCategoryFilterMode(categoryFilterModeStr);
-            list.setCategoryFilterMode(filterMode);
-            list.setFilterCategories(resolveFilterCategories(filterMode, categoryIds, list.getWorkspace().getId()));
+        if (categoryIds != null) {
+            list.setCategories(resolveAttachedCategories(categoryIds, list.getWorkspace().getId()));
         }
         list = listRepository.save(list);
         workspaceEventPublisher.publish(list.getWorkspace().getId(), WorkspaceEvent.EntityType.LIST,
@@ -125,23 +121,14 @@ public class GroceryListService {
         String name = list.getName();
         // Delete children first to stay portable across DBs (H2 tests don't have ON DELETE CASCADE).
         listItemRepository.deleteByListId(listId);
-        listRepository.removeFilterCategoryEntriesByListId(listId);
+        listRepository.removeListCategoryEntriesByListId(listId);
         listRepository.delete(list);
         workspaceEventPublisher.publish(wsId, WorkspaceEvent.EntityType.LIST,
                 WorkspaceEvent.Action.DELETED, listId, name, user);
     }
 
-    private CategoryFilterMode parseCategoryFilterMode(String mode) {
-        if (mode == null || mode.isBlank()) return CategoryFilterMode.NONE;
-        try {
-            return CategoryFilterMode.valueOf(mode.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("מצב סינון קטגוריות לא חוקי: " + mode);
-        }
-    }
-
-    private Set<Category> resolveFilterCategories(CategoryFilterMode mode, List<UUID> categoryIds, UUID workspaceId) {
-        if (mode == CategoryFilterMode.NONE || categoryIds == null || categoryIds.isEmpty()) {
+    private Set<Category> resolveAttachedCategories(List<UUID> categoryIds, UUID workspaceId) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
             return new HashSet<>();
         }
         List<Category> categories = categoryRepository.findAllById(categoryIds);

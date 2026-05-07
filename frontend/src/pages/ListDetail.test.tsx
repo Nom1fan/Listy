@@ -38,7 +38,6 @@ const mockList = {
   iconId: null,
   imageUrl: null,
   sortOrder: 0,
-  categoryFilterMode: 'NONE' as const,
   categoryIds: [] as string[],
   createdAt: '2025-01-01',
   updatedAt: '2025-01-01',
@@ -1675,80 +1674,143 @@ describe('ListDetail', () => {
     })
   })
 
-  describe.skip('category filter on quick-add (modal removed)', () => {
-    const allCategories = [
-      { id: 'c1', nameHe: 'מוצרי חלב', iconId: 'dairy', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', addCount: 5, version: 1 },
-      { id: 'c2', nameHe: 'מאפים', iconId: 'bakery', imageUrl: null, sortOrder: 1, workspaceId: 'ws1', addCount: 3, version: 1 },
-      { id: 'c3', nameHe: 'ניקיון', iconId: 'clean', imageUrl: null, sortOrder: 2, workspaceId: 'ws1', addCount: 1, version: 1 },
+  describe('attached categories – empty-state CTA and add-from-categories button', () => {
+    const workspaceCategories = [
+      { id: 'c1', nameHe: 'מוצרי חלב', iconId: 'dairy', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', version: 1 },
+      { id: 'c2', nameHe: 'מאפים', iconId: 'bakery', imageUrl: null, sortOrder: 1, workspaceId: 'ws1', version: 1 },
     ]
-    const allProducts = [
-      { id: 'p1', categoryId: 'c1', categoryNameHe: 'מוצרי חלב', categoryIconId: 'dairy', nameHe: 'חלב', defaultUnit: 'ליטר', imageUrl: null, note: null, addCount: 5, version: 0 },
-      { id: 'p2', categoryId: 'c2', categoryNameHe: 'מאפים', categoryIconId: 'bakery', nameHe: 'לחם', defaultUnit: 'יחידה', imageUrl: null, note: null, addCount: 3, version: 0 },
-      { id: 'p3', categoryId: 'c3', categoryNameHe: 'ניקיון', categoryIconId: 'clean', nameHe: 'סבון כלים', defaultUnit: 'יחידה', imageUrl: null, note: null, addCount: 1, version: 0 },
+    const workspaceProducts = [
+      { id: 'p1', categoryId: 'c1', categoryNameHe: 'מוצרי חלב', categoryIconId: 'dairy', nameHe: 'יוגורט', defaultUnit: 'יחידה', imageUrl: null, iconId: null, note: null, addCount: 0, version: 0 },
     ]
 
-    function mockFilteredFetch(listOverride: Record<string, unknown> = {}) {
+    function mockEmptyListWithCategories(listOverride: Record<string, unknown> = {}) {
       const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
-      fetchMock.mockImplementation((url: string) => {
+      fetchMock.mockImplementation((url: string, opts?: RequestInit) => {
         if (url.includes('/api/lists/list1/items')) {
-          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockItems) })
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+        }
+        if (url.includes('/api/lists/list1') && (opts?.method === 'PUT' || opts?.method === 'PATCH')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ ...mockList, ...listOverride, categoryIds: ['c1', 'c2'], version: 1 }),
+          })
         }
         if (url.includes('/api/lists/list1')) {
-          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ ...mockList, ...listOverride }) })
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ ...mockList, ...listOverride }),
+          })
         }
         if (url.includes('/api/categories')) {
-          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(allCategories) })
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(workspaceCategories) })
         }
         if (url.includes('/api/products')) {
-          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(allProducts) })
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(workspaceProducts) })
         }
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
       })
     }
 
-    it('shows all categories in dropdown when mode is NONE', async () => {
-      mockFilteredFetch()
+    it('shows empty-state attach CTA when list has no items and no attached categories', async () => {
+      mockEmptyListWithCategories()
       render(<Wrapper><ListDetail /></Wrapper>)
-      await waitFor(() => { expect(screen.getByText('חלב')).toBeInTheDocument() })
-
-      fireEvent.click(screen.getByRole('button', { name: /הוסף פריט/i }))
-      await waitFor(() => { expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument() })
-
-      fireEvent.click(screen.getByRole('combobox', { name: 'קטגוריה' }))
-      const options = screen.getAllByRole('option')
-      // "ללא קטגוריה" + 3 categories
-      expect(options).toHaveLength(4)
+      await waitFor(() => {
+        expect(screen.getByTestId('empty-state-attach-categories')).toBeInTheDocument()
+      })
+      expect(screen.getByText(/צרפו קטגוריות לרשימה זו/)).toBeInTheDocument()
     })
 
-    it('shows only included categories in dropdown when mode is INCLUDE', async () => {
-      mockFilteredFetch({ categoryFilterMode: 'INCLUDE', categoryIds: ['c1'] })
+    it('does not show empty-state attach CTA when list already has attached categories', async () => {
+      mockEmptyListWithCategories({ categoryIds: ['c1'] })
       render(<Wrapper><ListDetail /></Wrapper>)
-      await waitFor(() => { expect(screen.getByText('חלב')).toBeInTheDocument() })
-
-      fireEvent.click(screen.getByRole('button', { name: /הוסף פריט/i }))
-      await waitFor(() => { expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument() })
-
-      fireEvent.click(screen.getByRole('combobox', { name: 'קטגוריה' }))
-      const options = screen.getAllByRole('option')
-      // "ללא קטגוריה" + 1 included category
-      expect(options).toHaveLength(2)
-      expect(options[1]).toHaveTextContent('מוצרי חלב')
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('הוסף / חפש פריט')).toBeInTheDocument()
+      })
+      expect(screen.queryByTestId('empty-state-attach-categories')).not.toBeInTheDocument()
     })
 
-    it('excludes categories in dropdown when mode is EXCLUDE', async () => {
-      mockFilteredFetch({ categoryFilterMode: 'EXCLUDE', categoryIds: ['c3'] })
+    it('clicking empty-state CTA opens attach categories dialog and saving PATCHes the list', async () => {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      mockEmptyListWithCategories()
       render(<Wrapper><ListDetail /></Wrapper>)
-      await waitFor(() => { expect(screen.getByText('חלב')).toBeInTheDocument() })
+      await waitFor(() => {
+        expect(screen.getByTestId('empty-state-attach-categories')).toBeInTheDocument()
+      })
 
-      fireEvent.click(screen.getByRole('button', { name: /הוסף פריט/i }))
-      await waitFor(() => { expect(screen.getByText('הוסף פריט לרשימה')).toBeInTheDocument() })
+      fireEvent.click(screen.getByTestId('empty-state-attach-categories'))
+      await waitFor(() => {
+        expect(screen.getByText('צירוף קטגוריות לרשימה')).toBeInTheDocument()
+      })
 
-      fireEvent.click(screen.getByRole('combobox', { name: 'קטגוריה' }))
-      const options = screen.getAllByRole('option')
-      // "ללא קטגוריה" + 2 categories (c3 excluded)
-      expect(options).toHaveLength(3)
-      const optionTexts = options.map((o) => o.textContent)
-      expect(optionTexts).not.toContain('ניקיון')
+      fireEvent.click(screen.getByLabelText('מוצרי חלב'))
+      fireEvent.click(screen.getByLabelText('מאפים'))
+
+      fireEvent.click(screen.getByTestId('attach-categories-save'))
+
+      await waitFor(() => {
+        const putCall = fetchMock.mock.calls.find(
+          ([url, opts]) =>
+            typeof url === 'string' &&
+            url.includes('/api/lists/list1') &&
+            (opts as RequestInit | undefined)?.method === 'PUT'
+        )
+        expect(putCall).toBeTruthy()
+        const body = JSON.parse(((putCall![1] as RequestInit).body as string) || '{}')
+        expect(body.categoryIds).toEqual(['c1', 'c2'])
+      })
+    })
+
+    it('does not show "add from categories" button when no categories are attached', async () => {
+      mockEmptyListWithCategories()
+      render(<Wrapper><ListDetail /></Wrapper>)
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText('הוסף / חפש פריט')).toBeInTheDocument()
+      })
+      expect(screen.queryByTestId('add-from-categories-button')).not.toBeInTheDocument()
+    })
+
+    it('shows "add from categories" button when at least one category is attached', async () => {
+      mockEmptyListWithCategories({ categoryIds: ['c1'] })
+      render(<Wrapper><ListDetail /></Wrapper>)
+      await waitFor(() => {
+        expect(screen.getByTestId('add-from-categories-button')).toBeInTheDocument()
+      })
+    })
+
+    it('clicking "add from categories" button opens the product-bank bottom-sheet', async () => {
+      mockEmptyListWithCategories({ categoryIds: ['c1'] })
+      render(<Wrapper><ListDetail /></Wrapper>)
+      await waitFor(() => {
+        expect(screen.getByTestId('add-from-categories-button')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByTestId('add-from-categories-button'))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('product-bank-sheet')).toBeInTheDocument()
+      })
+      expect(screen.getByTestId('product-bank-view')).toBeInTheDocument()
+    })
+
+    it('closing the product-bank sheet hides it', async () => {
+      mockEmptyListWithCategories({ categoryIds: ['c1'] })
+      render(<Wrapper><ListDetail /></Wrapper>)
+      await waitFor(() => {
+        expect(screen.getByTestId('add-from-categories-button')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByTestId('add-from-categories-button'))
+      await waitFor(() => {
+        expect(screen.getByTestId('product-bank-sheet')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByLabelText('סגור'))
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('product-bank-sheet')).not.toBeInTheDocument()
+      })
     })
   })
 })

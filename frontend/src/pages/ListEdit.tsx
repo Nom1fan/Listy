@@ -6,12 +6,11 @@ import { getCategories } from '../api/products';
 import { uploadFile } from '../api/client';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
-import { CategoryFilterConfig } from '../components/CategoryFilterConfig';
+import { CategoryAttachPicker } from '../components/CategoryAttachPicker';
 import type { DisplayImageType } from '../components/DisplayImageForm';
 import { ImageSourceDialog } from '../components/ImageSourceDialog';
 import { EmojiPickerDialog } from '../components/EmojiPicker';
 import { createPortal } from 'react-dom';
-import type { CategoryFilterMode } from '../types';
 
 function getImageUrl(url: string | null): string {
   if (!url) return '';
@@ -41,8 +40,7 @@ export function ListEdit() {
   const [imageUrl, setImageUrl] = useState('');
   const [imageSourceDialogOpen, setImageSourceDialogOpen] = useState(false);
   const [showEmojiPickerDialog, setShowEmojiPickerDialog] = useState(false);
-  const [filterMode, setFilterMode] = useState<CategoryFilterMode>('NONE');
-  const [filterCategoryIds, setFilterCategoryIds] = useState<string[]>([]);
+  const [attachedCategoryIds, setAttachedCategoryIds] = useState<string[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -64,13 +62,12 @@ export function ListEdit() {
       setDisplayImageType(list.imageUrl ? 'link' : 'icon');
       setIconId(list.iconId ?? '');
       setImageUrl(list.imageUrl ?? '');
-      setFilterMode(list.categoryFilterMode ?? 'NONE');
-      setFilterCategoryIds(list.categoryIds ?? []);
+      setAttachedCategoryIds(list.categoryIds ?? []);
     }
   }, [list]);
 
   const updateMutation = useMutation({
-    mutationFn: (payload: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number; categoryFilterMode?: string; categoryIds?: string[] }) =>
+    mutationFn: (payload: { name?: string; iconId?: string | null; imageUrl?: string | null; version?: number; categoryIds?: string[] }) =>
       updateList(listId!, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['list', listId] });
@@ -113,13 +110,12 @@ export function ListEdit() {
     const nameVal = name.trim() || list.name;
     const iconIdVal = displayImageType === 'icon' ? (iconId || '') : '';
     const imageUrlVal = (displayImageType === 'link' || displayImageType === 'web') ? (imageUrl.trim() || '') : '';
-    const filterPayload = { categoryFilterMode: filterMode, categoryIds: filterCategoryIds };
     updateMutation.mutate({
       name: nameVal,
       iconId: iconIdVal || undefined,
       imageUrl: imageUrlVal || undefined,
       version: list.version,
-      ...filterPayload,
+      categoryIds: attachedCategoryIds,
     });
   }
 
@@ -138,18 +134,17 @@ export function ListEdit() {
   const initialDisplayType: DisplayImageType = list.imageUrl ? 'link' : 'icon';
   const initialIconId = list.iconId ?? '';
   const initialImageUrl = list.imageUrl ?? '';
-  const initialFilterIds = list.categoryIds ?? [];
-  const filterIdsChanged =
-    filterMode !== (list.categoryFilterMode ?? 'NONE') ||
-    filterCategoryIds.length !== initialFilterIds.length ||
-    [...filterCategoryIds].sort().join(',') !== [...initialFilterIds].sort().join(',');
+  const initialAttachedIds = list.categoryIds ?? [];
+  const attachedIdsChanged =
+    attachedCategoryIds.length !== initialAttachedIds.length ||
+    [...attachedCategoryIds].sort().join(',') !== [...initialAttachedIds].sort().join(',');
   const isLinkOrWeb = displayImageType === 'link' || displayImageType === 'web';
   const hasChanges =
     name.trim() !== (list.name ?? '').trim() ||
     displayImageType !== initialDisplayType ||
     (displayImageType === 'icon' && (iconId || '') !== initialIconId) ||
     (isLinkOrWeb && (imageUrl.trim() || '') !== (initialImageUrl || '').trim()) ||
-    filterIdsChanged;
+    attachedIdsChanged;
 
   const currentImageUrl = imageUrl.trim() || (list?.imageUrl ?? '');
   const showImage = isLinkOrWeb ? currentImageUrl : null;
@@ -244,12 +239,10 @@ export function ListEdit() {
             />
           </div>
           {workspaceCategories.length > 0 && (
-            <CategoryFilterConfig
-              mode={filterMode}
-              selectedIds={filterCategoryIds}
+            <CategoryAttachPicker
+              selectedIds={attachedCategoryIds}
               categories={workspaceCategories}
-              onModeChange={setFilterMode}
-              onSelectedIdsChange={setFilterCategoryIds}
+              onSelectedIdsChange={setAttachedCategoryIds}
             />
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>

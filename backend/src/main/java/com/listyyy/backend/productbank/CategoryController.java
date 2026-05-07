@@ -148,12 +148,12 @@ public class CategoryController {
         if (!categoryAccessService.isWorkspaceOwner(user, id)) {
             throw new AccessDeniedException("רק בעל המרחב יכול למחוק קטגוריה");
         }
-        // Explicitly remove list items, products, and list-category filter entries
+        // Explicitly remove list items, products, and list-category attachments
         // before deleting the category, for H2 test compatibility (no ON DELETE CASCADE).
         listItemRepository.deleteByProductCategoryId(id);
         productRepository.findByCategoryIdOrderByNameHe(id)
                 .forEach(p -> productRepository.delete(p));
-        groceryListRepository.removeFilterCategoryEntriesByCategoryId(id);
+        groceryListRepository.removeListCategoryEntriesByCategoryId(id);
         UUID wsId = c.getWorkspace().getId();
         String name = c.getNameHe();
         categoryRepository.delete(c);

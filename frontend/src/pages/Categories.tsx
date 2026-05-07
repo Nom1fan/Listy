@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, createCategory, createProduct, deleteCategory, deleteProduct, reorderCategories } from '../api/products';
 import { useWorkspaceStore } from '../store/workspaceStore';
 import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
+import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import type { CategoryDto, ProductDto, WorkspaceEvent } from '../types';
@@ -284,6 +285,8 @@ export function Categories() {
           {productImageToast.isError ? '✕ ' : '✓ '}{productImageToast.message}
         </div>
       )}
+      <AppBar title="קטגוריות" backTo="/lists" />
+      <main style={{ padding: 16, direction: 'rtl' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
         {showCreateModal ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -569,7 +572,7 @@ export function Categories() {
                       >
                         <button
                           type="button"
-                          onClick={() => { setCategoryMenuOpenId(null); navigate(`/categories/${c.id}/edit`, { state: { from: 'categories' } }); }}
+                          onClick={() => { setCategoryMenuOpenId(null); navigate(`/categories/${c.id}/edit`); }}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -863,6 +866,7 @@ export function Categories() {
         </div>
       )}
 
+      </main>
     </>
   );
 }

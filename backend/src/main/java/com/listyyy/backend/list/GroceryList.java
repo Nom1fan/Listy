@@ -38,11 +38,12 @@ public class GroceryList {
     @Builder.Default
     private int sortOrder = 0;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "category_filter_mode", nullable = false, length = 10)
-    @Builder.Default
-    private CategoryFilterMode categoryFilterMode = CategoryFilterMode.NONE;
-
+    /**
+     * Categories attached to this list. When empty, the list has no
+     * auto-completion or "add from categories" surface. When non-empty,
+     * search auto-completes from products in these categories and the
+     * "add from categories" UI is enabled.
+     */
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "list_categories",
@@ -50,7 +51,7 @@ public class GroceryList {
             inverseJoinColumns = @JoinColumn(name = "category_id")
     )
     @Builder.Default
-    private Set<Category> filterCategories = new HashSet<>();
+    private Set<Category> categories = new HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "workspace_id", nullable = false)

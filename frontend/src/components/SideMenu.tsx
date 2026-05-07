@@ -127,6 +127,11 @@ export function SideMenu() {
             הפרופיל שלי
           </Link>
 
+          <Link to="/categories" onClick={close} style={menuItemStyle}>
+            <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>🏷️</span>
+            ניהול קטגוריות
+          </Link>
+
           <button type="button" onClick={handleSupport} style={menuItemStyle}>
             <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>💬</span>
             פנייה לתמיכה

@@ -79,7 +79,7 @@ describe('Lists', () => {
     expect(screen.getByRole('link', { name: /List One/i })).toHaveAttribute('href', '/lists/1')
   })
 
-  it('has tab for categories', async () => {
+  it('does not show categories tab on the home page', async () => {
     const fn = globalThis.fetch as ReturnType<typeof vi.fn>
     fn.mockImplementation((url: string) => {
       if (url.includes('/api/workspaces')) {
@@ -93,9 +93,10 @@ describe('Lists', () => {
       </Wrapper>
     )
     await waitFor(() => {
-      expect(screen.getByText('קטגוריות')).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /הוסף רשימה/i })).toBeInTheDocument()
     })
-    expect(screen.getByRole('button', { name: 'קטגוריות' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'קטגוריות' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'רשימות' })).not.toBeInTheDocument()
   })
 
   it('clicking FAB navigates to list create page', async () => {
@@ -137,7 +138,6 @@ describe('Lists', () => {
       iconId: null,
       imageUrl: null,
       sortOrder: 0,
-      categoryFilterMode: 'NONE' as const,
       categoryIds: [] as string[],
       createdAt: '',
       updatedAt: '',

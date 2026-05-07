@@ -22,6 +22,7 @@ import {
   getListItems,
   addListItem,
   updateListItem,
+  updateList,
   removeListItem,
   deleteList,
   reorderListItems,
@@ -30,7 +31,9 @@ import { getCategories, getProducts } from '../api/products';
 import { useListEvents } from '../hooks/useListEvents';
 import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { AppBar } from '../components/AppBar';
+import { CategoryAttachPicker } from '../components/CategoryAttachPicker';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { ProductBankView } from '../components/ProductBankView';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import { getFilteredProducts } from '../utils/categoryFilter';
 import type { ListItemResponse, ListEvent, WorkspaceEvent, ProductDto } from '../types';
@@ -179,6 +182,9 @@ export function ListDetail() {
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set());
   const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
   const [highlightedCategoryName, setHighlightedCategoryName] = useState<string | null>(null);
+  const [attachCategoriesOpen, setAttachCategoriesOpen] = useState(false);
+  const [attachCategoriesDraft, setAttachCategoriesDraft] = useState<string[]>([]);
+  const [productBankSheetOpen, setProductBankSheetOpen] = useState(false);
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -358,6 +364,24 @@ export function ListDetail() {
       navigate('/lists');
     },
   });
+
+  const attachCategoriesMutation = useMutation({
+    mutationFn: (categoryIds: string[]) =>
+      updateList(listId, { categoryIds, version: list?.version }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['list', listId] });
+      queryClient.invalidateQueries({ queryKey: ['lists'] });
+      setAttachCategoriesOpen(false);
+    },
+    onError: (err: Error) => {
+      showNotification(err.message || 'שגיאה בעדכון הקטגוריות', true);
+    },
+  });
+
+  function openAttachCategoriesDialog() {
+    setAttachCategoriesDraft(list?.categoryIds ?? []);
+    setAttachCategoriesOpen(true);
+  }
 
   const deleteMarkedMutation = useMutation({
     mutationFn: async (itemIds: string[]) => {
@@ -741,55 +765,102 @@ export function ListDetail() {
 
         {!isLoading && (
           <>
-            <div style={{ position: 'relative', marginBottom: 12 }}>
-              <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
-                <SearchIcon size={18} color="#999" />
+            <div style={{ position: 'relative', marginBottom: 12, display: 'flex', alignItems: 'stretch', gap: 8 }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+                <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
+                  <SearchIcon size={18} color="#999" />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onBlur={() => setTimeout(() => setShowAddSuggestion(false), 150)}
+                  placeholder="הוסף / חפש פריט"
+                  style={{
+                    width: '100%',
+                    padding: '10px 40px 10px 36px',
+                    borderRadius: 10,
+                    border: '1px solid #ddd',
+                    fontSize: 15,
+                    background: '#f8f8f8',
+                    boxSizing: 'border-box',
+                    outline: 'none',
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchQuery(''); setShowAddSuggestion(false); }}
+                    aria-label="נקה"
+                    style={{
+                      position: 'absolute',
+                      left: 8,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '2px 6px',
+                      fontSize: 16,
+                      color: '#999',
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onBlur={() => setTimeout(() => setShowAddSuggestion(false), 150)}
-                placeholder="הוסף / חפש פריט"
-                style={{
-                  width: '100%',
-                  padding: '10px 40px 10px 36px',
-                  borderRadius: 10,
-                  border: '1px solid #ddd',
-                  fontSize: 15,
-                  background: '#f8f8f8',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                }}
-              />
-              {searchQuery && (
+              {list && list.categoryIds.length >= 1 && (
                 <button
                   type="button"
-                  onClick={() => { setSearchQuery(''); setShowAddSuggestion(false); }}
-                  aria-label="נקה"
+                  onClick={() => setProductBankSheetOpen(true)}
+                  aria-label="הוסף מקטגוריות"
+                  data-testid="add-from-categories-button"
                   style={{
-                    position: 'absolute',
-                    left: 8,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
+                    flexShrink: 0,
+                    padding: '0 14px',
+                    borderRadius: 10,
+                    border: '1px solid var(--color-primary)',
+                    background: 'var(--color-primary)',
+                    color: '#fff',
+                    fontSize: 14,
+                    fontWeight: 600,
                     cursor: 'pointer',
-                    padding: '2px 6px',
-                    fontSize: 16,
-                    color: '#999',
-                    lineHeight: 1,
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
                   }}
                 >
-                  ✕
+                  + מקטגוריות
                 </button>
               )}
               {addSearchDropdown}
             </div>
             {items.length === 0 && !searchQuery.trim() && (
-              <p style={{ fontSize: 14, color: '#999', margin: '8px 0 12px', textAlign: 'center' }}>
-                הרשימה ריקה — הוסיפו פריטים או חפשו
-              </p>
+              <div style={{ margin: '8px 0 12px', textAlign: 'center' }}>
+                <p style={{ fontSize: 14, color: '#999', margin: 0 }}>
+                  הרשימה ריקה — הוסיפו פריטים או חפשו
+                </p>
+                {list && list.categoryIds.length === 0 && (
+                  <button
+                    type="button"
+                    onClick={openAttachCategoriesDialog}
+                    data-testid="empty-state-attach-categories"
+                    style={{
+                      marginTop: 6,
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--color-primary)',
+                      fontSize: 14,
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      padding: 0,
+                    }}
+                  >
+                    צרפו קטגוריות לרשימה זו לאוטו-השלמה והוספה מהמאגר
+                  </button>
+                )}
+              </div>
             )}
             {items.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -1666,6 +1737,164 @@ export function ListDetail() {
                 >
                   לא
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {attachCategoriesOpen && list && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="attach-categories-title"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1001,
+              padding: 16,
+            }}
+            onClick={() => !attachCategoriesMutation.isPending && setAttachCategoriesOpen(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#fff',
+                borderRadius: 16,
+                padding: 20,
+                maxWidth: 420,
+                width: '100%',
+                maxHeight: '85vh',
+                overflowY: 'auto',
+                direction: 'rtl',
+              }}
+            >
+              <h3 id="attach-categories-title" style={{ margin: '0 0 12px', fontSize: 18 }}>
+                צירוף קטגוריות לרשימה
+              </h3>
+              <p style={{ margin: '0 0 12px', fontSize: 13, color: '#666', lineHeight: 1.5 }}>
+                בחרו קטגוריות לצירוף. הפריטים שלהן יוצעו באוטו-השלמה ובכפתור &quot;הוספה מקטגוריות&quot;.
+              </p>
+              <CategoryAttachPicker
+                selectedIds={attachCategoriesDraft}
+                categories={workspaceCategories}
+                onSelectedIdsChange={setAttachCategoriesDraft}
+                label=""
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                <button
+                  type="button"
+                  onClick={() => attachCategoriesMutation.mutate(attachCategoriesDraft)}
+                  disabled={attachCategoriesMutation.isPending}
+                  data-testid="attach-categories-save"
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    background: 'var(--color-primary)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    borderRadius: 8,
+                    border: 'none',
+                    cursor: attachCategoriesMutation.isPending ? 'not-allowed' : 'pointer',
+                    fontSize: 15,
+                  }}
+                >
+                  {attachCategoriesMutation.isPending ? 'שומר...' : 'שמור'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAttachCategoriesOpen(false)}
+                  disabled={attachCategoriesMutation.isPending}
+                  style={{
+                    flex: 1,
+                    padding: 12,
+                    background: '#eee',
+                    borderRadius: 8,
+                    border: 'none',
+                    cursor: attachCategoriesMutation.isPending ? 'not-allowed' : 'pointer',
+                    fontSize: 15,
+                  }}
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {productBankSheetOpen && list && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="product-bank-sheet-title"
+            data-testid="product-bank-sheet"
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0,0,0,0.5)',
+              display: 'flex',
+              alignItems: 'flex-end',
+              justifyContent: 'center',
+              zIndex: 1500,
+            }}
+            onClick={() => setProductBankSheetOpen(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#fff',
+                width: '100%',
+                maxWidth: 640,
+                maxHeight: '92vh',
+                borderRadius: '20px 20px 0 0',
+                boxShadow: '0 -8px 24px rgba(0,0,0,0.15)',
+                display: 'flex',
+                flexDirection: 'column',
+                direction: 'rtl',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 16px',
+                  borderBottom: '1px solid #eee',
+                  position: 'sticky',
+                  top: 0,
+                  background: '#fff',
+                  borderRadius: '20px 20px 0 0',
+                  zIndex: 1,
+                }}
+              >
+                <h3 id="product-bank-sheet-title" style={{ margin: 0, fontSize: 17, fontWeight: 600 }}>
+                  הוסף מקטגוריות
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setProductBankSheetOpen(false)}
+                  aria-label="סגור"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: 22,
+                    color: '#666',
+                    cursor: 'pointer',
+                    padding: '4px 10px',
+                    lineHeight: 1,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+                <ProductBankView
+                  listId={list.id}
+                  onItemAdded={(name) => showNotification(name ? `${name} נוסף לרשימה` : 'נוסף לרשימה')}
+                />
               </div>
             </div>
           </div>

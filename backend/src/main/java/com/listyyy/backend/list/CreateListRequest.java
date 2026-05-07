@@ -12,6 +12,6 @@ public class CreateListRequest {
     private String iconId;
     private String imageUrl;
     private UUID workspaceId;
-    private String categoryFilterMode;
+    /** Categories to attach to the list. Empty/null means no categories attached. */
     private List<UUID> categoryIds;
 }

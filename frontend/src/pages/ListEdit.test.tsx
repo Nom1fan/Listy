@@ -28,7 +28,6 @@ const mockList = {
   iconId: null,
   imageUrl: null,
   sortOrder: 0,
-  categoryFilterMode: 'NONE' as const,
   categoryIds: [] as string[],
   createdAt: '',
   updatedAt: '',

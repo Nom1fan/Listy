@@ -20,7 +20,7 @@ const ListEdit = lazy(() => import('./pages/ListEdit').then((m) => ({ default: m
 const ListCreate = lazy(() => import('./pages/ListCreate').then((m) => ({ default: m.ListCreate })));
 const ProductEdit = lazy(() => import('./pages/ProductEdit').then((m) => ({ default: m.ProductEdit })));
 const CategoryEdit = lazy(() => import('./pages/CategoryEdit').then((m) => ({ default: m.CategoryEdit })));
-const ProductBank = lazy(() => import('./pages/ProductBank').then((m) => ({ default: m.ProductBank })));
+const Categories = lazy(() => import('./pages/Categories').then((m) => ({ default: m.Categories })));
 const ShareWorkspace = lazy(() => import('./pages/ShareWorkspace').then((m) => ({ default: m.ShareWorkspace })));
 const Profile = lazy(() => import('./pages/Profile').then((m) => ({ default: m.Profile })));
 const Privacy = lazy(() => import('./pages/Privacy').then((m) => ({ default: m.Privacy })));
@@ -127,14 +127,6 @@ function AppShell() {
           }
         />
         <Route
-          path="/lists/:listId/bank"
-          element={
-            <PrivateRoute>
-              <ProductBank />
-            </PrivateRoute>
-          }
-        />
-        <Route
           path="/lists/:listId"
           element={
             <PrivateRoute>
@@ -150,7 +142,14 @@ function AppShell() {
             </PrivateRoute>
           }
         />
-        <Route path="/categories" element={<Navigate to="/lists" replace />} />
+        <Route
+          path="/categories"
+          element={
+            <PrivateRoute>
+              <Categories />
+            </PrivateRoute>
+          }
+        />
         <Route
           path="/workspaces/:workspaceId/share"
           element={

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategory, updateCategory, deleteCategory } from '../api/products';
 import { uploadFile } from '../api/client';
@@ -31,9 +31,7 @@ export function CategoryEdit() {
   const { categoryId } = useParams<{ categoryId: string }>();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const location = useLocation();
-  const fromCategories = location.state?.from === 'categories';
-  const backTo = fromCategories ? '/lists?tab=categories' : '/lists';
+  const backTo = '/categories';
 
   const [nameHe, setNameHe] = useState('');
   const [displayImageType, setDisplayImageType] = useState<DisplayImageType>('icon');
@@ -114,7 +112,7 @@ export function CategoryEdit() {
   if (!category) {
     return (
       <>
-        <AppBar title="ערוך קטגוריה" backTo={backTo} backToState={fromCategories ? { tab: 'categories' } : undefined} />
+        <AppBar title="ערוך קטגוריה" backTo={backTo} />
         <main style={{ padding: 16 }}><p>טוען...</p></main>
       </>
     );
@@ -135,7 +133,7 @@ export function CategoryEdit() {
 
   return (
     <>
-      <AppBar title="ערוך קטגוריה" backTo={backTo} backToState={fromCategories ? { tab: 'categories' } : undefined} />
+      <AppBar title="ערוך קטגוריה" backTo={backTo} />
       <main style={{ padding: 16, maxWidth: 480, margin: '0 auto' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
           <button
@@ -242,7 +240,7 @@ export function CategoryEdit() {
             </button>
             <button
               type="button"
-              onClick={() => navigate(backTo, { state: fromCategories ? { tab: 'categories' } : undefined })}
+              onClick={() => navigate(backTo)}
               style={{ padding: 12, background: '#eee', borderRadius: 8, border: 'none', cursor: 'pointer' }}
             >
               ביטול

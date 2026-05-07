@@ -17,7 +17,7 @@ public class ListResponse {
     private String iconId;
     private String imageUrl;
     private int sortOrder;
-    private String categoryFilterMode;
+    /** Categories currently attached to this list (empty when none). */
     private List<UUID> categoryIds;
     private Instant createdAt;
     private Instant updatedAt;

@@ -13,6 +13,10 @@ public class UpdateListRequest {
     private String imageUrl;
     /** Optimistic-locking version from the client; null skips the check. */
     private Long version;
-    private String categoryFilterMode;
+    /**
+     * Categories to attach to the list. When non-null, replaces the current
+     * attached set (empty list detaches all). When null, the attached set
+     * is left unchanged.
+     */
     private List<UUID> categoryIds;
 }

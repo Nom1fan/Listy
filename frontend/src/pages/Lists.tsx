@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getLists, deleteList, reorderLists } from '../api/lists';
 import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, getMyWorkspaceInvitations } from '../api/workspaces';
@@ -10,8 +10,6 @@ import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { CustomSelect } from '../components/CustomSelect';
 import { getUserDisplayLabel } from '../utils/user';
-import { WorkspaceTabs, type TabKey } from '../components/WorkspaceTabs';
-import { Categories } from './Categories';
 import type { ListResponse, WorkspaceEvent, WorkspaceDto } from '../types';
 
 function PencilIcon({ size = 18, color = '#666' }: { size?: number; color?: string }) {
@@ -37,27 +35,12 @@ function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: strin
 }
 
 export function Lists() {
-  const [searchParams] = useSearchParams();
-  const location = useLocation();
-  const tabFromUrl = searchParams.get('tab');
-  const tabFromState = (location.state as { tab?: TabKey } | null)?.tab;
-  const [activeTab, setActiveTab] = useState<TabKey>(() => {
-    if (tabFromState === 'categories' || tabFromState === 'lists') return tabFromState;
-    return tabFromUrl === 'categories' ? 'categories' : 'lists';
-  });
   const [toast, setToast] = useState<{ message: string; isError: boolean } | null>(null);
   const queryClient = useQueryClient();
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
-
-  // Keep activeTab in sync with ?tab= URL or location state (e.g. when returning from category edit)
-  useEffect(() => {
-    if (tabFromState === 'categories' || tabFromState === 'lists') setActiveTab(tabFromState);
-    else if (tabFromUrl === 'categories') setActiveTab('categories');
-    else if (tabFromUrl === 'lists') setActiveTab('lists');
-  }, [tabFromUrl, tabFromState]);
   const setActiveWorkspace = useWorkspaceStore((s) => s.setActiveWorkspace);
   const clearActiveWorkspace = useWorkspaceStore((s) => s.clearActiveWorkspace);
 
@@ -629,16 +612,8 @@ export function Lists() {
           </div>
         )}
 
-        {/* Tabs */}
-        <div style={{ padding: '0 16px', background: '#f8f9fa' }}>
-          <WorkspaceTabs activeTab={activeTab} onChange={setActiveTab} />
-        </div>
-
-        {/* Tab content */}
         <div style={{ padding: 16 }}>
-        {activeTab === 'lists' ? (
-          <>
-        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
           <Link
             to="/lists/new"
             style={{
@@ -654,11 +629,15 @@ export function Lists() {
               boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
               pointerEvents: activeWorkspaceId ? 'auto' : 'none',
               textDecoration: 'none',
+              flexShrink: 0,
             }}
             aria-label="הוסף רשימה"
           >
             +
           </Link>
+          <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: '#1a1a1a' }}>
+            רשימות
+          </h2>
         </div>
         {isLoading ? (
           <p>טוען...</p>
@@ -853,11 +832,6 @@ export function Lists() {
               </li>
             ))}
           </ul>
-        )}
-
-          </>
-        ) : (
-          <Categories />
         )}
         </div>
 

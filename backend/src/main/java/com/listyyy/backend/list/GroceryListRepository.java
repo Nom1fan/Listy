@@ -24,9 +24,9 @@ public interface GroceryListRepository extends JpaRepository<GroceryList, UUID> 
 
     @Modifying
     @Query(value = "DELETE FROM list_categories WHERE category_id = :categoryId", nativeQuery = true)
-    void removeFilterCategoryEntriesByCategoryId(UUID categoryId);
+    void removeListCategoryEntriesByCategoryId(UUID categoryId);
 
     @Modifying
     @Query(value = "DELETE FROM list_categories WHERE list_id = :listId", nativeQuery = true)
-    void removeFilterCategoryEntriesByListId(UUID listId);
+    void removeListCategoryEntriesByListId(UUID listId);
 }

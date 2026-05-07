@@ -13,7 +13,6 @@ export async function createList(body: {
   workspaceId: string;
   iconId?: string | null;
   imageUrl?: string | null;
-  categoryFilterMode?: string;
   categoryIds?: string[];
 }): Promise<ListResponse> {
   return api<ListResponse>('/api/lists', {
@@ -33,7 +32,6 @@ export async function updateList(
     iconId?: string | null;
     imageUrl?: string | null;
     version?: number;
-    categoryFilterMode?: string;
     categoryIds?: string[];
   }
 ): Promise<ListResponse> {
