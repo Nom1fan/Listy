@@ -2,13 +2,17 @@ package com.listyyy.backend;
 
 import com.listyyy.backend.auth.User;
 import com.listyyy.backend.auth.UserRepository;
+import com.listyyy.backend.productbank.Category;
+import com.listyyy.backend.productbank.Product;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.ResultActions;
 
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -46,6 +50,48 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
         mvc.perform(get("/api/workspaces").header("Authorization", getBearerToken()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    void create_workspace_seeds_builtin_catalog_without_attaching_categories_to_lists() throws Exception {
+        ResultActions create = mvc.perform(post("/api/workspaces")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("name", "קטלוג מובנה"))))
+                .andExpect(status().isOk());
+        UUID newWorkspaceId = UUID.fromString(objectMapper.readTree(create.andReturn().getResponse().getContentAsString()).get("id").asText());
+
+        List<Category> categories = categoryRepository.findByWorkspaceId(newWorkspaceId);
+        assertThat(categories)
+                .extracting(Category::getNameHe)
+                .contains("סופרמרקט", "ז'אנרים", "מסעדות", "נסיעות", "מתנות", "משימות לבית", "בילויים");
+
+        Category supermarket = categories.stream()
+                .filter(category -> category.getNameHe().equals("סופרמרקט"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(supermarket.getIconId()).isEqualTo("🛒");
+        assertThat(productRepository.findByCategoryIdOrderByNameHe(supermarket.getId()))
+                .extracting(Product::getNameHe)
+                .contains("טופו", "גבינה טבעונית", "חלב סויה", "חלב שקדים", "לחם", "אורז");
+
+        Category genres = categories.stream()
+                .filter(category -> category.getNameHe().equals("ז'אנרים"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(productRepository.findByCategoryIdOrderByNameHe(genres.getId()))
+                .extracting(Product::getNameHe)
+                .contains("אימה", "קומדיה", "פנטזיה", "מדע בדיוני");
+
+        mvc.perform(post("/api/lists")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "name", "רשימה בלי קטגוריות מצורפות",
+                                "workspaceId", newWorkspaceId.toString()))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categoryIds").isArray())
+                .andExpect(jsonPath("$.categoryIds.length()").value(0));
     }
 
     @Test
@@ -142,7 +188,7 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
      */
     @Test
     void accept_invitation_returns_204_no_content_with_empty_body() throws Exception {
-        User other = userRepository.save(User.builder()
+        userRepository.save(User.builder()
                 .email("other@example.com")
                 .passwordHash(passwordEncoder.encode("pass123"))
                 .displayName("Other")
@@ -247,7 +293,7 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
         userRepository.save(testUser);
 
         // Create other user with profile image
-        User other = userRepository.save(User.builder()
+        userRepository.save(User.builder()
                 .email("other@example.com")
                 .passwordHash(passwordEncoder.encode("pass123"))
                 .displayName("Other User")

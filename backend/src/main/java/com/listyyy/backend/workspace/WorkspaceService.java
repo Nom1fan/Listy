@@ -5,6 +5,9 @@ import com.listyyy.backend.auth.UserRepository;
 import com.listyyy.backend.exception.AccessDeniedException;
 import com.listyyy.backend.exception.ResourceNotFoundException;
 import com.listyyy.backend.exception.VersionCheck;
+import com.listyyy.backend.productbank.BuiltInProductCatalog;
+import com.listyyy.backend.productbank.CategoryRepository;
+import com.listyyy.backend.productbank.ProductRepository;
 import com.listyyy.backend.sharing.InviteRequest;
 import com.listyyy.backend.sharing.ListMemberDto;
 import com.listyyy.backend.websocket.UserEventPublisher;
@@ -33,6 +36,9 @@ public class WorkspaceService {
     private final WorkspaceEventPublisher workspaceEventPublisher;
     private final UserEventPublisher userEventPublisher;
     private final FcmService fcmService;
+    private final BuiltInProductCatalog builtInProductCatalog;
+    private final CategoryRepository categoryRepository;
+    private final ProductRepository productRepository;
 
     public List<WorkspaceDto> listWorkspaces(User user) {
         List<Workspace> workspaces = workspaceRepository.findVisibleToUser(user.getId());
@@ -75,6 +81,7 @@ public class WorkspaceService {
                 .role("owner")
                 .build();
         workspaceMemberRepository.save(member);
+        builtInProductCatalog.seedWorkspace(workspace);
         return workspace;
     }
 
@@ -121,6 +128,10 @@ public class WorkspaceService {
         }
         workspaceInvitationRepository.deleteByWorkspaceId(workspaceId);
         workspaceMemberRepository.deleteByWorkspaceId(workspaceId);
+        categoryRepository.findByWorkspaceId(workspaceId).forEach(category -> {
+            productRepository.deleteAll(productRepository.findByCategoryIdOrderByNameHe(category.getId()));
+            categoryRepository.delete(category);
+        });
         workspaceRepository.deleteById(workspaceId);
     }
 
