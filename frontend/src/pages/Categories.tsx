@@ -63,7 +63,7 @@ function ChevronRightIcon({ size = 20, color = '#555' }: { size?: number; color?
   );
 }
 
-type CategoriesLocationState = { highlightCategoryId?: string; highlightProductId?: string } | null;
+type CategoriesLocationState = { highlightCategoryId?: string; highlightProductId?: string; expandedCategoryIds?: string[] } | null;
 
 export function Categories() {
   const navigate = useNavigate();
@@ -73,6 +73,7 @@ export function Categories() {
   const locationState = location.state as CategoriesLocationState;
   const [viewMode, setViewMode] = useViewMode('categories');
   const [nameHe, setNameHe] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [addProductCategoryId, setAddProductCategoryId] = useState<string | null>(null);
   const [newProductName, setNewProductName] = useState('');
   const [productImageToast, setProductImageToast] = useState<{ message: string; isError: boolean } | null>(null);
@@ -88,7 +89,7 @@ export function Categories() {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const [orderedCategories, setOrderedCategories] = useState<CategoryDto[] | null>(null);
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => new Set());
+  const [expandedCategoryIds, setExpandedCategoryIds] = useState<Set<string>>(() => new Set(locationState?.expandedCategoryIds ?? []));
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories', activeWorkspaceId],
@@ -145,9 +146,9 @@ export function Categories() {
       queryClient.invalidateQueries({ queryKey: ['products'] });
       setNewProductName('');
       setAddProductCategoryId(null);
-      setCollapsedCategories((prev) => {
+      setExpandedCategoryIds((prev) => {
         const next = new Set(prev);
-        next.delete(newProduct.categoryId);
+        next.add(newProduct.categoryId);
         return next;
       });
       setHighlightedProductId(newProduct.id);
@@ -172,7 +173,26 @@ export function Categories() {
     },
   });
 
-  const displayCategories = orderedCategories ?? categories;
+  const searchText = searchQuery.trim().toLowerCase();
+  const isSearching = searchText.length > 0;
+
+  function productMatchesSearch(product: ProductDto) {
+    return product.nameHe.toLowerCase().includes(searchText) || (product.note ?? '').toLowerCase().includes(searchText);
+  }
+
+  const filteredCategories = categories.filter((category) => {
+    if (!isSearching) return true;
+    return category.nameHe.toLowerCase().includes(searchText) || (productsByCategory[category.id] || []).some(productMatchesSearch);
+  });
+
+  const displayCategories = isSearching ? filteredCategories : (orderedCategories ?? categories);
+
+  function getVisibleProducts(category: CategoryDto) {
+    const products = productsByCategory[category.id] || [];
+    if (!isSearching) return products;
+    if (category.nameHe.toLowerCase().includes(searchText)) return products;
+    return products.filter(productMatchesSearch);
+  }
 
   const handleDragStart = useCallback((index: number) => {
     setDragIndex(index);
@@ -226,14 +246,15 @@ export function Categories() {
   useEffect(() => {
     const categoryId = locationState?.highlightCategoryId;
     if (!categoryId || displayCategories.length === 0) return;
-    setCollapsedCategories((prev) => {
-      const next = new Set(prev);
-      next.delete(categoryId);
+    setExpandedCategoryIds((prev) => {
+      const next = new Set(locationState?.expandedCategoryIds ?? prev);
+      next.add(categoryId);
       return next;
     });
-    setHighlightedCategoryId(categoryId);
     if (locationState?.highlightProductId) {
       setHighlightedProductId(locationState.highlightProductId);
+    } else {
+      setHighlightedCategoryId(categoryId);
     }
   }, [locationState?.highlightCategoryId, locationState?.highlightProductId, displayCategories.length]);
 
@@ -252,6 +273,22 @@ export function Categories() {
       nameHe: name,
       defaultUnit: 'יחידה',
     });
+  }
+
+  function toggleCategory(categoryId: string) {
+    setExpandedCategoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(categoryId)) next.delete(categoryId);
+      else next.add(categoryId);
+      return next;
+    });
+  }
+
+  function productEditState() {
+    return {
+      from: 'categories',
+      expandedCategoryIds: Array.from(expandedCategoryIds),
+    };
   }
 
   /** Show unit only when set and not the default "יחידה" (same behavior as list item display). */
@@ -384,7 +421,7 @@ export function Categories() {
             <>
               <button
                 type="button"
-                onClick={() => setCollapsedCategories(new Set())}
+                onClick={() => setExpandedCategoryIds(new Set(displayCategories.map((c) => c.id)))}
                 title="פתח את כל הקטגוריות"
                 aria-label="פתח את כל הקטגוריות"
                 style={{
@@ -402,7 +439,7 @@ export function Categories() {
               </button>
               <button
                 type="button"
-                onClick={() => setCollapsedCategories(new Set(displayCategories.map((c) => c.id)))}
+                onClick={() => setExpandedCategoryIds(new Set())}
                 title="סגור את כל הקטגוריות"
                 aria-label="סגור את כל הקטגוריות"
                 style={{
@@ -424,21 +461,71 @@ export function Categories() {
         </div>
       </div>
 
-        {displayCategories.length === 0 && (
+        <div style={{ position: 'relative', marginBottom: 12 }}>
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="חיפוש קטגוריות ופריטים"
+            style={{
+              width: '100%',
+              padding: searchQuery ? '10px 12px 10px 44px' : '10px 12px',
+              borderRadius: 10,
+              border: '1px solid #ddd',
+              fontSize: 15,
+              boxSizing: 'border-box',
+              background: '#fff',
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              aria-label="נקה חיפוש"
+              style={{
+                position: 'absolute',
+                left: 8,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                color: '#666',
+                fontSize: 18,
+                lineHeight: 1,
+                padding: 6,
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        {displayCategories.length === 0 && !isSearching && (
           <p style={{ fontSize: 14, color: '#999', margin: '8px 0 12px', textAlign: 'center' }}>
             עדיין אין קטגוריות — לחצו על + כדי ליצור קטגוריה ראשונה
           </p>
         )}
+        {displayCategories.length === 0 && isSearching && (
+          <p style={{ fontSize: 14, color: '#999', margin: '8px 0 12px', textAlign: 'center' }}>
+            לא נמצאו קטגוריות או פריטים תואמים
+          </p>
+        )}
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {displayCategories.map((c, index) => (
+          {displayCategories.map((c, index) => {
+            const visibleProducts = getVisibleProducts(c);
+            const categoryExpanded = isSearching || expandedCategoryIds.has(c.id);
+            return (
             <li
               key={c.id}
-              draggable
+              draggable={!isSearching}
               onDragStart={(e) => {
+                if (isSearching) return;
                 e.dataTransfer.effectAllowed = 'move';
                 handleDragStart(index);
               }}
               onDragOver={(e) => {
+                if (isSearching) return;
                 e.preventDefault();
                 handleDragOver(index);
               }}
@@ -478,16 +565,11 @@ export function Categories() {
                 <button
                   type="button"
                   onClick={() => {
-                    setCollapsedCategories((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(c.id)) next.delete(c.id);
-                      else next.add(c.id);
-                      return next;
-                    });
+                    toggleCategory(c.id);
                     setHighlightedCategoryId(c.id);
                   }}
-                  aria-expanded={!collapsedCategories.has(c.id)}
-                  aria-label={collapsedCategories.has(c.id) ? `פתח קטגוריה ${c.nameHe}` : `סגור קטגוריה ${c.nameHe}`}
+                  aria-expanded={categoryExpanded}
+                  aria-label={categoryExpanded ? `סגור קטגוריה ${c.nameHe}` : `פתח קטגוריה ${c.nameHe}`}
                   style={{
                     flex: 1,
                     display: 'flex',
@@ -503,21 +585,16 @@ export function Categories() {
                   }}
                 >
                   <span>{c.nameHe}</span>
-                  <span style={{ fontSize: 13, fontWeight: 400, color: '#666', opacity: 0.9 }}>{(productsByCategory[c.id] || []).length}</span>
+                  <span style={{ fontSize: 13, fontWeight: 400, color: '#666', opacity: 0.9 }}>{visibleProducts.length}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    setCollapsedCategories((prev) => {
-                      const next = new Set(prev);
-                      if (next.has(c.id)) next.delete(c.id);
-                      else next.add(c.id);
-                      return next;
-                    });
+                    toggleCategory(c.id);
                     setHighlightedCategoryId(c.id);
                   }}
-                  aria-expanded={!collapsedCategories.has(c.id)}
-                  aria-label={collapsedCategories.has(c.id) ? `פתח קטגוריה ${c.nameHe}` : `סגור קטגוריה ${c.nameHe}`}
+                  aria-expanded={categoryExpanded}
+                  aria-label={categoryExpanded ? `סגור קטגוריה ${c.nameHe}` : `פתח קטגוריה ${c.nameHe}`}
                   style={{
                     background: 'none',
                     border: 'none',
@@ -530,7 +607,7 @@ export function Categories() {
                     color: '#555',
                   }}
                 >
-                  {collapsedCategories.has(c.id) ? <ChevronRightIcon size={22} color="#555" /> : <ChevronDownIcon size={22} color="#555" />}
+                  {categoryExpanded ? <ChevronDownIcon size={22} color="#555" /> : <ChevronRightIcon size={22} color="#555" />}
                 </button>
                 <div style={{ position: 'relative', flexShrink: 0 }}>
                   <button
@@ -617,21 +694,21 @@ export function Categories() {
                 </div>
               </div>
 
-              {!collapsedCategories.has(c.id) && (
+              {categoryExpanded && (
               <div style={{ padding: '0 12px 12px 12px', borderTop: '1px solid #eee', marginTop: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8, marginTop: 8 }}>פריטים בקטגוריה</div>
-                  {!(productsByCategory[c.id]?.length) && addProductCategoryId !== c.id && (
+                  {!(visibleProducts.length) && addProductCategoryId !== c.id && (
                     <p style={{ fontSize: 14, color: '#999', margin: '8px 0 12px', textAlign: 'center' }}>
                       הקטגוריה ריקה — הוסיפו פריטים לקטגוריה
                     </p>
                   )}
                   {viewMode === 'list' ? (
                   <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px 0' }}>
-                    {(productsByCategory[c.id] || []).map((p) => (
+                    {visibleProducts.map((p) => (
                       <li
                         key={p.id}
                         ref={(el) => { productRefs.current[p.id] = el; }}
-                        onClick={() => navigate(`/products/${p.id}/edit`, { state: { from: 'categories' } })}
+                        onClick={() => navigate(`/products/${p.id}/edit`, { state: productEditState() })}
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -657,7 +734,7 @@ export function Categories() {
                         )}
                         <button
                           type="button"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}/edit`, { state: { from: 'categories' } }); }}
+                          onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}/edit`, { state: productEditState() }); }}
                           aria-label="ערוך פריט"
                           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
                         >
@@ -676,11 +753,11 @@ export function Categories() {
                   </ul>
                   ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 12 }}>
-                    {(productsByCategory[c.id] || []).map((p) => (
+                    {visibleProducts.map((p) => (
                       <div
                         key={p.id}
                         ref={(el) => { productRefs.current[p.id] = el; }}
-                        onClick={() => navigate(`/products/${p.id}/edit`, { state: { from: 'categories' } })}
+                        onClick={() => navigate(`/products/${p.id}/edit`, { state: productEditState() })}
                         style={{
                           position: 'relative',
                           padding: 10,
@@ -698,7 +775,7 @@ export function Categories() {
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, width: '100%' }}>
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}/edit`, { state: { from: 'categories' } }); }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}/edit`, { state: productEditState() }); }}
                             aria-label="ערוך פריט"
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
                           >
@@ -793,7 +870,8 @@ export function Categories() {
                 </div>
               )}
             </li>
-          ))}
+          );
+          })}
         </ul>
 
       {confirmDeleteCategory && (

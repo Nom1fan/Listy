@@ -24,11 +24,13 @@ export function ProductBankView({ listId, onItemAdded }: ProductBankViewProps) {
   const [viewMode, setViewMode] = useViewMode('product-bank');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [search, setSearch] = useState('');
+  const [collapsedCategoryIds, setCollapsedCategoryIds] = useState<Set<string>>(() => new Set());
   const [addModal, setAddModal] = useState<ProductDto | null>(null);
   const [quantity, setQuantity] = useState('1');
   const [note, setNote] = useState('');
   const [toast, setToast] = useState<{ message: string; isError: boolean } | null>(null);
   const queryClient = useQueryClient();
+  const knownCategoryIdsRef = useRef<Set<string>>(new Set());
 
   const [editProduct, setEditProduct] = useState<ProductDto | null>(null);
   const [editProductName, setEditProductName] = useState('');
@@ -83,6 +85,31 @@ export function ProductBankView({ listId, onItemAdded }: ProductBankViewProps) {
       .filter((c) => productsByCategory[c.id]?.length)
       .map((c) => c.id);
   }, [showGroupedByCategory, categories, productsByCategory]);
+
+  useEffect(() => {
+    const ids = new Set(categoryOrder);
+    setCollapsedCategoryIds((prev) => {
+      const next = new Set([...prev].filter((id) => ids.has(id)));
+      let changed = next.size !== prev.size;
+      for (const id of ids) {
+        if (!knownCategoryIdsRef.current.has(id)) {
+          next.add(id);
+          changed = true;
+        }
+      }
+      knownCategoryIdsRef.current = ids;
+      return changed ? next : prev;
+    });
+  }, [categoryOrder]);
+
+  function toggleCategory(catId: string) {
+    setCollapsedCategoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
+      return next;
+    });
+  }
 
   const addMutation = useMutation({
     mutationFn: (body: { productId?: string; customNameHe?: string; quantity?: number; unit?: string; note?: string }) =>
@@ -265,23 +292,37 @@ export function ProductBankView({ listId, onItemAdded }: ProductBankViewProps) {
           {categoryOrder.map((catId) => {
             const cat = categories.find((c) => c.id === catId);
             const catProducts = productsByCategory[catId] ?? [];
+            const collapsed = collapsedCategoryIds.has(catId);
             if (!cat || catProducts.length === 0) return null;
             return (
               <section key={catId} style={{ marginBottom: 20 }}>
-                <div
+                <button
+                  type="button"
+                  onClick={() => toggleCategory(catId)}
+                  aria-expanded={!collapsed}
+                  aria-label={collapsed ? `פתח קטגוריה ${cat.nameHe}` : `סגור קטגוריה ${cat.nameHe}`}
                   style={{
+                    width: '100%',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
                     marginBottom: 10,
                     paddingBottom: 6,
                     borderBottom: '1px solid #e0e0e0',
+                    borderTop: 'none',
+                    borderLeft: 'none',
+                    borderRight: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'right',
                   }}
                 >
                   <CategoryIcon iconId={cat.iconId} imageUrl={cat.imageUrl} size={24} />
                   <span style={{ fontWeight: 600, fontSize: 15 }}>{cat.nameHe}</span>
-                </div>
-                {viewMode === 'grid' ? (
+                  <span style={{ fontSize: 13, color: '#666' }}>{catProducts.length}</span>
+                  <span style={{ marginInlineStart: 'auto', color: '#555' }}>{collapsed ? '›' : '⌄'}</span>
+                </button>
+                {!collapsed && (viewMode === 'grid' ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
                   {catProducts.map((p) => (
                     <button
@@ -352,7 +393,7 @@ export function ProductBankView({ listId, onItemAdded }: ProductBankViewProps) {
                     </li>
                   ))}
                 </ul>
-                )}
+                ))}
               </section>
             );
           })}

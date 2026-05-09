@@ -19,6 +19,7 @@ function Wrapper({ children, initialEntries = ['/lists'] }: { children: React.Re
       <QueryClientProvider client={queryClient}>
         <Routes>
           <Route path="/lists" element={children} />
+          <Route path="/categories" element={<Categories />} />
           <Route path="/categories/:categoryId/edit" element={<CategoryEdit />} />
           <Route path="/products/:productId/edit" element={<ProductEdit />} />
         </Routes>
@@ -70,6 +71,10 @@ describe('Categories', () => {
       }
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
     })
+  }
+
+  function expandCategory(name: string) {
+    fireEvent.click(screen.getAllByRole('button', { name: new RegExp(`פתח קטגוריה ${name}`) })[0])
   }
 
   it('loads and displays categories', async () => {
@@ -146,7 +151,67 @@ describe('Categories', () => {
     })
   })
 
-  it('when navigating with highlightCategoryId and highlightProductId in location state, expands and highlights that category', async () => {
+  it('starts with categories collapsed by default', async () => {
+    mockFetchWithProducts()
+    render(
+      <Wrapper>
+        <Categories />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText(/מכולת/)).toBeInTheDocument()
+    })
+    expect(screen.getAllByRole('button', { name: /פתח קטגוריה מכולת/ })[0]).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('אורז')).not.toBeInTheDocument()
+  })
+
+  it('searches products and expands categories with matching products', async () => {
+    mockFetchWithProducts()
+    render(
+      <Wrapper>
+        <Categories />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText(/מכולת/)).toBeInTheDocument()
+    })
+
+    fireEvent.change(screen.getByPlaceholderText('חיפוש קטגוריות ופריטים'), { target: { value: 'אורז' } })
+
+    expect(screen.getByText('מכולת')).toBeInTheDocument()
+    expect(screen.getByText('אורז')).toBeInTheDocument()
+    expect(screen.queryByText('ירקות')).not.toBeInTheDocument()
+    expect(screen.queryByText('עגבניות')).not.toBeInTheDocument()
+  })
+
+  it('searches categories and clears back to default collapsed state', async () => {
+    mockFetchWithProducts()
+    render(
+      <Wrapper>
+        <Categories />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText(/מכולת/)).toBeInTheDocument()
+    })
+
+    const searchInput = screen.getByPlaceholderText('חיפוש קטגוריות ופריטים')
+    fireEvent.change(searchInput, { target: { value: 'ירקות' } })
+
+    expect(screen.queryByText('מכולת')).not.toBeInTheDocument()
+    expect(screen.getByText('ירקות')).toBeInTheDocument()
+    expect(screen.getByText('עגבניות')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /נקה חיפוש/i }))
+
+    expect((searchInput as HTMLInputElement).value).toBe('')
+    expect(screen.getByText('מכולת')).toBeInTheDocument()
+    expect(screen.getByText('ירקות')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: /פתח קטגוריה מכולת/ })[0]).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('אורז')).not.toBeInTheDocument()
+  })
+
+  it('when navigating with highlightCategoryId and highlightProductId in location state, expands category and highlights only that product', async () => {
     mockFetchWithProducts()
     render(
       <Wrapper initialEntries={[{ pathname: '/lists', state: { highlightCategoryId: 'c1', highlightProductId: 'p1' } }]}>
@@ -158,9 +223,10 @@ describe('Categories', () => {
     })
     await waitFor(() => {
       const row = screen.getByText('מכולת').closest('li')
-      expect(row).toHaveStyle({ background: '#e8f5e9' })
+      expect(row).toHaveStyle({ background: '#fff' })
     })
-    expect(screen.getByText('אורז')).toBeInTheDocument()
+    const productRow = screen.getByText('אורז').closest('li')
+    expect(productRow).toHaveStyle({ background: '#e8f5e9' })
   })
 
   it('category row kebab has edit and delete; edit navigates to category edit page', async () => {
@@ -211,9 +277,12 @@ describe('Categories', () => {
         </Wrapper>
       )
       await waitFor(() => {
-        expect(screen.getByText('אורז')).toBeInTheDocument()
-        expect(screen.getByText('עגבניות')).toBeInTheDocument()
+        expect(screen.getByText(/מכולת/)).toBeInTheDocument()
       })
+      expandCategory('מכולת')
+      expandCategory('ירקות')
+      expect(screen.getByText('אורז')).toBeInTheDocument()
+      expect(screen.getByText('עגבניות')).toBeInTheDocument()
     })
 
     it('shows pencil (edit) and trash buttons for products', async () => {
@@ -224,8 +293,10 @@ describe('Categories', () => {
         </Wrapper>
       )
       await waitFor(() => {
-        expect(screen.getByText('אורז')).toBeInTheDocument()
+        expect(screen.getByText(/מכולת/)).toBeInTheDocument()
       })
+      expandCategory('מכולת')
+      expandCategory('ירקות')
       const editButtons = screen.getAllByRole('button', { name: /ערוך פריט/i })
       const deleteButtons = screen.getAllByRole('button', { name: /מחק פריט/i })
       expect(editButtons.length).toBeGreaterThanOrEqual(2)
@@ -243,14 +314,136 @@ describe('Categories', () => {
         </Wrapper>
       )
       await waitFor(() => {
-        expect(screen.getByText('אורז')).toBeInTheDocument()
+        expect(screen.getByText(/מכולת/)).toBeInTheDocument()
       })
+      expandCategory('מכולת')
       const editButtons = screen.getAllByRole('button', { name: /ערוך פריט/i })
       fireEvent.click(editButtons[0])
       await waitFor(() => {
         expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
       })
       expect(screen.getByDisplayValue('אורז')).toBeInTheDocument()
+    })
+
+    it('saving from product edit returns to category management', async () => {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+        if (typeof url === 'string' && url.includes('/api/products/p1') && init?.method === 'PATCH') {
+          const body = JSON.parse((init.body as string) || '{}')
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ ...mockProducts[0], ...body, id: 'p1', version: 2 }),
+          })
+        }
+        if (typeof url === 'string' && url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategories) })
+        }
+        if (typeof url === 'string' && url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockProducts) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/products/p1/edit', state: { from: 'categories' } }]}>
+          <QueryClientProvider client={queryClient}>
+            <Routes>
+              <Route path="/products/:productId/edit" element={<ProductEdit />} />
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/lists" element={<div>Lists screen</div>} />
+            </Routes>
+          </QueryClientProvider>
+        </MemoryRouter>
+      )
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('אורז')).toBeInTheDocument()
+      })
+      fireEvent.change(screen.getByDisplayValue('אורז'), { target: { value: 'אורז מלא' } })
+      fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'קטגוריות' })).toBeInTheDocument()
+      })
+      expect(screen.queryByText('Lists screen')).not.toBeInTheDocument()
+    })
+
+    it('preserves expanded categories when returning from editing a product', async () => {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+        if (typeof url === 'string' && url.includes('/api/products/p1') && init?.method === 'PATCH') {
+          const body = JSON.parse((init.body as string) || '{}')
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ ...mockProducts[0], ...body, id: 'p1', version: 2 }),
+          })
+        }
+        if (typeof url === 'string' && url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategories) })
+        }
+        if (typeof url === 'string' && url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockProducts) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+      render(
+        <MemoryRouter initialEntries={['/categories']}>
+          <QueryClientProvider client={queryClient}>
+            <Routes>
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/products/:productId/edit" element={<ProductEdit />} />
+            </Routes>
+          </QueryClientProvider>
+        </MemoryRouter>
+      )
+      await waitFor(() => {
+        expect(screen.getByText(/מכולת/)).toBeInTheDocument()
+      })
+      expandCategory('מכולת')
+      expandCategory('ירקות')
+      fireEvent.click(screen.getByText('אורז'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+      fireEvent.change(screen.getByDisplayValue('אורז'), { target: { value: 'אורז מלא' } })
+      fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'קטגוריות' })).toBeInTheDocument()
+      })
+      expect(screen.getAllByRole('button', { name: /סגור קטגוריה מכולת/ })[0]).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getAllByRole('button', { name: /סגור קטגוריה ירקות/ })[0]).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByText('אורז')).toBeInTheDocument()
+      expect(screen.getByText('עגבניות')).toBeInTheDocument()
+    })
+
+    it('preserves expanded categories when using the edit screen back button', async () => {
+      mockFetchWithProducts()
+      render(
+        <MemoryRouter initialEntries={['/categories']}>
+          <QueryClientProvider client={queryClient}>
+            <Routes>
+              <Route path="/categories" element={<Categories />} />
+              <Route path="/products/:productId/edit" element={<ProductEdit />} />
+            </Routes>
+          </QueryClientProvider>
+        </MemoryRouter>
+      )
+      await waitFor(() => {
+        expect(screen.getByText(/מכולת/)).toBeInTheDocument()
+      })
+      expandCategory('מכולת')
+      expandCategory('ירקות')
+      fireEvent.click(screen.getByText('אורז'))
+      await waitFor(() => {
+        expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByLabelText('חזרה'))
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'קטגוריות' })).toBeInTheDocument()
+      })
+      expect(screen.getAllByRole('button', { name: /סגור קטגוריה מכולת/ })[0]).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getAllByRole('button', { name: /סגור קטגוריה ירקות/ })[0]).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByText('אורז')).toBeInTheDocument()
+      expect(screen.getByText('עגבניות')).toBeInTheDocument()
     })
 
     it('navigates to edit product page on single click', async () => {
@@ -261,8 +454,9 @@ describe('Categories', () => {
         </Wrapper>
       )
       await waitFor(() => {
-        expect(screen.getByText('אורז')).toBeInTheDocument()
+        expect(screen.getByText(/מכולת/)).toBeInTheDocument()
       })
+      expandCategory('מכולת')
       fireEvent.click(screen.getByText('אורז'))
       await waitFor(() => {
         expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
@@ -280,8 +474,9 @@ describe('Categories', () => {
         </Wrapper>
       )
       await waitFor(() => {
-        expect(screen.getByText('אורז')).toBeInTheDocument()
+        expect(screen.getByText(/מכולת/)).toBeInTheDocument()
       })
+      expandCategory('מכולת')
       fireEvent.click(screen.getByText('אורז'))
       await waitFor(() => {
         expect(screen.getByText('עריכת פריט')).toBeInTheDocument()
@@ -346,6 +541,7 @@ describe('Categories', () => {
       await waitFor(() => {
         expect(screen.getByText(/מכולת/)).toBeInTheDocument()
       })
+      expandCategory('מכולת')
       const addButtons = screen.getAllByText('+ הוסף פריט לקטגוריה')
       fireEvent.click(addButtons[0])
       await waitFor(() => {
@@ -365,6 +561,7 @@ describe('Categories', () => {
       await waitFor(() => {
         expect(screen.getByText(/מכולת/)).toBeInTheDocument()
       })
+      expandCategory('מכולת')
       fireEvent.click(screen.getAllByText('+ הוסף פריט לקטגוריה')[0])
       await waitFor(() => {
         expect(screen.getByPlaceholderText('שם הפריט')).toBeInTheDocument()

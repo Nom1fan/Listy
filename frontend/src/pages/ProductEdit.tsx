@@ -29,14 +29,18 @@ function ImagePlaceholderIcon({ size = 48 }: { size?: number }) {
   );
 }
 
+type ProductEditLocationState = { from?: string; expandedCategoryIds?: string[] } | null;
+
 export function ProductEdit() {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
   const activeWorkspaceId = useWorkspaceStore((s) => s.activeWorkspaceId);
-  const fromCategories = location.state?.from === 'categories';
-  const backTo = fromCategories ? '/lists?tab=categories' : '/lists';
+  const locationState = location.state as ProductEditLocationState;
+  const fromCategories = locationState?.from === 'categories';
+  const backTo = fromCategories ? '/categories' : '/lists';
+  const backToState = fromCategories ? { expandedCategoryIds: locationState?.expandedCategoryIds } : undefined;
 
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
@@ -93,9 +97,15 @@ export function ProductEdit() {
       const highlight = pendingHighlightRef.current;
       pendingHighlightRef.current = null;
       if (fromCategories && highlight) {
-        navigate(backTo, { state: { tab: 'categories', highlightCategoryId: highlight.categoryId, highlightProductId: highlight.productId } });
+        navigate(backTo, {
+          state: {
+            ...backToState,
+            highlightCategoryId: highlight.categoryId,
+            highlightProductId: highlight.productId,
+          },
+        });
       } else {
-        navigate(backTo);
+        navigate(backTo, { state: backToState });
       }
     },
     onError: (err: Error) => {
@@ -175,15 +185,15 @@ export function ProductEdit() {
   }
 
   if (!productId) {
-    return <Navigate to={backTo} replace />;
+    return <Navigate to={backTo} replace state={backToState} />;
   }
   if (allProducts.length > 0 && !product) {
-    return <Navigate to={backTo} replace />;
+    return <Navigate to={backTo} replace state={backToState} />;
   }
   if (!product) {
     return (
       <>
-        <AppBar title="עריכת פריט" backTo={backTo} />
+        <AppBar title="עריכת פריט" backTo={backTo} backToState={backToState} />
         <main style={{ padding: 16 }}><p>טוען...</p></main>
       </>
     );
@@ -208,7 +218,7 @@ export function ProductEdit() {
 
   return (
     <>
-      <AppBar title="עריכת פריט" backTo={backTo} />
+      <AppBar title="עריכת פריט" backTo={backTo} backToState={backToState} />
       <main style={{ padding: 16, maxWidth: 480, margin: '0 auto' }}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 24 }}>
           <button
@@ -406,7 +416,7 @@ export function ProductEdit() {
             </button>
             <button
               type="button"
-              onClick={() => navigate(backTo)}
+              onClick={() => navigate(backTo, { state: backToState })}
               style={{ padding: 12, background: '#eee', borderRadius: 8, border: 'none', cursor: 'pointer' }}
             >
               ביטול
