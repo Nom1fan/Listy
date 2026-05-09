@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -74,6 +75,15 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
         assertThat(productRepository.findByCategoryIdOrderByNameHe(supermarket.getId()))
                 .extracting(Product::getNameHe)
                 .contains("טופו", "גבינה טבעונית", "חלב סויה", "חלב שקדים", "לחם", "אורז");
+        Map<String, String> supermarketSections = productRepository.findByCategoryIdOrderByNameHe(supermarket.getId()).stream()
+                .collect(Collectors.toMap(Product::getNameHe, product -> product.getSectionNameHe() == null ? "" : product.getSectionNameHe()));
+        assertThat(supermarketSections)
+                .containsEntry("אבוקדו", "פירות")
+                .containsEntry("עגבניות", "ירקות")
+                .containsEntry("חלב", "חלב וביצים")
+                .containsEntry("חטיפים", "חטיפים")
+                .containsEntry("נייר טואלט", "ניקיון וטואלטיקה");
+        assertThat(supermarketSections.values()).doesNotContain("");
 
         Category genres = categories.stream()
                 .filter(category -> category.getNameHe().equals("ז'אנרים"))
@@ -82,6 +92,12 @@ class WorkspaceIntegrationTest extends AbstractIntegrationTest {
         assertThat(productRepository.findByCategoryIdOrderByNameHe(genres.getId()))
                 .extracting(Product::getNameHe)
                 .contains("אימה", "קומדיה", "פנטזיה", "מדע בדיוני");
+        Map<String, String> genreSections = productRepository.findByCategoryIdOrderByNameHe(genres.getId()).stream()
+                .collect(Collectors.toMap(Product::getNameHe, product -> product.getSectionNameHe() == null ? "" : product.getSectionNameHe()));
+        assertThat(genreSections)
+                .containsEntry("אימה", "סרטים וסדרות")
+                .containsEntry("ספרות קלאסית", "ספרים");
+        assertThat(genreSections.values()).doesNotContain("");
 
         mvc.perform(post("/api/lists")
                         .header("Authorization", getBearerToken())

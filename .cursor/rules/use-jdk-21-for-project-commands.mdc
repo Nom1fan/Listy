@@ -1,0 +1,22 @@
+---
+description: Use JDK 21 for project-related shell commands
+alwaysApply: true
+---
+
+# Use JDK 21 For Project Commands
+
+When running any project-related shell command in this repository, prefix it with:
+
+```bash
+JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home"
+```
+
+Examples:
+
+```bash
+JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home" ./mvnw test -Dsurefire.useFile=false
+JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home" ./restart-backend.sh
+JAVA_HOME="/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home" npx vitest run
+```
+
+Do not use `JAVA_TOOL_OPTIONS="-Dnet.bytebuddy.experimental=true"` as a Java 25 workaround; run commands under JDK 21 instead.

@@ -20,4 +20,5 @@ public class CreateProductRequest {
     private String iconId;
     private String imageUrl;
     private String note;
+    private String sectionNameHe;
 }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getProducts, updateProduct, createCategory } from '../api/products';
@@ -11,6 +11,9 @@ import { ImageSourceDialog } from '../components/ImageSourceDialog';
 import { EmojiPickerDialog } from '../components/EmojiPicker';
 import { createPortal } from 'react-dom';
 import { useWorkspaceStore } from '../store/workspaceStore';
+
+const ADD_NEW_SECTION_VALUE = '__new_section__';
+const NO_SECTION_VALUE = '__no_section__';
 
 function getImageUrl(url: string | null): string {
   if (!url) return '';
@@ -45,6 +48,8 @@ export function ProductEdit() {
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const [note, setNote] = useState('');
+  const [sectionName, setSectionName] = useState('');
+  const [isAddingNewSection, setIsAddingNewSection] = useState(false);
   const [categoryId, setCategoryId] = useState('');
   const [displayImageType, setDisplayImageType] = useState<DisplayImageType>('icon');
   const [iconId, setIconId] = useState('');
@@ -72,11 +77,33 @@ export function ProductEdit() {
 
   const product = allProducts.find((p) => p.id === productId);
 
+  const sectionCategoryId = categoryId && categoryId !== '__new__' ? categoryId : (product?.categoryId ?? '');
+  const existingSectionNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const candidate of allProducts) {
+      if (candidate.categoryId !== sectionCategoryId) continue;
+      const trimmed = candidate.sectionNameHe?.trim();
+      if (trimmed) names.add(trimmed);
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, 'he'));
+  }, [allProducts, sectionCategoryId]);
+  const hasExistingSectionNames = existingSectionNames.length > 0;
+  const trimmedSectionName = sectionName.trim();
+  const sectionSelectValue = isAddingNewSection
+    ? ADD_NEW_SECTION_VALUE
+    : !trimmedSectionName
+      ? NO_SECTION_VALUE
+      : existingSectionNames.includes(trimmedSectionName)
+        ? trimmedSectionName
+        : ADD_NEW_SECTION_VALUE;
+
   useEffect(() => {
     if (product) {
       setName(product.nameHe);
       setUnit(product.defaultUnit ?? '');
       setNote(product.note || '');
+      setSectionName(product.sectionNameHe || '');
+      setIsAddingNewSection(false);
       setCategoryId(product.categoryId || '');
       setDisplayImageType(product.imageUrl ? 'link' : 'icon');
       setIconId(product.iconId ?? product.categoryIconId ?? '');
@@ -87,7 +114,7 @@ export function ProductEdit() {
   }, [product]);
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, ...body }: { id: string; nameHe?: string; defaultUnit?: string; note?: string | null; imageUrl?: string | null; iconId?: string | null; categoryId?: string; version?: number }) =>
+    mutationFn: ({ id, ...body }: { id: string; nameHe?: string; defaultUnit?: string; note?: string | null; sectionNameHe?: string | null; imageUrl?: string | null; iconId?: string | null; categoryId?: string; version?: number }) =>
       updateProduct(id, body),
     onSuccess: () => {
       setIsSaving(false);
@@ -164,6 +191,7 @@ export function ProductEdit() {
       nameHe: name.trim(),
       defaultUnit: defaultUnitVal,
       note: note.trim() || null,
+      sectionNameHe: sectionName.trim() || null,
       categoryId: effectiveCategoryId || undefined,
       imageUrl: displayImageType === 'icon' ? '' : (imageUrl.trim() || null),
       iconId: displayImageType === 'icon' ? (iconId || null) : null,
@@ -208,6 +236,7 @@ export function ProductEdit() {
     name.trim() !== (product.nameHe ?? '').trim() ||
     (unitSectionExpanded ? (unit.trim() || 'יחידה') : 'יחידה') !== (product.defaultUnit ?? 'יחידה') ||
     (note || '').trim() !== (product.note ?? '').trim() ||
+    (sectionName || '').trim() !== (product.sectionNameHe ?? '').trim() ||
     effectiveCategoryIdForCompare !== (product.categoryId || '') ||
     displayImageType !== initialDisplayType ||
     (displayImageType === 'icon' && (iconId || '') !== initialIconId) ||
@@ -354,6 +383,60 @@ export function ProductEdit() {
               placeholder="תופיע אוטומטית כשמוסיפים את הפריט לרשימה"
               style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', resize: 'vertical', boxSizing: 'border-box' }}
             />
+          </div>
+          <div>
+            {hasExistingSectionNames ? (
+              <>
+                <CustomSelect
+                  id="product-section-select"
+                  label="קבוצה"
+                  value={sectionSelectValue}
+                  onChange={(value) => {
+                    if (value === ADD_NEW_SECTION_VALUE) {
+                      setIsAddingNewSection(true);
+                      setSectionName('');
+                    } else if (value === NO_SECTION_VALUE) {
+                      setIsAddingNewSection(false);
+                      setSectionName('');
+                    } else {
+                      setIsAddingNewSection(false);
+                      setSectionName(value);
+                    }
+                  }}
+                  placeholder="ללא קבוצה"
+                  options={[
+                    { value: NO_SECTION_VALUE, label: 'ללא קבוצה' },
+                    ...existingSectionNames.map((section) => ({ value: section, label: section })),
+                    { value: ADD_NEW_SECTION_VALUE, label: '+ הוסף קבוצה חדשה' },
+                  ]}
+                />
+                {sectionSelectValue === ADD_NEW_SECTION_VALUE && (
+                  <div style={{ marginTop: 8 }}>
+                    <label htmlFor="product-section-name" style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>שם קבוצה חדשה</label>
+                    <input
+                      id="product-section-name"
+                      type="text"
+                      value={sectionName}
+                      onChange={(e) => setSectionName(e.target.value)}
+                      placeholder="למשל חטיפים, קפואים"
+                      style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <label htmlFor="product-section-name" style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קבוצה</label>
+                <input
+                  id="product-section-name"
+                  type="text"
+                  value={sectionName}
+                  onChange={(e) => setSectionName(e.target.value)}
+                  placeholder="למשל חטיפים, קפואים"
+                  style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                />
+              </>
+            )}
           </div>
           {workspaceCategories.length > 0 && (
             <div>

@@ -20,6 +20,8 @@ public class ProductDto {
     private String imageUrl;
     /** Permanent note on this product (set at category level). */
     private String note;
+    /** Optional shared section/group name inside the product's category. */
+    private String sectionNameHe;
     /** Number of times this product has been added to any list (for sorting by frequency). */
     private long addCount;
     /** Optimistic-locking version. */

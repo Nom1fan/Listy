@@ -9,6 +9,8 @@ import { CategoryIcon } from '../components/CategoryIcon';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import type { CategoryDto, ProductDto, WorkspaceEvent } from '../types';
 
+const UNSECTIONED_SECTION_LABEL = 'ללא קבוצה';
+
 function TrashIcon({ size = 18, color = '#999' }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -177,7 +179,9 @@ export function Categories() {
   const isSearching = searchText.length > 0;
 
   function productMatchesSearch(product: ProductDto) {
-    return product.nameHe.toLowerCase().includes(searchText) || (product.note ?? '').toLowerCase().includes(searchText);
+    return product.nameHe.toLowerCase().includes(searchText) ||
+      (product.note ?? '').toLowerCase().includes(searchText) ||
+      (product.sectionNameHe ?? '').toLowerCase().includes(searchText);
   }
 
   const filteredCategories = categories.filter((category) => {
@@ -192,6 +196,19 @@ export function Categories() {
     if (!isSearching) return products;
     if (category.nameHe.toLowerCase().includes(searchText)) return products;
     return products.filter(productMatchesSearch);
+  }
+
+  function getSectionName(product: ProductDto) {
+    return product.sectionNameHe?.trim() || UNSECTIONED_SECTION_LABEL;
+  }
+
+  function groupProductsBySection(sectionProducts: ProductDto[]) {
+    const map = new Map<string, ProductDto[]>();
+    for (const product of sectionProducts) {
+      const sectionName = getSectionName(product);
+      map.set(sectionName, [...(map.get(sectionName) ?? []), product]);
+    }
+    return Array.from(map.entries()).map(([name, products]) => ({ name, products }));
   }
 
   const handleDragStart = useCallback((index: number) => {
@@ -702,108 +719,113 @@ export function Categories() {
                       הקטגוריה ריקה — הוסיפו פריטים לקטגוריה
                     </p>
                   )}
-                  {viewMode === 'list' ? (
-                  <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px 0' }}>
-                    {visibleProducts.map((p) => (
-                      <li
-                        key={p.id}
-                        ref={(el) => { productRefs.current[p.id] = el; }}
-                        onClick={() => navigate(`/products/${p.id}/edit`, { state: productEditState() })}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: '6px 0',
-                          borderBottom: '1px solid #f0f0f0',
-                          cursor: 'pointer',
-                          background: highlightedProductId === p.id ? '#e8f5e9' : undefined,
-                          borderRadius: 4,
-                        }}
-                      >
-                        <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={24} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <span>{p.nameHe}</span>
-                          {p.note && (
-                            <div style={{ fontSize: 12, color: '#888', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {p.note}
+                  {groupProductsBySection(visibleProducts).map((section) => (
+                    <div key={section.name} style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 8 }}>{section.name}</div>
+                      {viewMode === 'list' ? (
+                        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px 0' }}>
+                          {section.products.map((p) => (
+                            <li
+                              key={p.id}
+                              ref={(el) => { productRefs.current[p.id] = el; }}
+                              onClick={() => navigate(`/products/${p.id}/edit`, { state: productEditState() })}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                                padding: '6px 0',
+                                borderBottom: '1px solid #f0f0f0',
+                                cursor: 'pointer',
+                                background: highlightedProductId === p.id ? '#e8f5e9' : undefined,
+                                borderRadius: 4,
+                              }}
+                            >
+                              <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={24} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <span>{p.nameHe}</span>
+                                {p.note && (
+                                  <div style={{ fontSize: 12, color: '#888', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {p.note}
+                                  </div>
+                                )}
+                              </div>
+                              {formatProductUnit(p) != null && (
+                                <span style={{ fontSize: 12, color: '#666' }}>{formatProductUnit(p)}</span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}/edit`, { state: productEditState() }); }}
+                                aria-label="ערוך פריט"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                              >
+                                <PencilIcon size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }}
+                                aria-label="מחק פריט"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
+                              >
+                                <TrashIcon />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 12 }}>
+                          {section.products.map((p) => (
+                            <div
+                              key={p.id}
+                              ref={(el) => { productRefs.current[p.id] = el; }}
+                              onClick={() => navigate(`/products/${p.id}/edit`, { state: productEditState() })}
+                              style={{
+                                position: 'relative',
+                                padding: 10,
+                                background: highlightedProductId === p.id ? '#e8f5e9' : '#fafafa',
+                                borderRadius: 10,
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: 6,
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, width: '100%' }}>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}/edit`, { state: productEditState() }); }}
+                                  aria-label="ערוך פריט"
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                                >
+                                  <PencilIcon size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }}
+                                  aria-label="מחק פריט"
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
+                                >
+                                  <TrashIcon size={16} />
+                                </button>
+                              </div>
+                              <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={48} />
+                              <span style={{ fontWeight: 500, fontSize: 13 }}>{p.nameHe}</span>
+                              {formatProductUnit(p) != null && (
+                                <span style={{ fontSize: 11, color: '#666' }}>{formatProductUnit(p)}</span>
+                              )}
+                              {p.note && (
+                                <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {p.note}
+                                </span>
+                              )}
                             </div>
-                          )}
+                          ))}
                         </div>
-                        {formatProductUnit(p) != null && (
-                          <span style={{ fontSize: 12, color: '#666' }}>{formatProductUnit(p)}</span>
-                        )}
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}/edit`, { state: productEditState() }); }}
-                          aria-label="ערוך פריט"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
-                        >
-                          <PencilIcon size={16} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }}
-                          aria-label="מחק פריט"
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', lineHeight: 1, borderRadius: 6, flexShrink: 0, display: 'flex', alignItems: 'center' }}
-                        >
-                          <TrashIcon />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 12 }}>
-                    {visibleProducts.map((p) => (
-                      <div
-                        key={p.id}
-                        ref={(el) => { productRefs.current[p.id] = el; }}
-                        onClick={() => navigate(`/products/${p.id}/edit`, { state: productEditState() })}
-                        style={{
-                          position: 'relative',
-                          padding: 10,
-                          background: highlightedProductId === p.id ? '#e8f5e9' : '#fafafa',
-                          borderRadius: 10,
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: 6,
-                          textAlign: 'center',
-                          cursor: 'pointer',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, width: '100%' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/products/${p.id}/edit`, { state: productEditState() }); }}
-                            aria-label="ערוך פריט"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
-                          >
-                            <PencilIcon size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); if (window.confirm(`למחוק את הפריט "${p.nameHe}"?`)) deleteProductMutation.mutate(p.id); }}
-                            aria-label="מחק פריט"
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', lineHeight: 1, borderRadius: 6, display: 'flex', alignItems: 'center' }}
-                          >
-                            <TrashIcon size={16} />
-                          </button>
-                        </div>
-                        <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={48} />
-                        <span style={{ fontWeight: 500, fontSize: 13 }}>{p.nameHe}</span>
-                        {formatProductUnit(p) != null && (
-                          <span style={{ fontSize: 11, color: '#666' }}>{formatProductUnit(p)}</span>
-                        )}
-                        {p.note && (
-                          <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {p.note}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                  )}
+                      )}
+                    </div>
+                  ))}
                   {addProductCategoryId === c.id ? (
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 8 }}>
                       <input

@@ -221,6 +221,7 @@ public class BuiltInProductCatalog {
                                 .nameHe(productSpec.nameHe())
                                 .defaultUnit(productSpec.defaultUnit())
                                 .iconId(productSpec.iconId())
+                                .sectionNameHe(sectionNameFor(spec.nameHe(), productSpec.nameHe()))
                                 .build()));
             }
         }
@@ -236,6 +237,66 @@ public class BuiltInProductCatalog {
 
     private static ProductSpec product(String nameHe, String iconId, String defaultUnit) {
         return new ProductSpec(nameHe, iconId, defaultUnit);
+    }
+
+    private static String sectionNameFor(String categoryNameHe, String productNameHe) {
+        return switch (categoryNameHe) {
+            case "סופרמרקט" -> supermarketSection(productNameHe);
+            case "ז'אנרים" -> switch (productNameHe) {
+                case "ספרות קלאסית" -> "ספרים";
+                default -> "סרטים וסדרות";
+            };
+            case "מסעדות" -> switch (productNameHe) {
+                case "בית קפה", "גלידריה", "בר", "מאפייה" -> "בילוי וקינוחים";
+                default -> "סוג מטבח";
+            };
+            case "נסיעות" -> switch (productNameHe) {
+                case "מזוודה", "מטען", "אוזניות", "קרם הגנה" -> "ציוד לנסיעה";
+                default -> "תכנון ומסמכים";
+            };
+            case "מתנות" -> switch (productNameHe) {
+                case "יום הולדת" -> "אירועים";
+                case "גיפט קארד" -> "שוברים";
+                default -> "מתנות קלאסיות";
+            };
+            case "משימות לבית" -> switch (productNameHe) {
+                case "ניקיון", "כביסה", "כלים", "החלפת מצעים", "שטיפת רצפה" -> "ניקיון ותחזוקה שוטפת";
+                case "קניות", "בישול" -> "קניות ובישול";
+                default -> "ניהול הבית";
+            };
+            case "בילויים" -> switch (productNameHe) {
+                case "קולנוע", "הופעה", "הצגה", "מוזיאון" -> "תרבות";
+                case "פארק", "ים", "פיקניק", "טיול" -> "בחוץ";
+                case "משחקייה", "באולינג", "בריכה" -> "פעילות";
+                default -> "חברה";
+            };
+            default -> categoryNameHe;
+        };
+    }
+
+    private static String supermarketSection(String productNameHe) {
+        return switch (productNameHe) {
+            case "חלב", "חלב סויה", "חלב שקדים", "חלב שיבולת שועל", "גבינה", "גבינה טבעונית",
+                 "יוגורט", "יוגורט טבעוני", "ביצים", "חמאה", "מרגרינה" -> "חלב וביצים";
+            case "טופו", "טמפה", "סייטן" -> "טבעוני";
+            case "חומוס", "טחינה" -> "ממרחים ומטבלים";
+            case "לחם", "פיתות", "לחמניות", "חלה", "טורטיות", "קרקרים" -> "לחם ומאפים";
+            case "אורז", "פסטה", "קוסקוס", "קינואה", "בורגול", "קמח", "סוכר" -> "יבשים ודגנים";
+            case "עדשים", "שעועית", "חומוס יבש" -> "קטניות";
+            case "מלח", "פלפל שחור", "שמן זית", "שמן קנולה", "חומץ", "רוטב סויה",
+                 "קטשופ", "מיונז", "חרדל" -> "תבלינים ורטבים";
+            case "דגני בוקר", "גרנולה", "שיבולת שועל" -> "ארוחת בוקר";
+            case "קפה", "תה", "קקאו" -> "קפה ותה";
+            case "שוקולד", "עוגיות", "חטיפים", "אגוזים", "שקדים", "פירות יבשים" -> "חטיפים";
+            case "מים", "סודה", "מיץ תפוזים", "בירה", "יין" -> "משקאות";
+            case "עגבניות", "מלפפונים", "חסה", "גזר", "בצל", "שום", "תפוחי אדמה",
+                 "בטטה", "פלפלים", "ברוקולי", "פטריות" -> "ירקות";
+            case "תפוחים", "בננות", "תפוזים", "לימונים", "אבוקדו", "תותים" -> "פירות";
+            case "עוף", "בשר טחון", "דגים", "טונה", "סלמון" -> "בשר ודגים";
+            case "נייר טואלט", "מגבות נייר", "סבון כלים", "אבקת כביסה", "שמפו",
+                 "סבון גוף", "משחת שיניים", "שקיות אשפה", "חיתולים", "מגבונים" -> "ניקיון וטואלטיקה";
+            default -> "כללי";
+        };
     }
 
     private record CategorySpec(String nameHe, String iconId, int sortOrder, List<ProductSpec> products) {

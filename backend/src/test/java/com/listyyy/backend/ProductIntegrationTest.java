@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -154,6 +155,59 @@ class ProductIntegrationTest extends AbstractIntegrationTest {
                 .andExpect(jsonPath("$.nameHe").value("חלב"))
                 .andExpect(jsonPath("$.defaultUnit").value("ליטר"))
                 .andExpect(jsonPath("$.categoryId").value(categoryId.toString()));
+    }
+
+    @Test
+    void create_product_persists_section_name() throws Exception {
+        mvc.perform(post("/api/products")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "categoryId", categoryId.toString(),
+                                "nameHe", "במבה",
+                                "sectionNameHe", " חטיפים "))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nameHe").value("במבה"))
+                .andExpect(jsonPath("$.sectionNameHe").value("חטיפים"));
+
+        mvc.perform(get("/api/products").header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.nameHe == 'במבה')].sectionNameHe").value(hasItem("חטיפים")));
+    }
+
+    @Test
+    void update_product_section_name_can_set_and_clear() throws Exception {
+        mvc.perform(patch("/api/products/" + productId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("sectionNameHe", " קפואים "))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sectionNameHe").value("קפואים"));
+
+        mvc.perform(patch("/api/products/" + productId)
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of("sectionNameHe", ""))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sectionNameHe").doesNotExist());
+    }
+
+    @Test
+    void search_products_matches_section_name() throws Exception {
+        mvc.perform(post("/api/products")
+                        .header("Authorization", getBearerToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(Map.of(
+                                "categoryId", categoryId.toString(),
+                                "nameHe", "ציפס",
+                                "sectionNameHe", "קפואים"))))
+                .andExpect(status().isOk());
+
+        mvc.perform(get("/api/products")
+                        .queryParam("search", "קפואים")
+                        .header("Authorization", getBearerToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.nameHe == 'ציפס')].sectionNameHe").value(hasItem("קפואים")));
     }
 
     @Test

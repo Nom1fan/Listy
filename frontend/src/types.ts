@@ -87,6 +87,8 @@ export interface ProductDto {
   imageUrl: string | null;
   /** Permanent note on this product (set at category level). */
   note: string | null;
+  /** Optional shared section/group name inside the product's category. */
+  sectionNameHe?: string | null;
   /** Times this product was added to any list (for frequency sort). */
   addCount: number;
   version: number;

@@ -16,6 +16,8 @@ public class UpdateProductRequest {
     private String iconId;
     /** Permanent note on this product; null = no change, empty string = clear */
     private String note;
+    /** Optional shared section/group inside the product's category; null = no change, empty string = clear */
+    private String sectionNameHe;
     /** Move product to a different category; null = no change */
     private UUID categoryId;
     /** Optimistic-locking version from the client; null skips the check. */

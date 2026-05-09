@@ -34,8 +34,8 @@ const mockCategories = [
 ]
 
 const mockProducts = [
-  { id: 'p1', nameHe: 'אורז', defaultUnit: 'קילו', categoryId: 'c1', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, version: 1 },
-  { id: 'p2', nameHe: 'עגבניות', defaultUnit: 'יחידה', categoryId: 'c2', categoryIconId: 'veggies', iconId: null, imageUrl: null, note: 'אורגני', version: 1 },
+  { id: 'p1', nameHe: 'אורז', defaultUnit: 'קילו', categoryId: 'c1', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, sectionNameHe: 'יבשים', version: 1 },
+  { id: 'p2', nameHe: 'עגבניות', defaultUnit: 'יחידה', categoryId: 'c2', categoryIconId: 'veggies', iconId: null, imageUrl: null, note: 'אורגני', sectionNameHe: 'ירקות טריים', version: 1 },
 ]
 
 describe('Categories', () => {
@@ -184,6 +184,25 @@ describe('Categories', () => {
     expect(screen.queryByText('עגבניות')).not.toBeInTheDocument()
   })
 
+  it('searches product section names and shows matching products', async () => {
+    mockFetchWithProducts()
+    render(
+      <Wrapper>
+        <Categories />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText(/מכולת/)).toBeInTheDocument()
+    })
+
+    fireEvent.change(screen.getByPlaceholderText('חיפוש קטגוריות ופריטים'), { target: { value: 'יבשים' } })
+
+    expect(screen.getByText('מכולת')).toBeInTheDocument()
+    expect(screen.getByText('יבשים')).toBeInTheDocument()
+    expect(screen.getByText('אורז')).toBeInTheDocument()
+    expect(screen.queryByText('ירקות')).not.toBeInTheDocument()
+  })
+
   it('searches categories and clears back to default collapsed state', async () => {
     mockFetchWithProducts()
     render(
@@ -285,6 +304,22 @@ describe('Categories', () => {
       expect(screen.getByText('עגבניות')).toBeInTheDocument()
     })
 
+    it('shows saved product section names inside expanded categories', async () => {
+      mockFetchWithProducts()
+      render(
+        <Wrapper>
+          <Categories />
+        </Wrapper>
+      )
+      await waitFor(() => {
+        expect(screen.getByText(/מכולת/)).toBeInTheDocument()
+      })
+      expandCategory('מכולת')
+
+      expect(screen.getByText('יבשים')).toBeInTheDocument()
+      expect(screen.getByText('אורז')).toBeInTheDocument()
+    })
+
     it('shows pencil (edit) and trash buttons for products', async () => {
       mockFetchWithProducts()
       render(
@@ -364,6 +399,162 @@ describe('Categories', () => {
         expect(screen.getByRole('heading', { name: 'קטגוריות' })).toBeInTheDocument()
       })
       expect(screen.queryByText('Lists screen')).not.toBeInTheDocument()
+    })
+
+    it('saving from product edit sends changed section name', async () => {
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+        if (typeof url === 'string' && url.includes('/api/products/p1') && init?.method === 'PATCH') {
+          const body = JSON.parse((init.body as string) || '{}')
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ ...mockProducts[0], ...body, id: 'p1', version: 2 }),
+          })
+        }
+        if (typeof url === 'string' && url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategories) })
+        }
+        if (typeof url === 'string' && url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockProducts) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/products/p1/edit', state: { from: 'categories' } }]}>
+          <QueryClientProvider client={queryClient}>
+            <Routes>
+              <Route path="/products/:productId/edit" element={<ProductEdit />} />
+              <Route path="/categories" element={<Categories />} />
+            </Routes>
+          </QueryClientProvider>
+        </MemoryRouter>
+      )
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('אורז')).toBeInTheDocument()
+      })
+      fireEvent.click(screen.getByRole('combobox', { name: 'קבוצה' }))
+      fireEvent.click(screen.getByRole('option', { name: '+ הוסף קבוצה חדשה' }))
+      fireEvent.change(screen.getByLabelText('שם קבוצה חדשה'), { target: { value: 'חטיפים' } })
+      fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
+
+      await waitFor(() => {
+        const patchCalls = fetchMock.mock.calls.filter((args) => {
+          const url = args[0] as string
+          const init = args[1] as RequestInit | undefined
+          return typeof url === 'string' && url.includes('/api/products/p1') && init?.method === 'PATCH'
+        })
+        expect(patchCalls.length).toBeGreaterThanOrEqual(1)
+        const body = JSON.parse((patchCalls[patchCalls.length - 1][1] as RequestInit).body as string)
+        expect(body.sectionNameHe).toBe('חטיפים')
+      })
+    })
+
+    it('saving from product edit can switch to an existing group from a dropdown', async () => {
+      const productsWithGroups = [
+        ...mockProducts,
+        { id: 'p3', nameHe: 'במבה', defaultUnit: 'יחידה', categoryId: 'c1', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, sectionNameHe: 'חטיפים', version: 1 },
+      ]
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+        if (typeof url === 'string' && url.includes('/api/products/p1') && init?.method === 'PATCH') {
+          const body = JSON.parse((init.body as string) || '{}')
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ ...productsWithGroups[0], ...body, id: 'p1', version: 2 }),
+          })
+        }
+        if (typeof url === 'string' && url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategories) })
+        }
+        if (typeof url === 'string' && url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(productsWithGroups) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/products/p1/edit', state: { from: 'categories' } }]}>
+          <QueryClientProvider client={queryClient}>
+            <Routes>
+              <Route path="/products/:productId/edit" element={<ProductEdit />} />
+              <Route path="/categories" element={<Categories />} />
+            </Routes>
+          </QueryClientProvider>
+        </MemoryRouter>
+      )
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('אורז')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByRole('combobox', { name: 'קבוצה' }))
+      fireEvent.click(screen.getByRole('option', { name: 'חטיפים' }))
+      fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
+
+      await waitFor(() => {
+        const patchCalls = fetchMock.mock.calls.filter((args) => {
+          const url = args[0] as string
+          const init = args[1] as RequestInit | undefined
+          return typeof url === 'string' && url.includes('/api/products/p1') && init?.method === 'PATCH'
+        })
+        expect(patchCalls.length).toBeGreaterThanOrEqual(1)
+        const body = JSON.parse((patchCalls[patchCalls.length - 1][1] as RequestInit).body as string)
+        expect(body.sectionNameHe).toBe('חטיפים')
+      })
+    })
+
+    it('product edit group dropdown can switch to add new group input', async () => {
+      const productsWithGroups = [
+        ...mockProducts,
+        { id: 'p3', nameHe: 'במבה', defaultUnit: 'יחידה', categoryId: 'c1', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, sectionNameHe: 'חטיפים', version: 1 },
+      ]
+      const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+      fetchMock.mockImplementation((url: string, init?: RequestInit) => {
+        if (typeof url === 'string' && url.includes('/api/products/p1') && init?.method === 'PATCH') {
+          const body = JSON.parse((init.body as string) || '{}')
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve({ ...productsWithGroups[0], ...body, id: 'p1', version: 2 }),
+          })
+        }
+        if (typeof url === 'string' && url.includes('/api/categories')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockCategories) })
+        }
+        if (typeof url === 'string' && url.includes('/api/products')) {
+          return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(productsWithGroups) })
+        }
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+      })
+      render(
+        <MemoryRouter initialEntries={[{ pathname: '/products/p1/edit', state: { from: 'categories' } }]}>
+          <QueryClientProvider client={queryClient}>
+            <Routes>
+              <Route path="/products/:productId/edit" element={<ProductEdit />} />
+              <Route path="/categories" element={<Categories />} />
+            </Routes>
+          </QueryClientProvider>
+        </MemoryRouter>
+      )
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('אורז')).toBeInTheDocument()
+      })
+
+      fireEvent.click(screen.getByRole('combobox', { name: 'קבוצה' }))
+      fireEvent.click(screen.getByRole('option', { name: '+ הוסף קבוצה חדשה' }))
+      fireEvent.change(screen.getByLabelText('שם קבוצה חדשה'), { target: { value: 'קפואים' } })
+      fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
+
+      await waitFor(() => {
+        const patchCalls = fetchMock.mock.calls.filter((args) => {
+          const url = args[0] as string
+          const init = args[1] as RequestInit | undefined
+          return typeof url === 'string' && url.includes('/api/products/p1') && init?.method === 'PATCH'
+        })
+        expect(patchCalls.length).toBeGreaterThanOrEqual(1)
+        const body = JSON.parse((patchCalls[patchCalls.length - 1][1] as RequestInit).body as string)
+        expect(body.sectionNameHe).toBe('קפואים')
+      })
     })
 
     it('preserves expanded categories when returning from editing a product', async () => {
@@ -495,8 +686,8 @@ describe('Categories', () => {
     ]
 
     const productsForAdd = [
-      { id: 'p1', nameHe: 'אורז', defaultUnit: 'קילו', categoryId: 'c1', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, version: 1 },
-      { id: 'p2', nameHe: 'עגבניות', defaultUnit: 'יחידה', categoryId: 'c2', categoryIconId: 'veggies', iconId: null, imageUrl: null, note: null, version: 1 },
+      { id: 'p1', nameHe: 'אורז', defaultUnit: 'קילו', categoryId: 'c1', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, sectionNameHe: 'יבשים', version: 1 },
+      { id: 'p2', nameHe: 'עגבניות', defaultUnit: 'יחידה', categoryId: 'c2', categoryIconId: 'veggies', iconId: null, imageUrl: null, note: null, sectionNameHe: 'ירקות טריים', version: 1 },
     ]
 
     function mockFetchForAdd() {
@@ -521,6 +712,7 @@ describe('Categories', () => {
                   iconId: null,
                   imageUrl: null,
                   note: null,
+                  sectionNameHe: body.sectionNameHe ?? null,
                   version: 1,
                 }),
             })

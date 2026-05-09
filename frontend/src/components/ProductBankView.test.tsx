@@ -27,8 +27,10 @@ const mockCategories = [
 ]
 
 const mockProducts = [
-  { id: 'p1', nameHe: 'אורז', defaultUnit: 'קילו', categoryId: 'c1', categoryNameHe: 'מכולת', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, addCount: 2, version: 1 },
-  { id: 'p2', nameHe: 'עגבניות', defaultUnit: 'יחידה', categoryId: 'c2', categoryNameHe: 'ירקות', categoryIconId: 'veggies', iconId: null, imageUrl: null, note: null, addCount: 1, version: 1 },
+  { id: 'p1', nameHe: 'אורז', defaultUnit: 'קילו', categoryId: 'c1', categoryNameHe: 'מכולת', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, sectionNameHe: 'יבשים', addCount: 2, version: 1 },
+  { id: 'p3', nameHe: 'במבה', defaultUnit: 'יחידה', categoryId: 'c1', categoryNameHe: 'מכולת', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, sectionNameHe: 'חטיפים', addCount: 4, version: 1 },
+  { id: 'p4', nameHe: 'ביסלי', defaultUnit: 'יחידה', categoryId: 'c1', categoryNameHe: 'מכולת', categoryIconId: 'groceries', iconId: null, imageUrl: null, note: null, sectionNameHe: 'חטיפים', addCount: 1, version: 1 },
+  { id: 'p2', nameHe: 'עגבניות', defaultUnit: 'יחידה', categoryId: 'c2', categoryNameHe: 'ירקות', categoryIconId: 'veggies', iconId: null, imageUrl: null, note: null, sectionNameHe: 'ירקות טריים', addCount: 1, version: 1 },
 ]
 
 describe('ProductBankView', () => {
@@ -81,5 +83,54 @@ describe('ProductBankView', () => {
 
     expect(screen.getByRole('button', { name: /סגור קטגוריה מכולת/ })).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText('אורז')).toBeInTheDocument()
+  })
+
+  it('groups products by saved section inside expanded categories', async () => {
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ProductBankView listId="list1" />
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /פתח קטגוריה מכולת/ })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /פתח קטגוריה מכולת/ }))
+
+    expect(screen.getByText('חטיפים')).toBeInTheDocument()
+    expect(screen.getByText('יבשים')).toBeInTheDocument()
+    expect(screen.getByText('במבה')).toBeInTheDocument()
+    expect(screen.getByText('ביסלי')).toBeInTheDocument()
+    expect(screen.getByText('אורז')).toBeInTheDocument()
+  })
+
+  it('edit modal can switch to an existing group from a dropdown', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ProductBankView listId="list1" />
+      </QueryClientProvider>,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /פתח קטגוריה מכולת/ })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /פתח קטגוריה מכולת/ }))
+    fireEvent.contextMenu(screen.getByText('אורז'))
+
+    fireEvent.click(screen.getByRole('combobox', { name: 'קבוצה' }))
+    fireEvent.click(screen.getByRole('option', { name: 'חטיפים' }))
+    fireEvent.click(screen.getByRole('button', { name: 'שמור' }))
+
+    await waitFor(() => {
+      const patchCalls = fetchMock.mock.calls.filter((args) => {
+        const url = args[0] as string
+        const init = args[1] as RequestInit | undefined
+        return typeof url === 'string' && url.includes('/api/products/p1') && init?.method === 'PATCH'
+      })
+      expect(patchCalls.length).toBeGreaterThanOrEqual(1)
+      const body = JSON.parse((patchCalls[patchCalls.length - 1][1] as RequestInit).body as string)
+      expect(body.sectionNameHe).toBe('חטיפים')
+    })
   })
 })

@@ -43,7 +43,8 @@ public class ProductController {
                 .stream().map(c -> c.getId()).collect(Collectors.toSet());
         List<Product> products;
         if (search != null && !search.isBlank()) {
-            products = productRepository.findByNameHeContainingIgnoreCase(search.trim());
+            String trimmedSearch = search.trim();
+            products = productRepository.findByNameHeContainingIgnoreCaseOrSectionNameHeContainingIgnoreCase(trimmedSearch, trimmedSearch);
             products = products.stream().filter(p -> visibleCategoryIds.contains(p.getCategory().getId())).toList();
         } else if (categoryId != null) {
             if (!visibleCategoryIds.contains(categoryId)) throw new AccessDeniedException("אין גישה לקטגוריה");
@@ -88,6 +89,7 @@ public class ProductController {
         String iconId = req.getIconId() != null && !req.getIconId().isBlank() ? req.getIconId().trim() : null;
         String imageUrl = req.getImageUrl() != null && !req.getImageUrl().isBlank() ? req.getImageUrl().trim() : null;
         String note = req.getNote() != null && !req.getNote().isBlank() ? req.getNote().trim() : null;
+        String sectionNameHe = normalizeOptionalText(req.getSectionNameHe());
         Product p = Product.builder()
                 .category(category)
                 .nameHe(trimmedName)
@@ -95,6 +97,7 @@ public class ProductController {
                 .iconId(iconId)
                 .imageUrl(imageUrl)
                 .note(note)
+                .sectionNameHe(sectionNameHe)
                 .build();
         p = productRepository.save(p);
         workspaceEventPublisher.publish(category.getWorkspace().getId(), WorkspaceEvent.EntityType.PRODUCT,
@@ -151,6 +154,8 @@ public class ProductController {
         if (req.getIconId() != null) p.setIconId(req.getIconId().isBlank() ? null : req.getIconId());
         // note: set when provided; use empty string in request to clear
         if (req.getNote() != null) p.setNote(req.getNote().isBlank() ? null : req.getNote().trim());
+        // sectionNameHe: set when provided; use empty string in request to clear
+        if (req.getSectionNameHe() != null) p.setSectionNameHe(normalizeOptionalText(req.getSectionNameHe()));
         // categoryId: move product to a different category
         if (req.getCategoryId() != null && !req.getCategoryId().equals(p.getCategory().getId())) {
             Category newCategory = categoryAccessService.getCategoryOrThrow(req.getCategoryId(), user);
@@ -186,6 +191,11 @@ public class ProductController {
         return UUID.fromString(o.toString());
     }
 
+    private static String normalizeOptionalText(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.trim();
+    }
+
     private ProductDto toDto(Product p, long addCount) {
         return ProductDto.builder()
                 .id(p.getId())
@@ -197,6 +207,7 @@ public class ProductController {
                 .defaultUnit(p.getDefaultUnit())
                 .imageUrl(p.getImageUrl())
                 .note(p.getNote())
+                .sectionNameHe(p.getSectionNameHe())
                 .addCount(addCount)
                 .version(p.getVersion())
                 .build();

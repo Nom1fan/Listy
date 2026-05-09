@@ -4,10 +4,15 @@ import { getCategories, getProducts, updateProduct } from '../api/products';
 import { addListItem, getList } from '../api/lists';
 import { uploadFile } from '../api/client';
 import { CategoryIcon } from './CategoryIcon';
+import { CustomSelect } from './CustomSelect';
 import { DisplayImageForm, type DisplayImageType } from './DisplayImageForm';
 import { ViewModeToggle, useViewMode } from './ViewModeToggle';
 import { getFilteredCategories, getFilteredProducts } from '../utils/categoryFilter';
 import type { ProductDto } from '../types';
+
+const UNSECTIONED_SECTION_LABEL = 'ללא קבוצה';
+const ADD_NEW_SECTION_VALUE = '__new_section__';
+const NO_SECTION_VALUE = '__no_section__';
 
 export interface ProductBankViewProps {
   listId: string;
@@ -36,6 +41,8 @@ export function ProductBankView({ listId, onItemAdded }: ProductBankViewProps) {
   const [editProductName, setEditProductName] = useState('');
   const [editProductUnit, setEditProductUnit] = useState('');
   const [editProductNote, setEditProductNote] = useState('');
+  const [editProductSectionName, setEditProductSectionName] = useState('');
+  const [editProductIsAddingNewSection, setEditProductIsAddingNewSection] = useState(false);
   const [editProductDisplayImageType, setEditProductDisplayImageType] = useState<DisplayImageType>('icon');
   const [editProductIconId, setEditProductIconId] = useState('');
   const [editProductImageUrl, setEditProductImageUrl] = useState('');
@@ -86,6 +93,39 @@ export function ProductBankView({ listId, onItemAdded }: ProductBankViewProps) {
       .map((c) => c.id);
   }, [showGroupedByCategory, categories, productsByCategory]);
 
+  function getSectionName(product: ProductDto) {
+    return product.sectionNameHe?.trim() || UNSECTIONED_SECTION_LABEL;
+  }
+
+  function groupProductsBySection(sectionProducts: ProductDto[]) {
+    const map = new Map<string, ProductDto[]>();
+    for (const product of sectionProducts) {
+      const sectionName = getSectionName(product);
+      map.set(sectionName, [...(map.get(sectionName) ?? []), product]);
+    }
+    return Array.from(map.entries()).map(([name, products]) => ({ name, products }));
+  }
+
+  const editProductSectionNames = useMemo(() => {
+    if (!editProduct) return [];
+    const names = new Set<string>();
+    for (const candidate of products) {
+      if (candidate.categoryId !== editProduct.categoryId) continue;
+      const trimmed = candidate.sectionNameHe?.trim();
+      if (trimmed) names.add(trimmed);
+    }
+    return Array.from(names).sort((a, b) => a.localeCompare(b, 'he'));
+  }, [products, editProduct]);
+  const hasEditProductSectionNames = editProductSectionNames.length > 0;
+  const trimmedEditProductSectionName = editProductSectionName.trim();
+  const editProductSectionSelectValue = editProductIsAddingNewSection
+    ? ADD_NEW_SECTION_VALUE
+    : !trimmedEditProductSectionName
+      ? NO_SECTION_VALUE
+      : editProductSectionNames.includes(trimmedEditProductSectionName)
+        ? trimmedEditProductSectionName
+        : ADD_NEW_SECTION_VALUE;
+
   useEffect(() => {
     const ids = new Set(categoryOrder);
     setCollapsedCategoryIds((prev) => {
@@ -135,7 +175,7 @@ export function ProductBankView({ listId, onItemAdded }: ProductBankViewProps) {
   });
 
   const updateProductMutation = useMutation({
-    mutationFn: ({ id, ...body }: { id: string; nameHe?: string; defaultUnit?: string; imageUrl?: string | null; iconId?: string | null; note?: string | null; version?: number }) =>
+    mutationFn: ({ id, ...body }: { id: string; nameHe?: string; defaultUnit?: string; imageUrl?: string | null; iconId?: string | null; note?: string | null; sectionNameHe?: string | null; version?: number }) =>
       updateProduct(id, body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -155,6 +195,8 @@ export function ProductBankView({ listId, onItemAdded }: ProductBankViewProps) {
     setEditProductName(p.nameHe);
     setEditProductUnit(p.defaultUnit);
     setEditProductNote(p.note || '');
+    setEditProductSectionName(p.sectionNameHe || '');
+    setEditProductIsAddingNewSection(false);
     setEditProductDisplayImageType(p.imageUrl ? 'link' : 'icon');
     setEditProductIconId(p.iconId ?? p.categoryIconId ?? '');
     setEditProductImageUrl(p.imageUrl || '');
@@ -180,6 +222,7 @@ export function ProductBankView({ listId, onItemAdded }: ProductBankViewProps) {
       imageUrl,
       iconId,
       note: editProductNote.trim() || '',
+      sectionNameHe: editProductSectionName.trim() || '',
       version: editProduct.version,
     });
   }
@@ -322,78 +365,87 @@ export function ProductBankView({ listId, onItemAdded }: ProductBankViewProps) {
                   <span style={{ fontSize: 13, color: '#666' }}>{catProducts.length}</span>
                   <span style={{ marginInlineStart: 'auto', color: '#555' }}>{collapsed ? '›' : '⌄'}</span>
                 </button>
-                {!collapsed && (viewMode === 'grid' ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
-                  {catProducts.map((p) => (
-                    <button
-                      key={p.id}
-                      {...productCardProps(p)}
-                      style={{
-                        padding: 12,
-                        background: '#fff',
-                        borderRadius: 12,
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                        textAlign: 'center',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 8,
-                        border: 'none',
-                        cursor: 'pointer',
-                        WebkitUserSelect: 'none',
-                        userSelect: 'none',
-                        WebkitTouchCallout: 'none',
-                      }}
-                    >
-                      <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={64} />
-                      <span style={{ fontWeight: 500 }}>{p.nameHe}</span>
-                      <span style={{ fontSize: 12, color: '#666' }}>{p.defaultUnit}</span>
-                      {p.note && (
-                        <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {p.note}
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
-                ) : (
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                  {catProducts.map((p) => (
-                    <li
-                      key={p.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '8px 0',
-                        borderBottom: '1px solid #f0f0f0',
-                      }}
-                    >
-                      <button
-                        {...productCardProps(p)}
-                        style={{
-                          border: 'none',
-                          background: 'none',
-                          cursor: 'pointer',
-                          padding: 0,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          flex: 1,
-                          minWidth: 0,
-                          WebkitUserSelect: 'none',
-                          userSelect: 'none',
-                          WebkitTouchCallout: 'none',
-                        }}
-                      >
-                        <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={28} />
-                        <span style={{ fontWeight: 500, flex: 1, textAlign: 'right' }}>{p.nameHe}</span>
-                        <span style={{ fontSize: 12, color: '#666' }}>{p.defaultUnit}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                ))}
+                {!collapsed && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {groupProductsBySection(catProducts).map((section) => (
+                      <div key={section.name}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 8 }}>{section.name}</div>
+                        {viewMode === 'grid' ? (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
+                            {section.products.map((p) => (
+                              <button
+                                key={p.id}
+                                {...productCardProps(p)}
+                                style={{
+                                  padding: 12,
+                                  background: '#fff',
+                                  borderRadius: 12,
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                                  textAlign: 'center',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  WebkitUserSelect: 'none',
+                                  userSelect: 'none',
+                                  WebkitTouchCallout: 'none',
+                                }}
+                              >
+                                <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={64} />
+                                <span style={{ fontWeight: 500 }}>{p.nameHe}</span>
+                                <span style={{ fontSize: 12, color: '#666' }}>{p.defaultUnit}</span>
+                                {p.note && (
+                                  <span style={{ fontSize: 11, color: '#888', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {p.note}
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                            {section.products.map((p) => (
+                              <li
+                                key={p.id}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 8,
+                                  padding: '8px 0',
+                                  borderBottom: '1px solid #f0f0f0',
+                                }}
+                              >
+                                <button
+                                  {...productCardProps(p)}
+                                  style={{
+                                    border: 'none',
+                                    background: 'none',
+                                    cursor: 'pointer',
+                                    padding: 0,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 8,
+                                    flex: 1,
+                                    minWidth: 0,
+                                    WebkitUserSelect: 'none',
+                                    userSelect: 'none',
+                                    WebkitTouchCallout: 'none',
+                                  }}
+                                >
+                                  <CategoryIcon iconId={p.iconId ?? p.categoryIconId} imageUrl={p.imageUrl} size={28} />
+                                  <span style={{ fontWeight: 500, flex: 1, textAlign: 'right' }}>{p.nameHe}</span>
+                                  <span style={{ fontSize: 12, color: '#666' }}>{p.defaultUnit}</span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
             );
           })}
@@ -529,6 +581,60 @@ export function ProductBankView({ listId, onItemAdded }: ProductBankViewProps) {
                   placeholder="תופיע אוטומטית כשמוסיפים את הפריט לרשימה"
                   style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', resize: 'vertical', boxSizing: 'border-box' }}
                 />
+              </div>
+              <div>
+                {hasEditProductSectionNames ? (
+                  <>
+                    <CustomSelect
+                      id="edit-product-section-select"
+                      label="קבוצה"
+                      value={editProductSectionSelectValue}
+                      onChange={(value) => {
+                        if (value === ADD_NEW_SECTION_VALUE) {
+                          setEditProductIsAddingNewSection(true);
+                          setEditProductSectionName('');
+                        } else if (value === NO_SECTION_VALUE) {
+                          setEditProductIsAddingNewSection(false);
+                          setEditProductSectionName('');
+                        } else {
+                          setEditProductIsAddingNewSection(false);
+                          setEditProductSectionName(value);
+                        }
+                      }}
+                      placeholder="ללא קבוצה"
+                      options={[
+                        { value: NO_SECTION_VALUE, label: 'ללא קבוצה' },
+                        ...editProductSectionNames.map((section) => ({ value: section, label: section })),
+                        { value: ADD_NEW_SECTION_VALUE, label: '+ הוסף קבוצה חדשה' },
+                      ]}
+                    />
+                    {editProductSectionSelectValue === ADD_NEW_SECTION_VALUE && (
+                      <div style={{ marginTop: 8 }}>
+                        <label htmlFor="edit-product-section-name" style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>שם קבוצה חדשה</label>
+                        <input
+                          id="edit-product-section-name"
+                          type="text"
+                          value={editProductSectionName}
+                          onChange={(e) => setEditProductSectionName(e.target.value)}
+                          placeholder="למשל חטיפים, קפואים"
+                          style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <label htmlFor="edit-product-section-name" style={{ display: 'block', marginBottom: 4, fontSize: 14 }}>קבוצה</label>
+                    <input
+                      id="edit-product-section-name"
+                      type="text"
+                      value={editProductSectionName}
+                      onChange={(e) => setEditProductSectionName(e.target.value)}
+                      placeholder="למשל חטיפים, קפואים"
+                      style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #ccc', boxSizing: 'border-box' }}
+                    />
+                  </>
+                )}
               </div>
               <DisplayImageForm
                 label="תמונה / אייקון"

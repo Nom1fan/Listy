@@ -40,6 +40,9 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    @Column(name = "section_name_he")
+    private String sectionNameHe;
+
     @Version
     private Long version;
 
