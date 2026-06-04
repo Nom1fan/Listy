@@ -27,6 +27,8 @@ function ensureLocalStorage() {
   })
 }
 
+ensureLocalStorage()
+
 beforeEach(() => {
   ensureLocalStorage()
 })
