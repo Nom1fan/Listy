@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getLists, deleteList, reorderLists } from '../api/lists';
+import { getLists, deleteList, reorderLists, getListItems } from '../api/lists';
 import { getWorkspaces, createWorkspace, updateWorkspace, deleteWorkspace, getMyWorkspaceInvitations } from '../api/workspaces';
 import { useAuthStore } from '../store/authStore';
 import { useWorkspaceStore } from '../store/workspaceStore';
@@ -9,8 +9,9 @@ import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { AppBar } from '../components/AppBar';
 import { CategoryIcon } from '../components/CategoryIcon';
 import { CustomSelect } from '../components/CustomSelect';
+import { PlaintextListDialog } from '../components/PlaintextListDialog';
 import { getUserDisplayLabel } from '../utils/user';
-import type { ListResponse, WorkspaceEvent, WorkspaceDto } from '../types';
+import type { ListResponse, ListItemResponse, WorkspaceEvent, WorkspaceDto } from '../types';
 
 function PencilIcon({ size = 18, color = '#666' }: { size?: number; color?: string }) {
   return (
@@ -142,6 +143,9 @@ export function Lists() {
 
   // Delete confirmation
   const [confirmDeleteList, setConfirmDeleteList] = useState<ListResponse | null>(null);
+  const [plaintextListItems, setPlaintextListItems] = useState<ListItemResponse[] | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTriggeredRef = useRef(false);
 
   // Drag reorder
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -213,6 +217,30 @@ export function Lists() {
     setOverIndex(null);
     setOrderedLists(null);
   }, [orderedLists, reorderMutation]);
+
+  function cancelLongPress() {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  }
+
+  function isNonEmptyList(list: ListResponse) {
+    return (list.itemCount ?? 0) > 0;
+  }
+
+  async function openPlaintextList(list: ListResponse) {
+    setListMenuOpenId(null);
+    try {
+      const listItems = await queryClient.fetchQuery({
+        queryKey: ['listItems', list.id],
+        queryFn: () => getListItems(list.id),
+      });
+      setPlaintextListItems(listItems);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'שגיאה בפתיחת הרשימה כטקסט', true);
+    }
+  }
 
   return (
     <>
@@ -668,6 +696,24 @@ export function Lists() {
               >
                 <div
                   ref={(el) => { listItemRefs.current[list.id] = el; }}
+                  onContextMenu={(e) => {
+                    if (!isNonEmptyList(list)) return;
+                    e.preventDefault();
+                    setListMenuOpenId(list.id);
+                  }}
+                  onTouchStart={() => {
+                    if (!isNonEmptyList(list)) return;
+                    cancelLongPress();
+                    longPressTriggeredRef.current = false;
+                    longPressTimerRef.current = setTimeout(() => {
+                      longPressTriggeredRef.current = true;
+                      setListMenuOpenId(list.id);
+                      longPressTimerRef.current = null;
+                    }, 550);
+                  }}
+                  onTouchMove={cancelLongPress}
+                  onTouchEnd={cancelLongPress}
+                  onTouchCancel={cancelLongPress}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -707,7 +753,10 @@ export function Lists() {
                     }}
                     onClick={(e) => {
                       // Prevent navigation during drag
-                      if (dragIndex !== null) e.preventDefault();
+                      if (dragIndex !== null || longPressTriggeredRef.current) {
+                        e.preventDefault();
+                        longPressTriggeredRef.current = false;
+                      }
                     }}
                   >
                     <CategoryIcon iconId={list.iconId} imageUrl={list.imageUrl} size={28} />
@@ -773,6 +822,32 @@ export function Lists() {
                             overflow: 'hidden',
                           }}
                         >
+                          {isNonEmptyList(list) && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                openPlaintextList(list);
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'flex-end',
+                                gap: 8,
+                                width: '100%',
+                                padding: '10px 16px',
+                                background: 'none',
+                                border: 'none',
+                                borderBottom: '1px solid #f0f0f0',
+                                fontSize: 14,
+                                cursor: 'pointer',
+                                color: '#333',
+                              }}
+                            >
+                              הצג כטקסט
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={(e) => {
@@ -834,6 +909,14 @@ export function Lists() {
           </ul>
         )}
         </div>
+
+        {plaintextListItems && (
+          <PlaintextListDialog
+            title="רשימה כטקסט"
+            items={plaintextListItems}
+            onClose={() => setPlaintextListItems(null)}
+          />
+        )}
 
         {/* Delete confirmation dialog */}
         {confirmDeleteList && (

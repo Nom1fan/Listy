@@ -286,6 +286,63 @@ describe('ListDetail', () => {
     })
   })
 
+  it('opens plaintext dialog with item names in the visible grouped order and copies all text', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, {
+      clipboard: { writeText },
+    })
+    mockFetch()
+    render(
+      <Wrapper>
+        <ListDetail />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText('חלב')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'הצג כטקסט' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: 'רשימה כטקסט' })).toBeInTheDocument()
+    })
+    const textarea = screen.getByLabelText('פריטי הרשימה כטקסט') as HTMLTextAreaElement
+    expect(textarea).toHaveValue('לחם\nחלב')
+
+    fireEvent.click(screen.getByRole('button', { name: 'העתק הכל' }))
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledWith('לחם\nחלב')
+      expect(screen.getByText('הועתק')).toBeInTheDocument()
+    })
+  })
+
+  it('shows an error message when copying plaintext fails', async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error('denied'))
+    Object.assign(navigator, {
+      clipboard: { writeText },
+    })
+    mockFetch()
+    render(
+      <Wrapper>
+        <ListDetail />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText('חלב')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'הצג כטקסט' }))
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: 'רשימה כטקסט' })).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'העתק הכל' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('לא ניתן להעתיק')).toBeInTheDocument()
+    })
+  })
+
   describe('edit item dialog (single-click)', () => {
     const mockCategories = [
       { id: 'c1', nameHe: 'מוצרי חלב', iconId: 'dairy', imageUrl: null, sortOrder: 0, workspaceId: 'ws1', version: 1 },

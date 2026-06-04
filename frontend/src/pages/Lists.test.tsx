@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
@@ -18,6 +18,7 @@ function Wrapper({ children, initialEntries = ['/lists'] }: { children: React.Re
       <QueryClientProvider client={queryClient}>
         <Routes>
           <Route path="/lists" element={children} />
+          <Route path="/lists/:listId" element={<div>inside list</div>} />
           <Route path="/lists/new" element={<ListCreate />} />
           <Route path="/lists/:listId/edit" element={<ListEdit />} />
         </Routes>
@@ -182,6 +183,109 @@ describe('Lists', () => {
       expect(screen.getByRole('heading', { name: 'ערוך רשימה' })).toBeInTheDocument()
       expect(screen.getByPlaceholderText('שם הרשימה')).toHaveValue('רשימה אחת')
     })
+  })
+
+  it('opens plaintext dialog from non-empty list row menu after fetching list items', async () => {
+    const singleList = {
+      id: 'list1',
+      name: 'רשימה אחת',
+      workspaceId: 'ws1',
+      iconId: null,
+      imageUrl: null,
+      sortOrder: 0,
+      categoryIds: [] as string[],
+      itemCount: 2,
+      createdAt: '',
+      updatedAt: '',
+      version: 0,
+    }
+    const fn = globalThis.fetch as ReturnType<typeof vi.fn>
+    fn.mockImplementation((url: string) => {
+      if (url.includes('/api/workspaces')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(workspaceData) })
+      }
+      if (url.includes('/api/lists/list1/items')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve([
+            { id: 'item1', listId: 'list1', productId: null, customNameHe: null, displayName: 'חלב', categoryId: null, categoryNameHe: null, categoryIconId: null, quantity: 1, unit: 'יחידה', showQuantityUnit: false, note: null, crossedOff: false, itemImageUrl: null, productImageUrl: null, sortOrder: 0, createdAt: '', updatedAt: '', version: 0 },
+            { id: 'item2', listId: 'list1', productId: null, customNameHe: null, displayName: 'לחם', categoryId: null, categoryNameHe: null, categoryIconId: null, quantity: 1, unit: 'יחידה', showQuantityUnit: false, note: null, crossedOff: false, itemImageUrl: null, productImageUrl: null, sortOrder: 1, createdAt: '', updatedAt: '', version: 0 },
+          ]),
+        })
+      }
+      if (url.includes('/api/lists')) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve([singleList]),
+        })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+    })
+    render(
+      <Wrapper>
+        <Lists />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText('רשימה אחת')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /תפריט רשימה/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'הצג כטקסט' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: 'רשימה כטקסט' })).toBeInTheDocument()
+    })
+    expect(screen.getByLabelText('פריטי הרשימה כטקסט')).toHaveValue('חלב\nלחם')
+  })
+
+  it('opens the non-empty list row menu on long press without navigating into the list', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    const singleList = {
+      id: 'list1',
+      name: 'רשימה אחת',
+      workspaceId: 'ws1',
+      iconId: null,
+      imageUrl: null,
+      sortOrder: 0,
+      categoryIds: [] as string[],
+      itemCount: 1,
+      createdAt: '',
+      updatedAt: '',
+      version: 0,
+    }
+    const fn = globalThis.fetch as ReturnType<typeof vi.fn>
+    fn.mockImplementation((url: string) => {
+      if (url.includes('/api/workspaces')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(workspaceData) })
+      }
+      if (url.includes('/api/lists')) {
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([singleList]) })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
+    })
+    render(
+      <Wrapper>
+        <Lists />
+      </Wrapper>
+    )
+    await waitFor(() => {
+      expect(screen.getByText('רשימה אחת')).toBeInTheDocument()
+    })
+
+    const listLink = screen.getByRole('link', { name: /רשימה אחת/ })
+    fireEvent.touchStart(listLink)
+    await act(async () => {
+      vi.advanceTimersByTime(550)
+    })
+    fireEvent.touchEnd(listLink)
+    fireEvent.click(listLink)
+
+    expect(screen.getByRole('button', { name: 'הצג כטקסט' })).toBeInTheDocument()
+    expect(screen.queryByText('inside list')).not.toBeInTheDocument()
+    vi.useRealTimers()
   })
 
   it('exit opens confirmation; cancel keeps session', async () => {

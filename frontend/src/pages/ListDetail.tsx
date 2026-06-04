@@ -33,6 +33,7 @@ import { useWorkspaceEvents } from '../hooks/useWorkspaceEvents';
 import { AppBar } from '../components/AppBar';
 import { CategoryAttachPicker } from '../components/CategoryAttachPicker';
 import { CategoryIcon } from '../components/CategoryIcon';
+import { PlaintextListDialog } from '../components/PlaintextListDialog';
 import { ProductBankView } from '../components/ProductBankView';
 import { ViewModeToggle, useViewMode } from '../components/ViewModeToggle';
 import { getFilteredProducts } from '../utils/categoryFilter';
@@ -185,6 +186,7 @@ export function ListDetail() {
   const [attachCategoriesOpen, setAttachCategoriesOpen] = useState(false);
   const [attachCategoriesDraft, setAttachCategoriesDraft] = useState<string[]>([]);
   const [productBankSheetOpen, setProductBankSheetOpen] = useState(false);
+  const [plaintextDialogOpen, setPlaintextDialogOpen] = useState(false);
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -633,6 +635,10 @@ export function ListDetail() {
 
   /** Checked (crossed-off) items, shown in a separate section below. Order preserved from filteredItems. */
   const checkedItems = useMemo(() => filteredItems.filter((i) => i.crossedOff), [filteredItems]);
+  const plaintextItems = [
+    ...categories.flatMap((cat) => grouped[cat].filter((i) => !i.crossedOff)),
+    ...checkedItems,
+  ];
 
   const CHECKED_SECTION = '__checked__';
 
@@ -864,6 +870,24 @@ export function ListDetail() {
             )}
             {items.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setPlaintextDialogOpen(true)}
+                style={{
+                  padding: '6px 10px',
+                  background: '#fff',
+                  border: '1px solid #ccc',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: 13,
+                  color: '#333',
+                }}
+              >
+                הצג כטקסט
+              </button>
               {hasCrossedOff && (
                 <>
                   <button
@@ -1898,6 +1922,14 @@ export function ListDetail() {
               </div>
             </div>
           </div>
+        )}
+
+        {plaintextDialogOpen && (
+          <PlaintextListDialog
+            title="רשימה כטקסט"
+            items={plaintextItems}
+            onClose={() => setPlaintextDialogOpen(false)}
+          />
         )}
 
       </main>
