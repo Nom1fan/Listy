@@ -48,7 +48,7 @@ describe('ProductBankView', () => {
         return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(mockProducts) })
       }
       return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve([]) })
-    }) as typeof fetch
+    }) as unknown as typeof fetch
     queryClient.clear()
     localStorage.clear()
     useAuthStore.getState().setAuth({
